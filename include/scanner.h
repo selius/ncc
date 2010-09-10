@@ -21,6 +21,12 @@ public:
 		TOKEN_TYPE_BLOCK_START,
 		TOKEN_TYPE_BLOCK_END,
 
+		TOKEN_TYPE_LEFT_PARENTHESIS,
+		TOKEN_TYPE_RIGHT_PARENTHESIS,
+
+		TOKEN_TYPE_LEFT_SQUARE_BRACKET,
+		TOKEN_TYPE_RIGHT_SQUARE_BRACKET,
+
 		TOKEN_TYPE_CONSTANT_INTEGER,
 		TOKEN_TYPE_CONSTANT_FLOAT,
 		TOKEN_TYPE_CONSTANT_SYMBOL,
@@ -54,6 +60,7 @@ public:
 
 		TOKEN_TYPE_SEPARATOR_COMMA,
 		TOKEN_TYPE_SEPARATOR_SEMICOLON,
+		TOKEN_TYPE_SEPARATOR_COLON,
 
 		TOKEN_TYPE_EOF,
 	};
@@ -74,12 +81,13 @@ private:
 	friend class CScanner;
 };
 
-class CSymbolTraits
+class CTraits
 {
 public:
 	static bool IsWhitespace(char c);
 	static bool IsValidIdentifierSymbol(char c, bool first = false);
-
+	static bool IsOperationSymbol(char c);
+	static bool IsKeyword(const string &s);
 };
 
 class CScanner
@@ -93,6 +101,11 @@ public:
 	bool IsError() const;
 
 private:
+	CToken ScanIdentifier();
+	CToken ScanOperation();
+	CToken ScanSingleSymbol();
+	void ScanComment();
+	void SkipWhitespace();
 	istream &InputStream;
 	CToken LastToken;
 	CPosition CurrentPosition;

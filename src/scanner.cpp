@@ -35,6 +35,18 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_BLOCK_END:
 		result = "BLOCK_END";
 		break;
+	case TOKEN_TYPE_LEFT_PARENTHESIS:
+		result = "LEFT_PARENTHESIS";
+		break;
+	case TOKEN_TYPE_RIGHT_PARENTHESIS:
+		result = "RIGHT_PARENTHESIS";
+		break;
+	case TOKEN_TYPE_LEFT_SQUARE_BRACKET:
+		result = "LEFT_SQUARE_BRACKET";
+		break;
+	case TOKEN_TYPE_RIGHT_SQUARE_BRACKET:
+		result = "RIGHT_SQUARE_BRACKET";
+		break;
 	case TOKEN_TYPE_CONSTANT_INTEGER:
 		result = "CONSTANT_INTEGER";
 		break;
@@ -128,6 +140,9 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_SEPARATOR_SEMICOLON:
 		result = "SEPARATOR_SEMICOLON";
 		break;
+	case TOKEN_TYPE_SEPARATOR_COLON:
+		result = "SEPARATOR_COLON";
+		break;
 	case TOKEN_TYPE_EOF:
 		result = "EOF";
 		break;
@@ -144,6 +159,29 @@ string CToken::GetValue() const
 CPosition CToken::GetPosition() const
 {
 	return Position;
+}
+
+bool CTraits::IsWhitespace(char c)
+{
+	return (c == ' ' || c == '\t' || c == '\n' || c == '\r');
+}
+
+bool CTraits::IsValidIdentifierSymbol(char c, bool first /*= false*/)
+{
+	return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' ||
+		(!first && ((c >= '0' && c <= '9'))));
+}
+
+bool CTraits::IsOperationSymbol(char c)
+{
+	return (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '=' || c == '<' || c == '>' ||
+		c == '!' || c == '^' || c == '~' || c == '\\' || c == '&' || c == '|');
+}
+
+bool CTraits::IsKeyword(const string &s)
+{
+	// we need something like set<string> Keywords, but there is no suitable way to initialize it now..
+	return (s == "return" || s == "if" || s == "else" || s == "for" || s == "while" || s == "do" || s == "switch" || s == "case");
 }
 
 CScanner::CScanner(istream &AInputStream) : InputStream(AInputStream), CurrentPosition(1, 1), ErrorState(false)
@@ -166,36 +204,23 @@ CToken& CScanner::Next()
 	char Symbol;
 	CToken NewToken;
 
+	SkipWhitespace();
+
+	NewToken.Position = CurrentPosition;
+
 	if (!InputStream.good()) {
-		NewToken.Position = CurrentPosition;
 		NewToken.Type = CToken::TOKEN_TYPE_EOF;
+		return (LastToken = NewToken);
 	}
 
-	while (InputStream.good()) {
-		NewToken.Position = CurrentPosition;
-		InputStream >> Symbol;
+	Symbol = InputStream.peek();
 
-		CurrentPosition.Column++;
-
-		if (Symbol == '=') {
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASSIGN;
-			NewToken.Value = "=";
-			break;
-		} else if (Symbol == '{') {
-			NewToken.Type = CToken::TOKEN_TYPE_BLOCK_START;
-			NewToken.Value = "{";
-			break;
-		} else if (Symbol == '}') {
-			NewToken.Type = CToken::TOKEN_TYPE_BLOCK_END;
-			NewToken.Value = "}";
-			break;
-		} else if (Symbol == '\n') {
-			CurrentPosition.Line++;
-			CurrentPosition.Column = 1;
-		} else {
-			NewToken.Type = CToken::TOKEN_TYPE_INVALID;
-			break;
-		}
+	if (CTraits::IsValidIdentifierSymbol(Symbol, true)) {
+		NewToken = ScanIdentifier();
+	} else if (CTraits::IsOperationSymbol(Symbol)) {
+		NewToken = ScanOperation();
+	} else {
+		NewToken = ScanSingleSymbol();
 	}
 
 	LastToken = NewToken;
@@ -206,4 +231,97 @@ CToken& CScanner::Next()
 bool CScanner::IsError() const
 {
 	return ErrorState;
+}
+
+CToken CScanner::ScanIdentifier()
+{
+	char Symbol;
+	CToken NewToken;
+	NewToken.Position = CurrentPosition;
+
+	while (InputStream.good() && CTraits::IsValidIdentifierSymbol((Symbol = InputStream.peek()))) {
+		NewToken.Value += Symbol;
+		InputStream.ignore();
+		CurrentPosition.Column++;
+	}
+
+	NewToken.Type = (CTraits::IsKeyword(NewToken.Value) ? CToken::TOKEN_TYPE_KEYWORD : CToken::TOKEN_TYPE_IDENTIFIER);
+
+	return NewToken;
+}
+
+CToken CScanner::ScanOperation()
+{
+	CToken NewToken(CToken::TOKEN_TYPE_OPERATION_PLUS, "some operation", CurrentPosition);
+	InputStream.ignore();
+	CurrentPosition.Column++;
+	return NewToken;
+}
+
+CToken CScanner::ScanSingleSymbol()
+{
+	CToken NewToken;
+	NewToken.Position = CurrentPosition;
+
+	char Symbol = InputStream.peek();
+
+	switch (Symbol) {
+	case '{':
+		NewToken.Type = CToken::TOKEN_TYPE_BLOCK_START;
+		break;
+	case '}':
+		NewToken.Type = CToken::TOKEN_TYPE_BLOCK_END;
+		break;
+	case '(':
+		NewToken.Type = CToken::TOKEN_TYPE_LEFT_PARENTHESIS;
+		break;
+	case ')':
+		NewToken.Type = CToken::TOKEN_TYPE_RIGHT_PARENTHESIS;
+		break;
+	case '[':
+		NewToken.Type = CToken::TOKEN_TYPE_LEFT_SQUARE_BRACKET;
+		break;
+	case ']':
+		NewToken.Type = CToken::TOKEN_TYPE_RIGHT_SQUARE_BRACKET;
+		break;
+	case ';':
+		NewToken.Type = CToken::TOKEN_TYPE_SEPARATOR_SEMICOLON;
+		break;
+	case ',':
+		NewToken.Type = CToken::TOKEN_TYPE_SEPARATOR_COMMA;
+		break;
+	case ':':
+		NewToken.Type = CToken::TOKEN_TYPE_SEPARATOR_COLON;
+		break;
+	default:
+		// log it and return invalid token without value..
+		NewToken.Type = CToken::TOKEN_TYPE_INVALID;
+	}
+
+	NewToken.Value = Symbol;
+
+	InputStream.ignore();
+	CurrentPosition.Column++;
+
+	return NewToken;
+}
+
+void CScanner::ScanComment()
+{
+
+}
+
+void CScanner::SkipWhitespace()
+{
+	char Symbol;
+	while (InputStream.good() && CTraits::IsWhitespace((Symbol = InputStream.peek()))) {
+		if (Symbol == '\n') {
+			CurrentPosition.Line++;
+			CurrentPosition.Column = 1;
+		} else {
+			CurrentPosition.Column++;
+		}
+
+		InputStream.ignore();
+	}
 }

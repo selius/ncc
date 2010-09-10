@@ -5,6 +5,8 @@
 
 using namespace std;
 
+const int TOKEN_NAME_FIELD_WIDTH = 31;
+
 void PrintVersion()
 {
 	cout << "Nartov C Compiler, version 0.0.1" << endl << "Copyright 2010  Alexander Nartov" << endl << endl;
@@ -28,8 +30,13 @@ int main(int argc, char *argv[])
 	CToken token;
 
 	token = scanner.Next();
+	streamsize w = cout.width();
 	while (!scanner.IsError()) {
-		cout << token.GetPosition().Line << '\t' << token.GetPosition().Column << '\t' << token.GetStringifiedType() << '\t' << token.GetValue() << endl;
+		cout << token.GetPosition().Line << '\t' << token.GetPosition().Column << '\t';
+		cout.width(TOKEN_NAME_FIELD_WIDTH);
+		cout << left << token.GetStringifiedType();
+		cout.width(w);
+		cout << '\t' << token.GetValue() << endl;
 
 		if (token.GetType() == CToken::TOKEN_TYPE_EOF) {
 			break;

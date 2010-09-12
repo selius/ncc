@@ -1,7 +1,5 @@
 #include "scanner.h"
 
-#include "logger.h"
-
 CToken::CToken() : Type(TOKEN_TYPE_INVALID), Position(0, 0)
 {
 }
@@ -128,11 +126,23 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_OPERATION_BITWISE_NOT:
 		result = "OPERATION_BITWISE_NOT";
 		break;
+	case TOKEN_TYPE_OPERATION_SHIFT_LEFT:
+		result = "OPERATION_SHIFT_LEFT";
+		break;
+	case TOKEN_TYPE_OPERATION_SHIFT_RIGHT:
+		result = "OPERATION_SHIFT_RIGHT";
+		break;
 	case TOKEN_TYPE_OPERATION_DOT:
 		result = "OPERATION_DOT";
 		break;
 	case TOKEN_TYPE_OPERATION_INDIRECT_ACCESS:
 		result = "OPERATION_INDIRECT_ACCESS";
+		break;
+	case TOKEN_TYPE_OPERATION_INCREMENT:
+		result = "OPERATION_INCREMENT";
+		break;
+	case TOKEN_TYPE_OPERATION_DECREMENT:
+		result = "OPERATION_DECREMENT";
 		break;
 	case TOKEN_TYPE_SEPARATOR_COMMA:
 		result = "SEPARATOR_COMMA";
@@ -187,8 +197,7 @@ bool CTraits::IsKeyword(const string &s)
 CScanner::CScanner(istream &AInputStream) : InputStream(AInputStream), CurrentPosition(1, 1), ErrorState(false)
 {
 	if (!InputStream.good()) {
-		CLogger::Instance()->Log(CLogger::LOG_TYPE_ERROR, CurrentPosition, "can't read from input stream");
-		ErrorState = true;
+		Error(CurrentPosition, "can't read from input stream");
 	}
 
 	InputStream >> noskipws;
@@ -201,24 +210,27 @@ CToken& CScanner::GetToken()
 
 CToken& CScanner::Next()
 {
-	char Symbol;
+	char symbol;
 	CToken NewToken;
 
-	SkipWhitespace();
-
-	NewToken.Position = CurrentPosition;
+	SkipWhitespaceAndComments();
 
 	if (!InputStream.good()) {
+		NewToken.Position = CurrentPosition;
 		NewToken.Type = CToken::TOKEN_TYPE_EOF;
 		return (LastToken = NewToken);
 	}
 
-	Symbol = InputStream.peek();
+	symbol = InputStream.peek();
 
-	if (CTraits::IsValidIdentifierSymbol(Symbol, true)) {
+	if (CTraits::IsValidIdentifierSymbol(symbol, true)) {
 		NewToken = ScanIdentifier();
-	} else if (CTraits::IsOperationSymbol(Symbol)) {
+	} else if (CTraits::IsOperationSymbol(symbol)) {
 		NewToken = ScanOperation();
+	} else if (symbol == '"') {
+		NewToken = ScanStringConstant();
+	} else if (symbol == '\'') {
+		NewToken = ScanSymbolConstant();
 	} else {
 		NewToken = ScanSingleSymbol();
 	}
@@ -235,14 +247,11 @@ bool CScanner::IsError() const
 
 CToken CScanner::ScanIdentifier()
 {
-	char Symbol;
 	CToken NewToken;
 	NewToken.Position = CurrentPosition;
 
-	while (InputStream.good() && CTraits::IsValidIdentifierSymbol((Symbol = InputStream.peek()))) {
-		NewToken.Value += Symbol;
-		InputStream.ignore();
-		CurrentPosition.Column++;
+	while (InputStream.good() && CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
+		NewToken.Value += AdvanceOneSymbol();
 	}
 
 	NewToken.Type = (CTraits::IsKeyword(NewToken.Value) ? CToken::TOKEN_TYPE_KEYWORD : CToken::TOKEN_TYPE_IDENTIFIER);
@@ -252,8 +261,60 @@ CToken CScanner::ScanIdentifier()
 
 CToken CScanner::ScanOperation()
 {
-	CToken NewToken(CToken::TOKEN_TYPE_OPERATION_PLUS, "some operation", CurrentPosition);
-	InputStream.ignore();
+	CToken NewToken;
+	NewToken.Position = CurrentPosition;
+
+	char fs = AdvanceOneSymbol();
+	char ss = InputStream.peek();
+
+	if (!CTraits::IsOperationSymbol(ss)) {
+		NewToken.Value = fs;
+
+		switch (fs) {
+		case '+':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PLUS;
+			break;
+		case '-':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_MINUS;
+			break;
+		case '*':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASTERISK;
+			break;
+		case '/':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_SLASH;
+			break;
+		case '%':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PERCENT;
+			break;
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASSIGN;
+			break;
+		case '<':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LESS_THAN;
+			break;
+		case '>':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_GREATER_THAN;
+			break;
+		}
+
+		return NewToken;
+	}
+
+	switch (fs) {
+	case '+':
+	case '-':
+	case '*':
+	case '%':
+	case '=':
+	case '<':
+	case '>':
+		break;
+	}
+
+	//return (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '=' || c == '<' || c == '>' ||
+		//c == '!' || c == '^' || c == '~' || c == '\\' || c == '&' || c == '|');
+
+	//InputStream.ignore();
 	CurrentPosition.Column++;
 	return NewToken;
 }
@@ -263,9 +324,9 @@ CToken CScanner::ScanSingleSymbol()
 	CToken NewToken;
 	NewToken.Position = CurrentPosition;
 
-	char Symbol = InputStream.peek();
+	char symbol = InputStream.peek();
 
-	switch (Symbol) {
+	switch (symbol) {
 	case '{':
 		NewToken.Type = CToken::TOKEN_TYPE_BLOCK_START;
 		break;
@@ -298,30 +359,189 @@ CToken CScanner::ScanSingleSymbol()
 		NewToken.Type = CToken::TOKEN_TYPE_INVALID;
 	}
 
-	NewToken.Value = Symbol;
+	NewToken.Value = symbol;
 
-	InputStream.ignore();
-	CurrentPosition.Column++;
+	AdvanceOneSymbol();
 
 	return NewToken;
 }
 
-void CScanner::ScanComment()
+CToken CScanner::ScanStringConstant()
 {
+	CToken NewToken;
+	NewToken.Position = CurrentPosition;
+	NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_STRING;
 
-}
+	AdvanceOneSymbol();
 
-void CScanner::SkipWhitespace()
-{
-	char Symbol;
-	while (InputStream.good() && CTraits::IsWhitespace((Symbol = InputStream.peek()))) {
-		if (Symbol == '\n') {
-			CurrentPosition.Line++;
-			CurrentPosition.Column = 1;
+	char symbol;
+
+	while (InputStream.good() && ((symbol = InputStream.get()) != '\n')) {
+		if (symbol == '\\') {
+			NewToken.Value += ProcessEscapeSequence();
+		} else if (symbol == '"') {
+			CurrentPosition.Column++;
+			return NewToken;
 		} else {
+			NewToken.Value += symbol;
 			CurrentPosition.Column++;
 		}
-
-		InputStream.ignore();
 	}
+
+	return Error(NewToken.Position, "unterminated string constant");
+}
+
+CToken CScanner::ScanSymbolConstant()
+{
+	CToken NewToken;
+	NewToken.Position = CurrentPosition;
+	NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_SYMBOL;
+
+	AdvanceOneSymbol();
+
+	if (!InputStream.good()) {
+		return Error(NewToken.Position, "unterminated symbol constant");
+	}
+
+	char symbol = InputStream.peek();
+
+	if (symbol == '\\') {
+		NewToken.Value = ProcessEscapeSequence();
+	} else {
+		NewToken.Value = symbol;
+		AdvanceOneSymbol();
+	}
+
+	if (!InputStream.good() || AdvanceOneSymbol() != '\'') {
+		return Error(NewToken.Position, "unterminated symbol constant");
+	}
+
+	return NewToken;
+}
+
+char CScanner::ProcessEscapeSequence()
+{
+	AdvanceOneSymbol();
+
+	if (!InputStream.good()) {
+		return 0;
+	}
+
+	char symbol = AdvanceOneSymbol();
+	char result;
+
+	switch (symbol) {
+	case '\'':
+	case '"':
+	case '\\':
+	case '?':	// used for trigraphs only..
+		result = symbol;
+		break;
+	case 'a':
+		result = '\a';
+		break;
+	case 'b':
+		result = '\b';
+		break;
+	case 'f':
+		result = '\f';
+		break;
+	case 'n':
+		result = '\n';
+		break;
+	case 'r':
+		result = '\r';
+		break;
+	case 't':
+		result = '\t';
+		break;
+	case 'v':
+		result = '\v';
+		break;
+	default:
+		Error(CurrentPosition, "invalid escape sequence");
+		return 0;
+	}
+
+	return result;
+}
+
+bool CScanner::SkipComment()
+{
+	bool EndMatchState = false;
+	bool end = false;
+	char symbol;
+
+	if (!InputStream.good()) {
+		return false;
+	}
+
+	symbol = InputStream.peek();
+	if (symbol == '/') {
+		InputStream.ignore();
+		symbol = InputStream.peek();
+		InputStream.putback('/');
+		if (symbol != '*') {
+			return false;
+		}
+	} else {
+		return false;
+	}
+
+	while (InputStream.good() && !end) {
+		symbol = AdvanceOneSymbol();
+
+		if (!EndMatchState && symbol == '*') {
+			EndMatchState = true;
+		} else if (EndMatchState && symbol == '/') {
+			end = true;
+		} else {
+			EndMatchState = false;
+		}
+	}
+
+	if (!InputStream.good()) {
+		Error(CurrentPosition, "unterminated comment");
+	}
+
+	return true;
+}
+
+bool CScanner::SkipWhitespace()
+{
+	if (!InputStream.good() || !CTraits::IsWhitespace(InputStream.peek())) {
+		return false;
+	}
+
+	while (InputStream.good() && CTraits::IsWhitespace(InputStream.peek())) {
+		AdvanceOneSymbol();
+	}
+
+	return true;
+}
+
+void CScanner::SkipWhitespaceAndComments()
+{
+	while (InputStream.good() && (SkipWhitespace() || SkipComment()));
+}
+
+char CScanner::AdvanceOneSymbol()
+{
+	char symbol = InputStream.get();
+
+	if (symbol == '\n') {
+		CurrentPosition.Line++;
+		CurrentPosition.Column = 1;
+	} else {
+		CurrentPosition.Column++;
+	}
+
+	return symbol;
+}
+
+CToken CScanner::Error(const CPosition &Position, const string &Message)
+{
+	CLogger::Instance()->Log(CLogger::LOG_TYPE_ERROR, Position, Message);
+	ErrorState = true;
+	return CToken(CToken::TOKEN_TYPE_INVALID, "", Position);
 }

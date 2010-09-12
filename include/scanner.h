@@ -6,6 +6,7 @@
 #include <string>
 
 #include "common.h"
+#include "logger.h"
 
 using namespace std;
 
@@ -55,8 +56,12 @@ public:
 		TOKEN_TYPE_OPERATION_LOGIC_NOT,
 		TOKEN_TYPE_OPERATION_BITWISE_OR,
 		TOKEN_TYPE_OPERATION_BITWISE_NOT,
+		TOKEN_TYPE_OPERATION_SHIFT_LEFT,
+		TOKEN_TYPE_OPERATION_SHIFT_RIGHT,
 		TOKEN_TYPE_OPERATION_DOT,
 		TOKEN_TYPE_OPERATION_INDIRECT_ACCESS,
+		TOKEN_TYPE_OPERATION_INCREMENT,
+		TOKEN_TYPE_OPERATION_DECREMENT,
 
 		TOKEN_TYPE_SEPARATOR_COMMA,
 		TOKEN_TYPE_SEPARATOR_SEMICOLON,
@@ -104,8 +109,19 @@ private:
 	CToken ScanIdentifier();
 	CToken ScanOperation();
 	CToken ScanSingleSymbol();
-	void ScanComment();
-	void SkipWhitespace();
+	CToken ScanStringConstant();
+	CToken ScanSymbolConstant();
+
+	char ProcessEscapeSequence();
+
+	bool SkipComment();
+	bool SkipWhitespace();
+	void SkipWhitespaceAndComments();
+
+	char AdvanceOneSymbol();
+
+	CToken Error(const CPosition &Position, const string &Message);
+
 	istream &InputStream;
 	CToken LastToken;
 	CPosition CurrentPosition;

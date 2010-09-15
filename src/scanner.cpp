@@ -21,6 +21,7 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_INVALID:
 		result = "INVALID";
 		break;
+
 	case TOKEN_TYPE_IDENTIFIER:
 		result = "IDENTIFIER";
 		break;
@@ -33,18 +34,21 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_BLOCK_END:
 		result = "BLOCK_END";
 		break;
+
 	case TOKEN_TYPE_LEFT_PARENTHESIS:
 		result = "LEFT_PARENTHESIS";
 		break;
 	case TOKEN_TYPE_RIGHT_PARENTHESIS:
 		result = "RIGHT_PARENTHESIS";
 		break;
+
 	case TOKEN_TYPE_LEFT_SQUARE_BRACKET:
 		result = "LEFT_SQUARE_BRACKET";
 		break;
 	case TOKEN_TYPE_RIGHT_SQUARE_BRACKET:
 		result = "RIGHT_SQUARE_BRACKET";
 		break;
+
 	case TOKEN_TYPE_CONSTANT_INTEGER:
 		result = "CONSTANT_INTEGER";
 		break;
@@ -57,6 +61,7 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_CONSTANT_STRING:
 		result = "CONSTANT_STRING";
 		break;
+
 	case TOKEN_TYPE_OPERATION_PLUS:
 		result = "OPERATION_PLUS";
 		break;
@@ -69,15 +74,10 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_OPERATION_SLASH:
 		result = "OPERATION_SLASH";
 		break;
-	case TOKEN_TYPE_OPERATION_BACKSLASH:
-		result = "OPERATION_BACKSLASH";
-		break;
 	case TOKEN_TYPE_OPERATION_PERCENT:
 		result = "OPERATION_PERCENT";
 		break;
-	case TOKEN_TYPE_OPERATION_AND:
-		result = "OPERATION_AND";
-		break;
+
 	case TOKEN_TYPE_OPERATION_ASSIGN:
 		result = "OPERATION_ASSIGN";
 		break;
@@ -93,6 +93,10 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_OPERATION_SLASH_ASSIGN:
 		result = "OPERATION_SLASH_ASSIGN";
 		break;
+	case TOKEN_TYPE_OPERATION_PERCENT_ASSIGN:
+		result = "OPERATION_PERCENT_ASSIGN";
+		break;
+
 	case TOKEN_TYPE_OPERATION_EQUAL:
 		result = "OPERATION_EQUAL";
 		break;
@@ -111,6 +115,7 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL:
 		result = "OPERATION_GREATER_THAN_OR_EQUAL";
 		break;
+
 	case TOKEN_TYPE_OPERATION_LOGIC_AND:
 		result = "OPERATION_LOGIC_AND";
 		break;
@@ -120,30 +125,59 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_OPERATION_LOGIC_NOT:
 		result = "OPERATION_LOGIC_NOT";
 		break;
+
+	case TOKEN_TYPE_OPERATION_AMPERSAND:
+		result = "OPERATION_AMPERSAND";
+		break;
+
 	case TOKEN_TYPE_OPERATION_BITWISE_OR:
 		result = "OPERATION_BITWISE_OR";
 		break;
 	case TOKEN_TYPE_OPERATION_BITWISE_NOT:
 		result = "OPERATION_BITWISE_NOT";
 		break;
+	case TOKEN_TYPE_OPERATION_BITWISE_XOR:
+		result = "OPERATION_BITWISE_XOR";
+		break;
+
+	case TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN:
+		result = "OPERATION_AMPERSAND_ASSIGN";
+		break;
+	case TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN:
+		result = "OPERATION_BITWISE_OR_ASSIGN";
+		break;
+	case TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN:
+		result = "OPERATION_BITWISE_NOT_ASSIGN";
+		break;
+	case TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN:
+		result = "OPERATION_BITWISE_XOR_ASSIGN";
+		break;
+
 	case TOKEN_TYPE_OPERATION_SHIFT_LEFT:
 		result = "OPERATION_SHIFT_LEFT";
 		break;
 	case TOKEN_TYPE_OPERATION_SHIFT_RIGHT:
 		result = "OPERATION_SHIFT_RIGHT";
 		break;
+
 	case TOKEN_TYPE_OPERATION_DOT:
 		result = "OPERATION_DOT";
 		break;
 	case TOKEN_TYPE_OPERATION_INDIRECT_ACCESS:
 		result = "OPERATION_INDIRECT_ACCESS";
 		break;
+
 	case TOKEN_TYPE_OPERATION_INCREMENT:
 		result = "OPERATION_INCREMENT";
 		break;
 	case TOKEN_TYPE_OPERATION_DECREMENT:
 		result = "OPERATION_DECREMENT";
 		break;
+
+	case TOKEN_TYPE_OPERATION_CONDITIONAL:
+		result = "OPERATION_CONDITIONAL";
+		break;
+
 	case TOKEN_TYPE_SEPARATOR_COMMA:
 		result = "SEPARATOR_COMMA";
 		break;
@@ -153,6 +187,7 @@ string CToken::GetStringifiedType() const
 	case TOKEN_TYPE_SEPARATOR_COLON:
 		result = "SEPARATOR_COLON";
 		break;
+
 	case TOKEN_TYPE_EOF:
 		result = "EOF";
 		break;
@@ -176,6 +211,16 @@ bool CTraits::IsWhitespace(char c)
 	return (c == ' ' || c == '\t' || c == '\n' || c == '\r');
 }
 
+bool CTraits::IsDigit(char c)
+{
+	return (c >= '0' && c <= '9');
+}
+
+bool CTraits::IsValidNumericalConstantSymbol(char c)
+{
+	return (IsDigit(c) || c == '.' || c == 'x' || c == 'X' || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == 'l' || c == 'L');
+}
+
 bool CTraits::IsValidIdentifierSymbol(char c, bool first /*= false*/)
 {
 	return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' ||
@@ -185,13 +230,13 @@ bool CTraits::IsValidIdentifierSymbol(char c, bool first /*= false*/)
 bool CTraits::IsOperationSymbol(char c)
 {
 	return (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '=' || c == '<' || c == '>' ||
-		c == '!' || c == '^' || c == '~' || c == '\\' || c == '&' || c == '|');
+		c == '!' || c == '^' || c == '~' || c == '&' || c == '|' || c == '?' || c == '.');
 }
 
 bool CTraits::IsKeyword(const string &s)
 {
 	// we need something like set<string> Keywords, but there is no suitable way to initialize it now..
-	return (s == "return" || s == "if" || s == "else" || s == "for" || s == "while" || s == "do" || s == "switch" || s == "case");
+	return (s == "return" || s == "if" || s == "else" || s == "for" || s == "while" || s == "do" || s == "switch" || s == "case" || s == "break" || s == "goto" || s == "struct");
 }
 
 CScanner::CScanner(istream &AInputStream) : InputStream(AInputStream), CurrentPosition(1, 1), ErrorState(false)
@@ -210,7 +255,6 @@ CToken& CScanner::GetToken()
 
 CToken& CScanner::Next()
 {
-	char symbol;
 	CToken NewToken;
 
 	SkipWhitespaceAndComments();
@@ -221,10 +265,12 @@ CToken& CScanner::Next()
 		return (LastToken = NewToken);
 	}
 
-	symbol = InputStream.peek();
+	char symbol = InputStream.peek();
 
 	if (CTraits::IsValidIdentifierSymbol(symbol, true)) {
 		NewToken = ScanIdentifier();
+	} else if (TryScanNumericalConstant()) {
+		NewToken = ScanNumericalConstant();
 	} else if (CTraits::IsOperationSymbol(symbol)) {
 		NewToken = ScanOperation();
 	} else if (symbol == '"') {
@@ -235,9 +281,7 @@ CToken& CScanner::Next()
 		NewToken = ScanSingleSymbol();
 	}
 
-	LastToken = NewToken;
-
-	return LastToken;
+	return (LastToken = NewToken);
 }
 
 bool CScanner::IsError() const
@@ -267,55 +311,173 @@ CToken CScanner::ScanOperation()
 	char fs = AdvanceOneSymbol();
 	char ss = InputStream.peek();
 
-	if (!CTraits::IsOperationSymbol(ss)) {
-		NewToken.Value = fs;
-
-		switch (fs) {
-		case '+':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PLUS;
-			break;
-		case '-':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_MINUS;
-			break;
-		case '*':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASTERISK;
-			break;
-		case '/':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_SLASH;
-			break;
-		case '%':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PERCENT;
-			break;
-		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASSIGN;
-			break;
-		case '<':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LESS_THAN;
-			break;
-		case '>':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_GREATER_THAN;
-			break;
-		}
-
-		return NewToken;
-	}
+	bool TwoSymbolOperation = true;
 
 	switch (fs) {
 	case '+':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PLUS_ASSIGN;
+			break;
+		case '+':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_INCREMENT;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PLUS;
+			TwoSymbolOperation = false;
+		}
+		break;
 	case '-':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_MINUS_ASSIGN;
+			break;
+		case '-':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_DECREMENT;
+			break;
+		case '>':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_INDIRECT_ACCESS;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_MINUS;
+			TwoSymbolOperation = false;
+		}
+		break;
 	case '*':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASTERISK;
+			TwoSymbolOperation = false;
+		}
+		break;
+	case '/':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_SLASH_ASSIGN;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_SLASH;
+			TwoSymbolOperation = false;
+		}
+		break;
 	case '%':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PERCENT_ASSIGN;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PERCENT;
+			TwoSymbolOperation = false;
+		}
+		break;
+	case '~':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_NOT;
+			TwoSymbolOperation = false;
+		}
+		break;
+	case '^':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_XOR;
+			TwoSymbolOperation = false;
+		}
+		break;
+	case '&':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN;
+			break;
+		case '&':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LOGIC_AND;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_AMPERSAND;
+			TwoSymbolOperation = false;
+		}
+		break;
+	case '|':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN;
+			break;
+		case '|':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LOGIC_OR;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_OR;
+			TwoSymbolOperation = false;
+		}
+		break;
+	case '!':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_NOT_EQUAL;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LOGIC_NOT;
+			TwoSymbolOperation = false;
+		}
+		break;
 	case '=':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_EQUAL;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASSIGN;
+			TwoSymbolOperation = false;
+		}
+		break;
 	case '<':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL;
+			break;
+		case '<':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_SHIFT_LEFT;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LESS_THAN;
+			TwoSymbolOperation = false;
+		}
+		break;
 	case '>':
+		switch (ss) {
+		case '=':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL;
+			break;
+		case '>':
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_SHIFT_RIGHT;
+			break;
+		default:
+			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_GREATER_THAN;
+			TwoSymbolOperation = false;
+		}
+		break;
+	case '.':
+		NewToken.Type = CToken::TOKEN_TYPE_OPERATION_DOT;
+		TwoSymbolOperation = false;
 		break;
 	}
 
-	//return (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '=' || c == '<' || c == '>' ||
-		//c == '!' || c == '^' || c == '~' || c == '\\' || c == '&' || c == '|');
+	NewToken.Value += fs;
 
-	//InputStream.ignore();
-	CurrentPosition.Column++;
+	if (TwoSymbolOperation) {
+		AdvanceOneSymbol();
+		NewToken.Value += ss;
+	}
+
 	return NewToken;
 }
 
@@ -417,6 +579,82 @@ CToken CScanner::ScanSymbolConstant()
 	}
 
 	return NewToken;
+}
+
+#include <sstream>
+
+CToken CScanner::ScanNumericalConstant()
+{
+	///// FIXME!!!!!!!!!!!!!!
+	CToken NewToken;
+	NewToken.Position = CurrentPosition;
+
+	string s;
+
+	char symbol;
+
+	while (InputStream.good() && CTraits::IsValidNumericalConstantSymbol((symbol = InputStream.peek()))) {
+		s += symbol;
+		AdvanceOneSymbol();
+	}
+
+	double double_val;
+	int int_val;
+
+	stringstream ss;
+
+	ss.str(s);
+	ss >> double_val;
+	if (ss.fail()) {
+		return Error(NewToken.Position, "invalid numerical constant");
+	}
+	ss.clear();
+	ss.str(s);
+	ss >> int_val;
+	if (ss.fail()) {
+		return Error(NewToken.Position, "invalid numerical constant");
+	}
+
+	if (double_val == (double) int_val) {
+		NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_INTEGER;
+		ss << int_val;
+	} else {
+		NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_FLOAT;
+		ss << double_val;
+	}
+	NewToken.Value = ss.str();
+
+	return NewToken;
+
+	/*while (InputStream.good()) {
+		symbol = InputStream.peek();
+		if (CTraits::IsDigit(symbol)) {
+			
+		}
+
+		if (InputStream.peek()) {
+
+		}
+		s += AdvanceOneSymbol();
+	}*/
+}
+
+bool CScanner::TryScanNumericalConstant()
+{
+	bool result = false;
+	char symbol = InputStream.peek();
+
+	if (CTraits::IsDigit(symbol)) {
+		result = true;
+	} else if (symbol == '.') {
+		InputStream.ignore();
+		if (CTraits::IsDigit(InputStream.peek())) {
+			result = true;
+		}
+		InputStream.putback(symbol);
+	}
+
+	return result;
 }
 
 char CScanner::ProcessEscapeSequence()

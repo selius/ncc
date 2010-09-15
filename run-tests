@@ -1,0 +1,13 @@
+#!/bin/bash
+# run-tests - script to run ncc tests
+
+for i in `ls tests/reference-output/`
+do
+	bin/ncc tests/$i.c > tests/output/$i
+	if diff --strip-trailing-cr tests/reference-output/$i tests/output/$i
+	then
+		echo "OK - $i"
+	else
+		echo "FAILED - $i"
+	fi
+done

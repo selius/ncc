@@ -20,6 +20,7 @@ void PrintHelp()
 
 int main(int argc, char *argv[])
 {
+	// TODO: implement command line arguments parsing..
 	if (argc < 2) {
 		PrintHelp();
 		return 0;

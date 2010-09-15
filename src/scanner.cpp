@@ -1,5 +1,7 @@
 #include "scanner.h"
 
+#include <sstream>
+
 CToken::CToken() : Type(TOKEN_TYPE_INVALID), Position(0, 0)
 {
 }
@@ -218,7 +220,7 @@ bool CTraits::IsDigit(char c)
 
 bool CTraits::IsValidNumericalConstantSymbol(char c)
 {
-	return (IsDigit(c) || c == '.' || c == 'x' || c == 'X' || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == 'l' || c == 'L');
+	return (IsDigit(c) || c == '.' || c == 'x' || c == 'X' || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == 'l' || c == 'L' || c == '+' || c == '-');
 }
 
 bool CTraits::IsValidIdentifierSymbol(char c, bool first /*= false*/)
@@ -236,7 +238,18 @@ bool CTraits::IsOperationSymbol(char c)
 bool CTraits::IsKeyword(const string &s)
 {
 	// we need something like set<string> Keywords, but there is no suitable way to initialize it now..
-	return (s == "return" || s == "if" || s == "else" || s == "for" || s == "while" || s == "do" || s == "switch" || s == "case" || s == "break" || s == "goto" || s == "struct");
+	return (s == "auto" || s == "break" || s == "case" || s == "const" || s == "continue" || s == "default" ||
+		s == "do" || s == "else" || s == "enum" || s == "extern" || s == "for" || s == "goto" || s == "if" ||
+		s == "register" || s == "return" || s == "static" || s == "struct" || s == "switch" || s == "typedef" ||
+		s == "union" || s == "void" || s == "volatile" || s == "while");
+
+	// are internal data types keywords?
+	/*
+	auto 	 break 	 case 	char 	const 	continue 	default 	do
+	double 	else 	enum 	extern 	float 	for 	goto 	if
+	int 	long 	register 	return 	short 	signed 	sizeof 	static
+	struct 	switch 	typedef 	union 	unsigned 	void 	volatile 	while
+	*/
 }
 
 CScanner::CScanner(istream &AInputStream) : InputStream(AInputStream), CurrentPosition(1, 1), ErrorState(false)
@@ -581,11 +594,9 @@ CToken CScanner::ScanSymbolConstant()
 	return NewToken;
 }
 
-#include <sstream>
-
 CToken CScanner::ScanNumericalConstant()
 {
-	///// FIXME!!!!!!!!!!!!!!
+	// well, this stringstream-using implementation is maybe not the best, but it works..
 	CToken NewToken;
 	NewToken.Position = CurrentPosition;
 
@@ -598,45 +609,50 @@ CToken CScanner::ScanNumericalConstant()
 		AdvanceOneSymbol();
 	}
 
-	double double_val;
-	int int_val;
-
 	stringstream ss;
-
 	ss.str(s);
-	ss >> double_val;
-	if (ss.fail()) {
-		return Error(NewToken.Position, "invalid numerical constant");
-	}
-	ss.clear();
-	ss.str(s);
-	ss >> int_val;
-	if (ss.fail()) {
-		return Error(NewToken.Position, "invalid numerical constant");
-	}
 
-	if (double_val == (double) int_val) {
-		NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_INTEGER;
-		ss << int_val;
-	} else {
+	if (s.find_first_of('.') != string::npos || s.find_first_of('e') != string::npos) {
+		if (s.find_first_of('e') != string::npos) {
+			ss >> scientific;
+		}
+
+		double double_val;
+
+		ss >> double_val;
+		if (ss.fail()) {
+			return Error(NewToken.Position, "invalid numerical constant");
+		}
+
 		NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_FLOAT;
+
+		ss.str("");
+		ss.clear();
 		ss << double_val;
+	} else {
+		if (s.find_first_of("0x") == 0 || s.find_first_of("0X") == 0) {
+			ss >> hex;
+		} else if (s.at(0) == '0') {
+			ss >> oct;
+		}
+
+		int int_val;
+
+		ss >> int_val;
+		if (ss.fail()) {
+			return Error(NewToken.Position, "invalid numerical constant");
+		}
+
+		NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_INTEGER;
+
+		ss.str("");
+		ss.clear();
+		ss << showbase << int_val;
 	}
+
 	NewToken.Value = ss.str();
 
 	return NewToken;
-
-	/*while (InputStream.good()) {
-		symbol = InputStream.peek();
-		if (CTraits::IsDigit(symbol)) {
-			
-		}
-
-		if (InputStream.peek()) {
-
-		}
-		s += AdvanceOneSymbol();
-	}*/
 }
 
 bool CScanner::TryScanNumericalConstant()
@@ -659,6 +675,7 @@ bool CScanner::TryScanNumericalConstant()
 
 char CScanner::ProcessEscapeSequence()
 {
+	// TODO: add numerical (octal and hexadecimal) values of chars escape sequences support
 	AdvanceOneSymbol();
 
 	if (!InputStream.good()) {

@@ -241,9 +241,9 @@ bool CTraits::IsKeyword(const string &s)
 	return (s == "auto" || s == "break" || s == "case" || s == "const" || s == "continue" || s == "default" ||
 		s == "do" || s == "else" || s == "enum" || s == "extern" || s == "for" || s == "goto" || s == "if" ||
 		s == "register" || s == "return" || s == "static" || s == "struct" || s == "switch" || s == "typedef" ||
-		s == "union" || s == "void" || s == "volatile" || s == "while");
+		s == "union" || s == "volatile" || s == "while");
 
-	// are internal data types keywords?
+	// do internal data types count as keywords? or is it just built-in identifiers?..
 	/*
 	auto 	 break 	 case 	char 	const 	continue 	default 	do
 	double 	else 	enum 	extern 	float 	for 	goto 	if
@@ -482,6 +482,10 @@ CToken CScanner::ScanOperation()
 		NewToken.Type = CToken::TOKEN_TYPE_OPERATION_DOT;
 		TwoSymbolOperation = false;
 		break;
+	case '?':
+		NewToken.Type = CToken::TOKEN_TYPE_OPERATION_CONDITIONAL;
+		TwoSymbolOperation = false;
+		break;
 	}
 
 	NewToken.Value += fs;
@@ -530,8 +534,7 @@ CToken CScanner::ScanSingleSymbol()
 		NewToken.Type = CToken::TOKEN_TYPE_SEPARATOR_COLON;
 		break;
 	default:
-		// log it and return invalid token without value..
-		NewToken.Type = CToken::TOKEN_TYPE_INVALID;
+		return Error(CurrentPosition, string("invalid symbol '") + symbol + "' encountered");
 	}
 
 	NewToken.Value = symbol;
@@ -551,15 +554,13 @@ CToken CScanner::ScanStringConstant()
 
 	char symbol;
 
-	while (InputStream.good() && ((symbol = InputStream.get()) != '\n')) {
+	while (InputStream.good() && ((symbol = AdvanceOneSymbol()) != '\n')) {
 		if (symbol == '\\') {
 			NewToken.Value += ProcessEscapeSequence();
 		} else if (symbol == '"') {
-			CurrentPosition.Column++;
 			return NewToken;
 		} else {
 			NewToken.Value += symbol;
-			CurrentPosition.Column++;
 		}
 	}
 
@@ -581,6 +582,7 @@ CToken CScanner::ScanSymbolConstant()
 	char symbol = InputStream.peek();
 
 	if (symbol == '\\') {
+		AdvanceOneSymbol();
 		NewToken.Value = ProcessEscapeSequence();
 	} else {
 		NewToken.Value = symbol;
@@ -630,7 +632,7 @@ CToken CScanner::ScanNumericalConstant()
 		ss.clear();
 		ss << double_val;
 	} else {
-		if (s.find_first_of("0x") == 0 || s.find_first_of("0X") == 0) {
+		if (s.find("0x") == 0 || s.find("0X") == 0) {
 			ss >> hex;
 		} else if (s.at(0) == '0') {
 			ss >> oct;
@@ -676,8 +678,6 @@ bool CScanner::TryScanNumericalConstant()
 char CScanner::ProcessEscapeSequence()
 {
 	// TODO: add numerical (octal and hexadecimal) values of chars escape sequences support
-	AdvanceOneSymbol();
-
 	if (!InputStream.good()) {
 		return 0;
 	}
@@ -743,10 +743,12 @@ bool CScanner::SkipComment()
 		return false;
 	}
 
+	CPosition start = CurrentPosition;
+
 	while (InputStream.good() && !end) {
 		symbol = AdvanceOneSymbol();
 
-		if (!EndMatchState && symbol == '*') {
+		if (symbol == '*') {
 			EndMatchState = true;
 		} else if (EndMatchState && symbol == '/') {
 			end = true;
@@ -756,7 +758,7 @@ bool CScanner::SkipComment()
 	}
 
 	if (!InputStream.good()) {
-		Error(CurrentPosition, "unterminated comment");
+		Error(start, "unterminated comment");
 	}
 
 	return true;

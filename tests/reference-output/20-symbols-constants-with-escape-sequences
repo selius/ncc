@@ -1,0 +1,7 @@
+1	1	CONSTANT_SYMBOL                	q
+1	5	CONSTANT_SYMBOL                		
+2	1	CONSTANT_SYMBOL                	
+
+2	6	CONSTANT_SYMBOL                	\
+3	1	CONSTANT_SYMBOL                	'
+4	1	EOF                            	

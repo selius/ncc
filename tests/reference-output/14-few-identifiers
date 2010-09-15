@@ -1,0 +1,7 @@
+1	1	IDENTIFIER                     	first
+1	7	IDENTIFIER                     	second
+1	14	IDENTIFIER                     	third
+2	1	IDENTIFIER                     	fourth
+2	8	IDENTIFIER                     	fifth
+2	14	IDENTIFIER                     	sixth
+3	1	EOF                            	

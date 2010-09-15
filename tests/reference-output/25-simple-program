@@ -1,0 +1,10 @@
+1	1	IDENTIFIER                     	int
+1	5	IDENTIFIER                     	main
+1	9	LEFT_PARENTHESIS               	(
+1	10	RIGHT_PARENTHESIS              	)
+2	1	BLOCK_START                    	{
+3	2	KEYWORD                        	return
+3	9	CONSTANT_INTEGER               	0
+3	10	SEPARATOR_SEMICOLON            	;
+4	1	BLOCK_END                      	}
+5	1	EOF                            	

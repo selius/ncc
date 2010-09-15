@@ -1,0 +1,5 @@
+1	1	CONSTANT_STRING                	test
+
+1	10	CONSTANT_STRING                	another 	 test
+2	1	CONSTANT_STRING                	hear beep? 
+3	1	EOF                            	

@@ -1,0 +1,16 @@
+1	1	OPERATION_PLUS                 	+
+2	1	OPERATION_MINUS                	-
+3	1	OPERATION_ASTERISK             	*
+4	1	OPERATION_SLASH                	/
+5	1	OPERATION_PERCENT              	%
+6	1	OPERATION_ASSIGN               	=
+7	1	OPERATION_AMPERSAND            	&
+8	1	OPERATION_BITWISE_XOR          	^
+9	1	OPERATION_BITWISE_OR           	|
+10	1	OPERATION_BITWISE_NOT          	~
+11	1	OPERATION_LOGIC_NOT            	!
+12	1	OPERATION_DOT                  	.
+13	1	OPERATION_CONDITIONAL          	?
+14	1	OPERATION_LESS_THAN            	<
+15	1	OPERATION_GREATER_THAN         	>
+16	1	EOF                            	

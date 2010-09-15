@@ -1,0 +1,4 @@
+1	1	SEPARATOR_COMMA                	,
+2	1	SEPARATOR_SEMICOLON            	;
+3	1	SEPARATOR_COLON                	:
+4	1	EOF                            	

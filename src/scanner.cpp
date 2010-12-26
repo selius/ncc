@@ -218,9 +218,14 @@ bool CTraits::IsDigit(char c)
 	return (c >= '0' && c <= '9');
 }
 
-bool CTraits::IsValidNumericalConstantSymbol(char c)
+bool CTraits::IsHexDigit(char c)
 {
-	return (IsDigit(c) || c == '.' || c == 'x' || c == 'X' || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == 'l' || c == 'L' || c == '+' || c == '-');
+	return ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'));
+}
+
+bool CTraits::IsOctDigit(char c)
+{
+	return (c >= '0' && c <= '7');
 }
 
 bool CTraits::IsValidIdentifierSymbol(char c, bool first /*= false*/)
@@ -598,61 +603,38 @@ CToken CScanner::ScanSymbolConstant()
 
 CToken CScanner::ScanNumericalConstant()
 {
-	// well, this stringstream-using implementation is maybe not the best, but it works..
 	CToken NewToken;
 	NewToken.Position = CurrentPosition;
 
-	string s;
+	string IntegerPart = "0";
+	string FractionalPart;
+	string ExponentPart;
+	string SuffixPart;
 
-	char symbol;
-
-	while (InputStream.good() && CTraits::IsValidNumericalConstantSymbol((symbol = InputStream.peek()))) {
-		s += symbol;
-		AdvanceOneSymbol();
+	if (InputStream.peek() != '.') {
+		IntegerPart = ScanIntegerPart();
 	}
 
-	stringstream ss;
-	ss.str(s);
+	FractionalPart = ScanFractionalPart();
 
-	if (s.find_first_of('.') != string::npos || s.find_first_of('e') != string::npos) {
-		if (s.find_first_of('e') != string::npos) {
-			ss >> scientific;
-		}
+	// NOTE: error state check was here..
 
-		double double_val;
+	ExponentPart = ScanExponentPart();
 
-		ss >> double_val;
-		if (ss.fail()) {
-			return Error(NewToken.Position, "invalid numerical constant");
-		}
+	bool FloatConstant = !(FractionalPart.empty() && ExponentPart.empty());
 
-		NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_FLOAT;
-
-		ss.str("");
-		ss.clear();
-		ss << double_val;
+	if (FloatConstant) {
+		SuffixPart = ScanFloatSuffix();
 	} else {
-		if (s.find("0x") == 0 || s.find("0X") == 0) {
-			ss >> hex;
-		} else if (s.at(0) == '0') {
-			ss >> oct;
-		}
-
-		int int_val;
-
-		ss >> int_val;
-		if (ss.fail()) {
-			return Error(NewToken.Position, "invalid numerical constant");
-		}
-
-		NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_INTEGER;
-
-		ss.str("");
-		ss.clear();
-		ss << showbase << int_val;
+		SuffixPart = ScanIntegerSuffix();
 	}
 
-	NewToken.Value = ss.str();
+	if (ErrorState) {
+		return CToken(CToken::TOKEN_TYPE_INVALID, "", NewToken.Position);
+	}
+
+	NewToken.Type = FloatConstant ? CToken::TOKEN_TYPE_CONSTANT_FLOAT : CToken::TOKEN_TYPE_CONSTANT_INTEGER;
+	NewToken.Value = IntegerPart + FractionalPart + ExponentPart + SuffixPart;
 
 	return NewToken;
 }
@@ -670,6 +652,168 @@ bool CScanner::TryScanNumericalConstant()
 			result = true;
 		}
 		InputStream.putback(symbol);
+	}
+
+	return result;
+}
+
+string CScanner::ScanHexadecimalInteger()
+{
+	string result;
+	char c;
+
+	while (InputStream.good() && CTraits::IsHexDigit(c = InputStream.peek())) {
+		result += c;
+		AdvanceOneSymbol();
+	}
+
+	return result;
+}
+
+string CScanner::ScanOctalInteger()
+{
+	string result;
+	char c;
+
+	while (InputStream.good() && CTraits::IsOctDigit(c = InputStream.peek())) {
+		result += c;
+		AdvanceOneSymbol();
+	}
+
+	return result;
+}
+
+string CScanner::ScanIntegerPart()
+{
+	string result;
+
+	char c = AdvanceOneSymbol();
+	result += c;
+
+	if (c == '0') {
+		c = InputStream.peek();
+		if (c == 'x' || c == 'X') {
+			result += 'x';
+			AdvanceOneSymbol();
+			if (!CTraits::IsHexDigit(InputStream.peek())) {
+				Error(CurrentPosition, "invalid hexadecimal constant");
+				return "";
+			}
+			result += ScanHexadecimalInteger();
+			if (InputStream.peek() == '.') {
+				Error(CurrentPosition, "invalid float constant");
+				return "";
+			}
+		} else if (CTraits::IsOctDigit(c)) {
+			result += ScanOctalInteger();
+			if (InputStream.peek() == '.') {
+				Error(CurrentPosition, "invalid float constant");
+				return "";
+			}
+		} else if (CTraits::IsDigit(c)) {
+			Error(CurrentPosition, "invalid octal constant");
+			return "";
+		}
+
+	} else {
+		while (InputStream.good() && CTraits::IsDigit(c = InputStream.peek())) {
+			result += c;
+			AdvanceOneSymbol();
+		}
+	}
+
+	return result;
+}
+
+string CScanner::ScanFractionalPart()
+{
+	if (InputStream.peek() != '.') {
+		return "";
+	}
+
+	string result;
+	char c;
+
+	result += AdvanceOneSymbol();
+
+	while (InputStream.good() && CTraits::IsDigit(c = InputStream.peek())) {
+		result += c;
+		AdvanceOneSymbol();
+	}
+
+	return result;
+}
+
+string CScanner::ScanExponentPart()
+{
+	char c;
+	c = InputStream.peek();
+	if (c != 'e' && c != 'E') {
+		return "";
+	}
+
+	string result;
+	result += AdvanceOneSymbol();
+
+	c = InputStream.peek();
+
+	if (c == '+' || c == '-') {
+		result += c;
+		AdvanceOneSymbol();
+	}
+
+	while (InputStream.good() && CTraits::IsDigit(c = InputStream.peek())) {
+		result += c;
+		AdvanceOneSymbol();
+	}
+
+	return result;
+}
+
+string CScanner::ScanFloatSuffix()
+{
+	char c = InputStream.peek();
+
+	if (c == 'f' || c == 'F' || c == 'l' || c == 'L') {
+		AdvanceOneSymbol();
+		if (!CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
+			return string(1, c);
+		} else {
+			Error(CurrentPosition, "invalid suffix on float constant");
+		}
+	} else if (CTraits::IsValidIdentifierSymbol(c)) {
+		Error(CurrentPosition, "invalid suffix on float constant");
+	}
+
+	return "";
+}
+
+string CScanner::ScanIntegerSuffix()
+{
+	string result;
+	char fc = InputStream.peek();
+
+	if (fc == 'u' || fc == 'U' || fc == 'l' || fc == 'L') {
+		result += fc;
+		AdvanceOneSymbol();
+	} else if (CTraits::IsValidIdentifierSymbol(fc)) {
+		Error(CurrentPosition, "invalid suffix on integer constant");
+		return "";
+	}
+
+	char sc = InputStream.peek();
+
+	if (((sc == 'u' || sc == 'U') && (fc != 'u' && fc != 'U')) || ((sc == 'l' || sc == 'L') && (fc != 'l' && fc != 'L'))) {
+		result += fc;
+		AdvanceOneSymbol();
+	} else if (CTraits::IsValidIdentifierSymbol(sc)) {
+		Error(CurrentPosition, "invalid suffix on integer constant");
+		return "";
+	}
+
+	if (CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
+		Error(CurrentPosition, "invalid suffix on integer constant");
+		return "";
 	}
 
 	return result;

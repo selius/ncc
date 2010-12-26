@@ -107,6 +107,8 @@ class CTraits
 public:
 	static bool IsWhitespace(char c);
 	static bool IsDigit(char c);
+	static bool IsHexDigit(char c);
+	static bool IsOctDigit(char c);
 	static bool IsValidNumericalConstantSymbol(char c);
 	static bool IsValidIdentifierSymbol(char c, bool first = false);
 	static bool IsOperationSymbol(char c);
@@ -132,6 +134,13 @@ private:
 	CToken ScanNumericalConstant();
 
 	bool TryScanNumericalConstant();
+	string ScanHexadecimalInteger();
+	string ScanOctalInteger();
+	string ScanIntegerPart();
+	string ScanFractionalPart();
+	string ScanExponentPart();
+	string ScanFloatSuffix();
+	string ScanIntegerSuffix();
 
 	char ProcessEscapeSequence();
 

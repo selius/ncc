@@ -4,102 +4,144 @@
 #include <istream>
 #include <ostream>
 #include <string>
+#include <map>
 
 #include "common.h"
 #include "logger.h"
 
 using namespace std;
 
+enum ETokenType
+{
+	TOKEN_TYPE_INVALID,
+
+	TOKEN_TYPE_IDENTIFIER,
+	TOKEN_TYPE_KEYWORD,
+	TOKEN_TYPE_BLOCK_START,
+	TOKEN_TYPE_BLOCK_END,
+
+	TOKEN_TYPE_LEFT_PARENTHESIS,
+	TOKEN_TYPE_RIGHT_PARENTHESIS,
+
+	TOKEN_TYPE_LEFT_SQUARE_BRACKET,
+	TOKEN_TYPE_RIGHT_SQUARE_BRACKET,
+
+	TOKEN_TYPE_CONSTANT_INTEGER,
+	TOKEN_TYPE_CONSTANT_FLOAT,
+	TOKEN_TYPE_CONSTANT_SYMBOL,
+	TOKEN_TYPE_CONSTANT_STRING,
+
+	TOKEN_TYPE_OPERATION_PLUS,
+	TOKEN_TYPE_OPERATION_MINUS,
+	TOKEN_TYPE_OPERATION_ASTERISK,
+	TOKEN_TYPE_OPERATION_SLASH,
+	TOKEN_TYPE_OPERATION_PERCENT,
+
+	TOKEN_TYPE_OPERATION_ASSIGN,
+	TOKEN_TYPE_OPERATION_PLUS_ASSIGN,
+	TOKEN_TYPE_OPERATION_MINUS_ASSIGN,
+	TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN,
+	TOKEN_TYPE_OPERATION_SLASH_ASSIGN,
+	TOKEN_TYPE_OPERATION_PERCENT_ASSIGN,
+
+	TOKEN_TYPE_OPERATION_EQUAL,
+	TOKEN_TYPE_OPERATION_NOT_EQUAL,
+	TOKEN_TYPE_OPERATION_LESS_THAN,
+	TOKEN_TYPE_OPERATION_GREATER_THAN,
+	TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL,
+	TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL,
+
+	TOKEN_TYPE_OPERATION_LOGIC_AND,
+	TOKEN_TYPE_OPERATION_LOGIC_OR,
+	TOKEN_TYPE_OPERATION_LOGIC_NOT,
+
+	TOKEN_TYPE_OPERATION_AMPERSAND,
+
+	TOKEN_TYPE_OPERATION_BITWISE_OR,
+	TOKEN_TYPE_OPERATION_BITWISE_NOT,
+	TOKEN_TYPE_OPERATION_BITWISE_XOR,
+
+	TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN,
+	TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN,
+	TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN,
+	TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN,
+
+	TOKEN_TYPE_OPERATION_SHIFT_LEFT,
+	TOKEN_TYPE_OPERATION_SHIFT_RIGHT,
+
+	TOKEN_TYPE_OPERATION_DOT,
+	TOKEN_TYPE_OPERATION_INDIRECT_ACCESS,
+
+	TOKEN_TYPE_OPERATION_INCREMENT,
+	TOKEN_TYPE_OPERATION_DECREMENT,
+
+	TOKEN_TYPE_OPERATION_CONDITIONAL,
+
+	TOKEN_TYPE_SEPARATOR_COMMA,
+	TOKEN_TYPE_SEPARATOR_SEMICOLON,
+	TOKEN_TYPE_SEPARATOR_COLON,
+
+	TOKEN_TYPE_EOF,
+};
+
+
 class CToken
 {
 public:
-	enum ETokenType
-	{
-		TOKEN_TYPE_INVALID,
-
-		TOKEN_TYPE_IDENTIFIER,
-		TOKEN_TYPE_KEYWORD,
-		TOKEN_TYPE_BLOCK_START,
-		TOKEN_TYPE_BLOCK_END,
-
-		TOKEN_TYPE_LEFT_PARENTHESIS,
-		TOKEN_TYPE_RIGHT_PARENTHESIS,
-
-		TOKEN_TYPE_LEFT_SQUARE_BRACKET,
-		TOKEN_TYPE_RIGHT_SQUARE_BRACKET,
-
-		TOKEN_TYPE_CONSTANT_INTEGER,
-		TOKEN_TYPE_CONSTANT_FLOAT,
-		TOKEN_TYPE_CONSTANT_SYMBOL,
-		TOKEN_TYPE_CONSTANT_STRING,
-
-		TOKEN_TYPE_OPERATION_PLUS,
-		TOKEN_TYPE_OPERATION_MINUS,
-		TOKEN_TYPE_OPERATION_ASTERISK,
-		TOKEN_TYPE_OPERATION_SLASH,
-		TOKEN_TYPE_OPERATION_PERCENT,
-
-		TOKEN_TYPE_OPERATION_ASSIGN,
-		TOKEN_TYPE_OPERATION_PLUS_ASSIGN,
-		TOKEN_TYPE_OPERATION_MINUS_ASSIGN,
-		TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN,
-		TOKEN_TYPE_OPERATION_SLASH_ASSIGN,
-		TOKEN_TYPE_OPERATION_PERCENT_ASSIGN,
-
-		TOKEN_TYPE_OPERATION_EQUAL,
-		TOKEN_TYPE_OPERATION_NOT_EQUAL,
-		TOKEN_TYPE_OPERATION_LESS_THAN,
-		TOKEN_TYPE_OPERATION_GREATER_THAN,
-		TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL,
-		TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL,
-
-		TOKEN_TYPE_OPERATION_LOGIC_AND,
-		TOKEN_TYPE_OPERATION_LOGIC_OR,
-		TOKEN_TYPE_OPERATION_LOGIC_NOT,
-
-		TOKEN_TYPE_OPERATION_AMPERSAND,
-
-		TOKEN_TYPE_OPERATION_BITWISE_OR,
-		TOKEN_TYPE_OPERATION_BITWISE_NOT,
-		TOKEN_TYPE_OPERATION_BITWISE_XOR,
-
-		TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN,
-		TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN,
-		TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN,
-		TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN,
-
-		TOKEN_TYPE_OPERATION_SHIFT_LEFT,
-		TOKEN_TYPE_OPERATION_SHIFT_RIGHT,
-
-		TOKEN_TYPE_OPERATION_DOT,
-		TOKEN_TYPE_OPERATION_INDIRECT_ACCESS,
-
-		TOKEN_TYPE_OPERATION_INCREMENT,
-		TOKEN_TYPE_OPERATION_DECREMENT,
-
-		TOKEN_TYPE_OPERATION_CONDITIONAL,
-
-		TOKEN_TYPE_SEPARATOR_COMMA,
-		TOKEN_TYPE_SEPARATOR_SEMICOLON,
-		TOKEN_TYPE_SEPARATOR_COLON,
-
-		TOKEN_TYPE_EOF,
-	};
-
-	CToken();
-	CToken(ETokenType AType, const string &AValue, const CPosition &APosition);
+	CToken(ETokenType AType, const string &AText, const CPosition &APosition);
+	virtual ~CToken();
 
 	ETokenType GetType() const;
 	string GetStringifiedType() const;
-	string GetValue() const;
+	string GetText() const;
 	CPosition GetPosition() const;
 
-private:
+	virtual int GetIntegerValue() const;
+	virtual double GetFloatValue() const;
+	virtual char GetSymbolValue() const;
+
+protected:
 	ETokenType Type;
-	string Value;
+	string Text;
 	CPosition Position;
 
 	friend class CScanner;
+};
+
+class CIntegerConstantToken : public CToken
+{
+public:
+	CIntegerConstantToken(const string &AText, const CPosition &APosition);
+
+	int GetIntegerValue() const;
+
+protected:
+	int Value;
+
+};
+
+class CFloatConstantToken : public CToken
+{
+public:
+	CFloatConstantToken(const string &AText, const CPosition &APosition);
+
+	double GetFloatValue() const;
+
+protected:
+	double Value;
+
+};
+
+class CSymbolConstantToken : public CToken
+{
+public:
+	CSymbolConstantToken(const string &AText, const CPosition &APosition);
+
+	char GetSymbolValue() const;
+
+protected:
+	char Value;
+
 };
 
 class CTraits
@@ -119,19 +161,20 @@ class CScanner
 {
 public:
 	CScanner(istream &AInputStream);
+	~CScanner();
 
-	CToken& GetToken();
-	CToken& Next();
+	const CToken* GetToken();
+	const CToken* Next();
 
-	bool IsError() const;
+	static map<ETokenType, string> TokenTypesNames;
 
 private:
-	CToken ScanIdentifier();
-	CToken ScanOperation();
-	CToken ScanSingleSymbol();
-	CToken ScanStringConstant();
-	CToken ScanSymbolConstant();
-	CToken ScanNumericalConstant();
+	CToken* ScanIdentifier();
+	CToken* ScanOperation();
+	CToken* ScanSingleSymbol();
+	CToken* ScanStringConstant();
+	CToken* ScanSymbolConstant();
+	CToken* ScanNumericalConstant();
 
 	bool TryScanNumericalConstant();
 	string ScanHexadecimalInteger();
@@ -150,14 +193,9 @@ private:
 
 	char AdvanceOneSymbol();
 
-	CToken Error(const CPosition &Position, const string &Message);
-
 	istream &InputStream;
-	CToken LastToken;
+	CToken *LastToken;
 	CPosition CurrentPosition;
-
-	bool ErrorState;
-
 };
 
 

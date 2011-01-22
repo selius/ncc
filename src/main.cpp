@@ -144,27 +144,25 @@ int main(int argc, char *argv[])
 	}
 
 	if (CompilerMode == COMPILER_MODE_SCAN) {
+		try {
+			CScanner scanner(in);
+			const CToken *token = NULL;
 
-		CScanner scanner(in);
-		CToken token;
+			streamsize w = cout.width();
 
-		token = scanner.Next();
-		streamsize w = cout.width();
-		while (!scanner.IsError()) {
-			*out << token.GetPosition().Line << '\t' << token.GetPosition().Column << '\t';
-			out->width(TOKEN_NAME_FIELD_WIDTH);
-			*out << left << token.GetStringifiedType();
-			out->width(w);
-			*out << '\t' << token.GetValue() << endl;
+			do {
+				token = scanner.Next();
+				*out << token->GetPosition().Line << '\t' << token->GetPosition().Column << '\t';
+				out->width(TOKEN_NAME_FIELD_WIDTH);
+				*out << left << token->GetStringifiedType();
+				out->width(w);
+				*out << '\t' << token->GetText() << endl;
 
-			if (token.GetType() == CToken::TOKEN_TYPE_EOF) {
-				break;
-			}
+			} while (token->GetType() != TOKEN_TYPE_EOF);
 
-			token = scanner.Next();
-		}
-
-		if (scanner.IsError()) {
+		} catch (CException e) {
+			cerr << e.GetPosition().Line << ", " << e.GetPosition().Column
+				<< ": error: " << e.GetMessage() << endl;
 			ExitCode = EXIT_CODE_SCANNER_ERROR;
 		}
 	} else {

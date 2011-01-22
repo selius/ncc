@@ -1,211 +1,83 @@
 #include "scanner.h"
 
 #include <sstream>
+#include <stdexcept>
 
-CToken::CToken() : Type(TOKEN_TYPE_INVALID), Position(0, 0)
+CToken::CToken(ETokenType AType, const string &AText, const CPosition &APosition) : Type(AType), Text(AText), Position(APosition)
 {
 }
 
-CToken::CToken(ETokenType AType, const string &AValue, const CPosition &APosition) : Type(AType), Value(AValue), Position(APosition)
+CToken::~CToken()
 {
 }
 
-CToken::ETokenType CToken::GetType() const
+ETokenType CToken::GetType() const
 {
 	return Type;
 }
 
 string CToken::GetStringifiedType() const
 {
-	string result;
-
-	switch (Type) {
-	case TOKEN_TYPE_INVALID:
-		result = "INVALID";
-		break;
-
-	case TOKEN_TYPE_IDENTIFIER:
-		result = "IDENTIFIER";
-		break;
-	case TOKEN_TYPE_KEYWORD:
-		result = "KEYWORD";
-		break;
-	case TOKEN_TYPE_BLOCK_START:
-		result = "BLOCK_START";
-		break;
-	case TOKEN_TYPE_BLOCK_END:
-		result = "BLOCK_END";
-		break;
-
-	case TOKEN_TYPE_LEFT_PARENTHESIS:
-		result = "LEFT_PARENTHESIS";
-		break;
-	case TOKEN_TYPE_RIGHT_PARENTHESIS:
-		result = "RIGHT_PARENTHESIS";
-		break;
-
-	case TOKEN_TYPE_LEFT_SQUARE_BRACKET:
-		result = "LEFT_SQUARE_BRACKET";
-		break;
-	case TOKEN_TYPE_RIGHT_SQUARE_BRACKET:
-		result = "RIGHT_SQUARE_BRACKET";
-		break;
-
-	case TOKEN_TYPE_CONSTANT_INTEGER:
-		result = "CONSTANT_INTEGER";
-		break;
-	case TOKEN_TYPE_CONSTANT_FLOAT:
-		result = "CONSTANT_FLOAT";
-		break;
-	case TOKEN_TYPE_CONSTANT_SYMBOL:
-		result = "CONSTANT_SYMBOL";
-		break;
-	case TOKEN_TYPE_CONSTANT_STRING:
-		result = "CONSTANT_STRING";
-		break;
-
-	case TOKEN_TYPE_OPERATION_PLUS:
-		result = "OPERATION_PLUS";
-		break;
-	case TOKEN_TYPE_OPERATION_MINUS:
-		result = "OPERATION_MINUS";
-		break;
-	case TOKEN_TYPE_OPERATION_ASTERISK:
-		result = "OPERATION_ASTERISK";
-		break;
-	case TOKEN_TYPE_OPERATION_SLASH:
-		result = "OPERATION_SLASH";
-		break;
-	case TOKEN_TYPE_OPERATION_PERCENT:
-		result = "OPERATION_PERCENT";
-		break;
-
-	case TOKEN_TYPE_OPERATION_ASSIGN:
-		result = "OPERATION_ASSIGN";
-		break;
-	case TOKEN_TYPE_OPERATION_PLUS_ASSIGN:
-		result = "OPERATION_PLUS_ASSIGN";
-		break;
-	case TOKEN_TYPE_OPERATION_MINUS_ASSIGN:
-		result = "OPERATION_MINUS_ASSIGN";
-		break;
-	case TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN:
-		result = "OPERATION_ASTERISK_ASSIGN";
-		break;
-	case TOKEN_TYPE_OPERATION_SLASH_ASSIGN:
-		result = "OPERATION_SLASH_ASSIGN";
-		break;
-	case TOKEN_TYPE_OPERATION_PERCENT_ASSIGN:
-		result = "OPERATION_PERCENT_ASSIGN";
-		break;
-
-	case TOKEN_TYPE_OPERATION_EQUAL:
-		result = "OPERATION_EQUAL";
-		break;
-	case TOKEN_TYPE_OPERATION_NOT_EQUAL:
-		result = "OPERATION_NOT_EQUAL";
-		break;
-	case TOKEN_TYPE_OPERATION_LESS_THAN:
-		result = "OPERATION_LESS_THAN";
-		break;
-	case TOKEN_TYPE_OPERATION_GREATER_THAN:
-		result = "OPERATION_GREATER_THAN";
-		break;
-	case TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL:
-		result = "OPERATION_LESS_THAN_OR_EQUAL";
-		break;
-	case TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL:
-		result = "OPERATION_GREATER_THAN_OR_EQUAL";
-		break;
-
-	case TOKEN_TYPE_OPERATION_LOGIC_AND:
-		result = "OPERATION_LOGIC_AND";
-		break;
-	case TOKEN_TYPE_OPERATION_LOGIC_OR:
-		result = "OPERATION_LOGIC_OR";
-		break;
-	case TOKEN_TYPE_OPERATION_LOGIC_NOT:
-		result = "OPERATION_LOGIC_NOT";
-		break;
-
-	case TOKEN_TYPE_OPERATION_AMPERSAND:
-		result = "OPERATION_AMPERSAND";
-		break;
-
-	case TOKEN_TYPE_OPERATION_BITWISE_OR:
-		result = "OPERATION_BITWISE_OR";
-		break;
-	case TOKEN_TYPE_OPERATION_BITWISE_NOT:
-		result = "OPERATION_BITWISE_NOT";
-		break;
-	case TOKEN_TYPE_OPERATION_BITWISE_XOR:
-		result = "OPERATION_BITWISE_XOR";
-		break;
-
-	case TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN:
-		result = "OPERATION_AMPERSAND_ASSIGN";
-		break;
-	case TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN:
-		result = "OPERATION_BITWISE_OR_ASSIGN";
-		break;
-	case TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN:
-		result = "OPERATION_BITWISE_NOT_ASSIGN";
-		break;
-	case TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN:
-		result = "OPERATION_BITWISE_XOR_ASSIGN";
-		break;
-
-	case TOKEN_TYPE_OPERATION_SHIFT_LEFT:
-		result = "OPERATION_SHIFT_LEFT";
-		break;
-	case TOKEN_TYPE_OPERATION_SHIFT_RIGHT:
-		result = "OPERATION_SHIFT_RIGHT";
-		break;
-
-	case TOKEN_TYPE_OPERATION_DOT:
-		result = "OPERATION_DOT";
-		break;
-	case TOKEN_TYPE_OPERATION_INDIRECT_ACCESS:
-		result = "OPERATION_INDIRECT_ACCESS";
-		break;
-
-	case TOKEN_TYPE_OPERATION_INCREMENT:
-		result = "OPERATION_INCREMENT";
-		break;
-	case TOKEN_TYPE_OPERATION_DECREMENT:
-		result = "OPERATION_DECREMENT";
-		break;
-
-	case TOKEN_TYPE_OPERATION_CONDITIONAL:
-		result = "OPERATION_CONDITIONAL";
-		break;
-
-	case TOKEN_TYPE_SEPARATOR_COMMA:
-		result = "SEPARATOR_COMMA";
-		break;
-	case TOKEN_TYPE_SEPARATOR_SEMICOLON:
-		result = "SEPARATOR_SEMICOLON";
-		break;
-	case TOKEN_TYPE_SEPARATOR_COLON:
-		result = "SEPARATOR_COLON";
-		break;
-
-	case TOKEN_TYPE_EOF:
-		result = "EOF";
-		break;
-	}
-
-	return result;
+	return CScanner::TokenTypesNames[Type];
 }
 
-string CToken::GetValue() const
+string CToken::GetText() const
 {
-	return Value;
+	return Text;
 }
 
 CPosition CToken::GetPosition() const
 {
 	return Position;
+}
+
+int CToken::GetIntegerValue() const
+{
+	throw logic_error("CToken can't have integer value");
+}
+
+double CToken::GetFloatValue() const
+{
+	throw logic_error("CToken can't have float value");
+}
+
+char CToken::GetSymbolValue() const
+{
+	throw logic_error("CToken can't have symbol value");
+}
+
+CIntegerConstantToken::CIntegerConstantToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_INTEGER, AText, APosition)
+{
+	stringstream ss;
+	ss.str(Text);
+	ss >> Value;
+}
+
+int CIntegerConstantToken::GetIntegerValue() const
+{
+	return Value;
+}
+
+CFloatConstantToken::CFloatConstantToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_FLOAT, AText, APosition)
+{
+	stringstream ss;
+	ss.str(Text);
+	ss >> Value;
+}
+
+double CFloatConstantToken::GetFloatValue() const
+{
+	return Value;
+}
+
+CSymbolConstantToken::CSymbolConstantToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_SYMBOL, AText, APosition)
+{
+	Value = AText[0];
+}
+
+char CSymbolConstantToken::GetSymbolValue() const
+{
+	return Value;
 }
 
 bool CTraits::IsWhitespace(char c)
@@ -257,32 +129,94 @@ bool CTraits::IsKeyword(const string &s)
 	*/
 }
 
-CScanner::CScanner(istream &AInputStream) : InputStream(AInputStream), CurrentPosition(1, 1), ErrorState(false)
+map<ETokenType, string> CScanner::TokenTypesNames;
+
+CScanner::CScanner(istream &AInputStream) : InputStream(AInputStream), LastToken(NULL), CurrentPosition(1, 1)
 {
 	if (!InputStream.good()) {
-		Error(CurrentPosition, "can't read from input stream");
+		throw CException("can't read from input stream", CurrentPosition);
 	}
 
 	InputStream >> noskipws;
+
+	if (TokenTypesNames.empty()) {
+		TokenTypesNames[TOKEN_TYPE_INVALID] = "INVALID";
+		TokenTypesNames[TOKEN_TYPE_IDENTIFIER] = "IDENTIFIER";
+		TokenTypesNames[TOKEN_TYPE_KEYWORD] = "KEYWORD";
+		TokenTypesNames[TOKEN_TYPE_BLOCK_START] = "BLOCK_START";
+		TokenTypesNames[TOKEN_TYPE_BLOCK_END] = "BLOCK_END";
+		TokenTypesNames[TOKEN_TYPE_LEFT_PARENTHESIS] = "LEFT_PARENTHESIS";
+		TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS] = "RIGHT_PARENTHESIS";
+		TokenTypesNames[TOKEN_TYPE_LEFT_SQUARE_BRACKET] = "LEFT_SQUARE_BRACKET";
+		TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET] = "RIGHT_SQUARE_BRACKET";
+		TokenTypesNames[TOKEN_TYPE_CONSTANT_INTEGER] = "CONSTANT_INTEGER";
+		TokenTypesNames[TOKEN_TYPE_CONSTANT_FLOAT] = "CONSTANT_FLOAT";
+		TokenTypesNames[TOKEN_TYPE_CONSTANT_SYMBOL] = "CONSTANT_SYMBOL";
+		TokenTypesNames[TOKEN_TYPE_CONSTANT_STRING] = "CONSTANT_STRING";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_PLUS] = "OPERATION_PLUS";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_MINUS] = "OPERATION_MINUS";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_ASTERISK] = "OPERATION_ASTERISK";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_SLASH] = "OPERATION_SLASH";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_PERCENT] = "OPERATION_PERCENT";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_ASSIGN] = "OPERATION_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_PLUS_ASSIGN] = "OPERATION_PLUS_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_MINUS_ASSIGN] = "OPERATION_MINUS_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN] = "OPERATION_ASTERISK_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_SLASH_ASSIGN] = "OPERATION_SLASH_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_PERCENT_ASSIGN] = "OPERATION_PERCENT_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_EQUAL] = "OPERATION_EQUAL";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_NOT_EQUAL] = "OPERATION_NOT_EQUAL";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_LESS_THAN] = "OPERATION_LESS_THAN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_GREATER_THAN] = "OPERATION_GREATER_THAN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL] = "OPERATION_LESS_THAN_OR_EQUAL";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL] = "OPERATION_GREATER_THAN_OR_EQUAL";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_LOGIC_AND] = "OPERATION_LOGIC_AND";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_LOGIC_OR] = "OPERATION_LOGIC_OR";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_LOGIC_NOT] = "OPERATION_LOGIC_NOT";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_AMPERSAND] = "OPERATION_AMPERSAND";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_BITWISE_OR] = "OPERATION_BITWISE_OR";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_BITWISE_NOT] = "OPERATION_BITWISE_NOT";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_BITWISE_XOR] = "OPERATION_BITWISE_XOR";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN] = "OPERATION_AMPERSAND_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN] = "OPERATION_BITWISE_OR_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN] = "OPERATION_BITWISE_NOT_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN] = "OPERATION_BITWISE_XOR_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_SHIFT_LEFT] = "OPERATION_SHIFT_LEFT";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_SHIFT_RIGHT] = "OPERATION_SHIFT_RIGHT";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_DOT] = "OPERATION_DOT";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_INDIRECT_ACCESS] = "OPERATION_INDIRECT_ACCESS";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_INCREMENT] = "OPERATION_INCREMENT";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_DECREMENT] = "OPERATION_DECREMENT";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_CONDITIONAL] = "OPERATION_CONDITIONAL";
+		TokenTypesNames[TOKEN_TYPE_SEPARATOR_COMMA] = "SEPARATOR_COMMA";
+		TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON] = "SEPARATOR_SEMICOLON";
+		TokenTypesNames[TOKEN_TYPE_SEPARATOR_COLON] = "SEPARATOR_COLON";
+		TokenTypesNames[TOKEN_TYPE_EOF] = "EOF";
+	}
 }
 
-CToken& CScanner::GetToken()
+CScanner::~CScanner()
+{
+	delete LastToken;
+}
+
+const CToken* CScanner::GetToken()
 {
 	return LastToken;
 }
 
-CToken& CScanner::Next()
+const CToken* CScanner::Next()
 {
-	CToken NewToken;
+	delete LastToken;
+	LastToken = NULL;
 
 	SkipWhitespaceAndComments();
 
 	if (!InputStream.good()) {
-		NewToken.Position = CurrentPosition;
-		NewToken.Type = CToken::TOKEN_TYPE_EOF;
-		return (LastToken = NewToken);
+		return (LastToken = new CToken(TOKEN_TYPE_EOF, "", CurrentPosition));
 	}
 
+	CToken *NewToken = NULL;
 	char symbol = InputStream.peek();
 
 	if (CTraits::IsValidIdentifierSymbol(symbol, true)) {
@@ -302,29 +236,22 @@ CToken& CScanner::Next()
 	return (LastToken = NewToken);
 }
 
-bool CScanner::IsError() const
+CToken* CScanner::ScanIdentifier()
 {
-	return ErrorState;
-}
-
-CToken CScanner::ScanIdentifier()
-{
-	CToken NewToken;
-	NewToken.Position = CurrentPosition;
+	CPosition StartPosition = CurrentPosition;
+	string Text;
 
 	while (InputStream.good() && CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
-		NewToken.Value += AdvanceOneSymbol();
+		Text += AdvanceOneSymbol();
 	}
 
-	NewToken.Type = (CTraits::IsKeyword(NewToken.Value) ? CToken::TOKEN_TYPE_KEYWORD : CToken::TOKEN_TYPE_IDENTIFIER);
-
-	return NewToken;
+	return new CToken(CTraits::IsKeyword(Text) ? TOKEN_TYPE_KEYWORD : TOKEN_TYPE_IDENTIFIER, Text, StartPosition);
 }
 
-CToken CScanner::ScanOperation()
+CToken* CScanner::ScanOperation()
 {
-	CToken NewToken;
-	NewToken.Position = CurrentPosition;
+	CPosition StartPosition = CurrentPosition;
+	ETokenType Type;
 
 	char fs = AdvanceOneSymbol();
 	char ss = InputStream.peek();
@@ -335,225 +262,222 @@ CToken CScanner::ScanOperation()
 	case '+':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PLUS_ASSIGN;
+			Type = TOKEN_TYPE_OPERATION_PLUS_ASSIGN;
 			break;
 		case '+':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_INCREMENT;
+			Type = TOKEN_TYPE_OPERATION_INCREMENT;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PLUS;
+			Type = TOKEN_TYPE_OPERATION_PLUS;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '-':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_MINUS_ASSIGN;
+			Type = TOKEN_TYPE_OPERATION_MINUS_ASSIGN;
 			break;
 		case '-':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_DECREMENT;
+			Type = TOKEN_TYPE_OPERATION_DECREMENT;
 			break;
 		case '>':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_INDIRECT_ACCESS;
+			Type = TOKEN_TYPE_OPERATION_INDIRECT_ACCESS;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_MINUS;
+			Type = TOKEN_TYPE_OPERATION_MINUS;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '*':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN;
+			Type = TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASTERISK;
+			Type = TOKEN_TYPE_OPERATION_ASTERISK;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '/':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_SLASH_ASSIGN;
+			Type = TOKEN_TYPE_OPERATION_SLASH_ASSIGN;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_SLASH;
+			Type = TOKEN_TYPE_OPERATION_SLASH;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '%':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PERCENT_ASSIGN;
+			Type = TOKEN_TYPE_OPERATION_PERCENT_ASSIGN;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_PERCENT;
+			Type = TOKEN_TYPE_OPERATION_PERCENT;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '~':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN;
+			Type = TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_NOT;
+			Type = TOKEN_TYPE_OPERATION_BITWISE_NOT;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '^':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN;
+			Type = TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_XOR;
+			Type = TOKEN_TYPE_OPERATION_BITWISE_XOR;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '&':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN;
+			Type = TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN;
 			break;
 		case '&':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LOGIC_AND;
+			Type = TOKEN_TYPE_OPERATION_LOGIC_AND;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_AMPERSAND;
+			Type = TOKEN_TYPE_OPERATION_AMPERSAND;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '|':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN;
+			Type = TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN;
 			break;
 		case '|':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LOGIC_OR;
+			Type = TOKEN_TYPE_OPERATION_LOGIC_OR;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_BITWISE_OR;
+			Type = TOKEN_TYPE_OPERATION_BITWISE_OR;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '!':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_NOT_EQUAL;
+			Type = TOKEN_TYPE_OPERATION_NOT_EQUAL;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LOGIC_NOT;
+			Type = TOKEN_TYPE_OPERATION_LOGIC_NOT;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '=':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_EQUAL;
+			Type = TOKEN_TYPE_OPERATION_EQUAL;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_ASSIGN;
+			Type = TOKEN_TYPE_OPERATION_ASSIGN;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '<':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL;
+			Type = TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL;
 			break;
 		case '<':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_SHIFT_LEFT;
+			Type = TOKEN_TYPE_OPERATION_SHIFT_LEFT;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_LESS_THAN;
+			Type = TOKEN_TYPE_OPERATION_LESS_THAN;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '>':
 		switch (ss) {
 		case '=':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL;
+			Type = TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL;
 			break;
 		case '>':
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_SHIFT_RIGHT;
+			Type = TOKEN_TYPE_OPERATION_SHIFT_RIGHT;
 			break;
 		default:
-			NewToken.Type = CToken::TOKEN_TYPE_OPERATION_GREATER_THAN;
+			Type = TOKEN_TYPE_OPERATION_GREATER_THAN;
 			TwoSymbolOperation = false;
 		}
 		break;
 	case '.':
-		NewToken.Type = CToken::TOKEN_TYPE_OPERATION_DOT;
+		Type = TOKEN_TYPE_OPERATION_DOT;
 		TwoSymbolOperation = false;
 		break;
 	case '?':
-		NewToken.Type = CToken::TOKEN_TYPE_OPERATION_CONDITIONAL;
+		Type = TOKEN_TYPE_OPERATION_CONDITIONAL;
 		TwoSymbolOperation = false;
 		break;
 	}
 
-	NewToken.Value += fs;
+	string Text = string(1, fs);
 
 	if (TwoSymbolOperation) {
 		AdvanceOneSymbol();
-		NewToken.Value += ss;
+		Text += ss;
 	}
 
-	return NewToken;
+	return new CToken(Type, Text, StartPosition);
 }
 
-CToken CScanner::ScanSingleSymbol()
+CToken* CScanner::ScanSingleSymbol()
 {
-	CToken NewToken;
-	NewToken.Position = CurrentPosition;
+	CPosition StartPosition = CurrentPosition;
+	ETokenType Type;
 
 	char symbol = InputStream.peek();
 
 	switch (symbol) {
 	case '{':
-		NewToken.Type = CToken::TOKEN_TYPE_BLOCK_START;
+		Type = TOKEN_TYPE_BLOCK_START;
 		break;
 	case '}':
-		NewToken.Type = CToken::TOKEN_TYPE_BLOCK_END;
+		Type = TOKEN_TYPE_BLOCK_END;
 		break;
 	case '(':
-		NewToken.Type = CToken::TOKEN_TYPE_LEFT_PARENTHESIS;
+		Type = TOKEN_TYPE_LEFT_PARENTHESIS;
 		break;
 	case ')':
-		NewToken.Type = CToken::TOKEN_TYPE_RIGHT_PARENTHESIS;
+		Type = TOKEN_TYPE_RIGHT_PARENTHESIS;
 		break;
 	case '[':
-		NewToken.Type = CToken::TOKEN_TYPE_LEFT_SQUARE_BRACKET;
+		Type = TOKEN_TYPE_LEFT_SQUARE_BRACKET;
 		break;
 	case ']':
-		NewToken.Type = CToken::TOKEN_TYPE_RIGHT_SQUARE_BRACKET;
+		Type = TOKEN_TYPE_RIGHT_SQUARE_BRACKET;
 		break;
 	case ';':
-		NewToken.Type = CToken::TOKEN_TYPE_SEPARATOR_SEMICOLON;
+		Type = TOKEN_TYPE_SEPARATOR_SEMICOLON;
 		break;
 	case ',':
-		NewToken.Type = CToken::TOKEN_TYPE_SEPARATOR_COMMA;
+		Type = TOKEN_TYPE_SEPARATOR_COMMA;
 		break;
 	case ':':
-		NewToken.Type = CToken::TOKEN_TYPE_SEPARATOR_COLON;
+		Type = TOKEN_TYPE_SEPARATOR_COLON;
 		break;
 	default:
-		return Error(CurrentPosition, string("invalid symbol '") + symbol + "' encountered");
+		throw CException(string("invalid symbol '") + symbol + "' encountered", CurrentPosition);
 	}
-
-	NewToken.Value = symbol;
 
 	AdvanceOneSymbol();
 
-	return NewToken;
+	return new CToken(Type, string(1, symbol), StartPosition);
 }
 
-CToken CScanner::ScanStringConstant()
+CToken* CScanner::ScanStringConstant()
 {
-	CToken NewToken;
-	NewToken.Position = CurrentPosition;
-	NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_STRING;
+	CPosition StartPosition = CurrentPosition;
+	string Text;
 
 	AdvanceOneSymbol();
 
@@ -561,50 +485,48 @@ CToken CScanner::ScanStringConstant()
 
 	while (InputStream.good() && ((symbol = AdvanceOneSymbol()) != '\n')) {
 		if (symbol == '\\') {
-			NewToken.Value += ProcessEscapeSequence();
+			Text += ProcessEscapeSequence();
 		} else if (symbol == '"') {
-			return NewToken;
+			return new CToken(TOKEN_TYPE_CONSTANT_STRING, Text, StartPosition);
 		} else {
-			NewToken.Value += symbol;
+			Text += symbol;
 		}
 	}
 
-	return Error(NewToken.Position, "unterminated string constant");
+	throw CException("unterminated string constant", StartPosition);
 }
 
-CToken CScanner::ScanSymbolConstant()
+CToken* CScanner::ScanSymbolConstant()
 {
-	CToken NewToken;
-	NewToken.Position = CurrentPosition;
-	NewToken.Type = CToken::TOKEN_TYPE_CONSTANT_SYMBOL;
+	CPosition StartPosition = CurrentPosition;
+	string Text;
 
 	AdvanceOneSymbol();
 
 	if (!InputStream.good()) {
-		return Error(NewToken.Position, "unterminated symbol constant");
+		throw CException("unterminated symbol constant", StartPosition);
 	}
 
 	char symbol = InputStream.peek();
 
 	if (symbol == '\\') {
 		AdvanceOneSymbol();
-		NewToken.Value = ProcessEscapeSequence();
+		Text = ProcessEscapeSequence();
 	} else {
-		NewToken.Value = symbol;
+		Text = symbol;
 		AdvanceOneSymbol();
 	}
 
 	if (!InputStream.good() || AdvanceOneSymbol() != '\'') {
-		return Error(NewToken.Position, "unterminated symbol constant");
+		throw CException("unterminated symbol constant", StartPosition);
 	}
 
-	return NewToken;
+	return new CSymbolConstantToken(Text, StartPosition);
 }
 
-CToken CScanner::ScanNumericalConstant()
+CToken* CScanner::ScanNumericalConstant()
 {
-	CToken NewToken;
-	NewToken.Position = CurrentPosition;
+	CPosition StartPosition = CurrentPosition;
 
 	string IntegerPart = "0";
 	string FractionalPart;
@@ -616,9 +538,6 @@ CToken CScanner::ScanNumericalConstant()
 	}
 
 	FractionalPart = ScanFractionalPart();
-
-	// NOTE: error state check was here..
-
 	ExponentPart = ScanExponentPart();
 
 	bool FloatConstant = !(FractionalPart.empty() && ExponentPart.empty());
@@ -629,12 +548,14 @@ CToken CScanner::ScanNumericalConstant()
 		SuffixPart = ScanIntegerSuffix();
 	}
 
-	if (ErrorState) {
-		return CToken(CToken::TOKEN_TYPE_INVALID, "", NewToken.Position);
-	}
+	string Text = IntegerPart + FractionalPart + ExponentPart + SuffixPart;
 
-	NewToken.Type = FloatConstant ? CToken::TOKEN_TYPE_CONSTANT_FLOAT : CToken::TOKEN_TYPE_CONSTANT_INTEGER;
-	NewToken.Value = IntegerPart + FractionalPart + ExponentPart + SuffixPart;
+	CToken *NewToken;
+	if (FloatConstant) {
+		NewToken = new CFloatConstantToken(Text, StartPosition);
+	} else {
+		NewToken = new CIntegerConstantToken(Text, StartPosition);
+	}
 
 	return NewToken;
 }
@@ -696,23 +617,19 @@ string CScanner::ScanIntegerPart()
 			result += 'x';
 			AdvanceOneSymbol();
 			if (!CTraits::IsHexDigit(InputStream.peek())) {
-				Error(CurrentPosition, "invalid hexadecimal constant");
-				return "";
+				throw CException("invalid hexadecimal constant", CurrentPosition);
 			}
 			result += ScanHexadecimalInteger();
 			if (InputStream.peek() == '.') {
-				Error(CurrentPosition, "invalid float constant");
-				return "";
+				throw CException("invalid float constant", CurrentPosition);
 			}
 		} else if (CTraits::IsOctDigit(c)) {
 			result += ScanOctalInteger();
 			if (InputStream.peek() == '.') {
-				Error(CurrentPosition, "invalid float constant");
-				return "";
+				throw CException("invalid float constant", CurrentPosition);
 			}
 		} else if (CTraits::IsDigit(c)) {
-			Error(CurrentPosition, "invalid octal constant");
-			return "";
+			throw CException("invalid octal constant", CurrentPosition);
 		}
 
 	} else {
@@ -779,10 +696,10 @@ string CScanner::ScanFloatSuffix()
 		if (!CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
 			return string(1, c);
 		} else {
-			Error(CurrentPosition, "invalid suffix on float constant");
+			throw CException("invalid suffix on float constant", CurrentPosition);
 		}
 	} else if (CTraits::IsValidIdentifierSymbol(c)) {
-		Error(CurrentPosition, "invalid suffix on float constant");
+		throw CException("invalid suffix on float constant", CurrentPosition);
 	}
 
 	return "";
@@ -797,8 +714,7 @@ string CScanner::ScanIntegerSuffix()
 		result += fc;
 		AdvanceOneSymbol();
 	} else if (CTraits::IsValidIdentifierSymbol(fc)) {
-		Error(CurrentPosition, "invalid suffix on integer constant");
-		return "";
+		throw CException("invalid suffix on integer constant", CurrentPosition);
 	}
 
 	char sc = InputStream.peek();
@@ -807,13 +723,11 @@ string CScanner::ScanIntegerSuffix()
 		result += fc;
 		AdvanceOneSymbol();
 	} else if (CTraits::IsValidIdentifierSymbol(sc)) {
-		Error(CurrentPosition, "invalid suffix on integer constant");
-		return "";
+		throw CException("invalid suffix on integer constant", CurrentPosition);
 	}
 
 	if (CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
-		Error(CurrentPosition, "invalid suffix on integer constant");
-		return "";
+		throw CException("invalid suffix on integer constant", CurrentPosition);
 	}
 
 	return result;
@@ -858,8 +772,7 @@ char CScanner::ProcessEscapeSequence()
 		result = '\v';
 		break;
 	default:
-		Error(CurrentPosition, "invalid escape sequence");
-		return 0;
+		throw CException("invalid escape sequence", CurrentPosition);
 	}
 
 	return result;
@@ -902,7 +815,7 @@ bool CScanner::SkipComment()
 	}
 
 	if (!InputStream.good()) {
-		Error(start, "unterminated comment");
+		throw CException("unterminated comment", start);
 	}
 
 	return true;
@@ -938,11 +851,4 @@ char CScanner::AdvanceOneSymbol()
 	}
 
 	return symbol;
-}
-
-CToken CScanner::Error(const CPosition &Position, const string &Message)
-{
-	CLogger::Instance()->Log(CLogger::LOG_TYPE_ERROR, Position, Message);
-	ErrorState = true;
-	return CToken(CToken::TOKEN_TYPE_INVALID, "", Position);
 }

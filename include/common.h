@@ -14,6 +14,10 @@
 
 using namespace std;
 
+#define COMPILER_NAME "ncc"
+#define COMPILER_TITLE "Nartov C Compiler"
+#define COMPILER_VERSION "0.1.1"
+
 enum EExitCode
 {
 	EXIT_CODE_SUCCESS,

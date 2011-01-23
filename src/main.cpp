@@ -7,7 +7,7 @@ const int TOKEN_NAME_FIELD_WIDTH = 31;
 
 EExitCode Error(const string &Message, EExitCode ExitCode)
 {
-	cerr << "ncc: " << Message << endl << endl;
+	cerr << COMPILER_NAME ": " << Message << endl << endl;
 	return ExitCode;
 }
 

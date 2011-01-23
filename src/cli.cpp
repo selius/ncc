@@ -105,13 +105,13 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 
 void CCommandLineInterface::PrintVersion()
 {
-	cout << "Nartov C Compiler, version 0.1.1" << endl << "Copyright 2010-2011  "
+	cout << COMPILER_TITLE ", version " COMPILER_VERSION << endl << "Copyright 2010-2011  "
 		"Alexander Nartov <alexander.nartov@gmail.com> (FEFU IMCS 238 group)" << endl << endl;
 }
 
 void CCommandLineInterface::PrintHelp(bool Full /*= false*/)
 {
-	cout << "Usage: ncc [options] input-file" << endl;
+	cout << "Usage: " COMPILER_NAME " [options] input-file" << endl;
 	
 	if (Full) {
 		Help.Output(cout);

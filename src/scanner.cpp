@@ -1,7 +1,8 @@
 #include "scanner.h"
 
-#include <sstream>
-#include <stdexcept>
+/******************************************************************************
+ * CToken
+ ******************************************************************************/
 
 CToken::CToken(ETokenType AType, const string &AText, const CPosition &APosition) : Type(AType), Text(AText), Position(APosition)
 {
@@ -46,6 +47,10 @@ char CToken::GetSymbolValue() const
 	throw logic_error("CToken can't have symbol value");
 }
 
+/******************************************************************************
+ * CIntegerConstToken
+ ******************************************************************************/
+
 CIntegerConstToken::CIntegerConstToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_INTEGER, AText, APosition)
 {
 	stringstream ss;
@@ -57,6 +62,10 @@ int CIntegerConstToken::GetIntegerValue() const
 {
 	return Value;
 }
+
+/******************************************************************************
+ * CFloatConstToken
+ ******************************************************************************/
 
 CFloatConstToken::CFloatConstToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_FLOAT, AText, APosition)
 {
@@ -70,6 +79,10 @@ double CFloatConstToken::GetFloatValue() const
 	return Value;
 }
 
+/******************************************************************************
+ * CSymbolConstToken
+ ******************************************************************************/
+
 CSymbolConstToken::CSymbolConstToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_SYMBOL, AText, APosition)
 {
 	Value = AText[0];
@@ -79,6 +92,10 @@ char CSymbolConstToken::GetSymbolValue() const
 {
 	return Value;
 }
+
+/******************************************************************************
+ * CTraits
+ ******************************************************************************/
 
 bool CTraits::IsWhitespace(char c)
 {
@@ -128,6 +145,10 @@ bool CTraits::IsKeyword(const string &s)
 	struct 	switch 	typedef 	union 	unsigned 	void 	volatile 	while
 	*/
 }
+
+/******************************************************************************
+ * CScanner
+ ******************************************************************************/
 
 map<ETokenType, string> CScanner::TokenTypesNames;
 

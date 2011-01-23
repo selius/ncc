@@ -1,15 +1,7 @@
 #ifndef _SCANNER_H_
 #define _SCANNER_H_
 
-#include <istream>
-#include <ostream>
-#include <string>
-#include <map>
-
 #include "common.h"
-#include "logger.h"
-
-using namespace std;
 
 enum ETokenType
 {

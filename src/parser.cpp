@@ -1,5 +1,9 @@
 #include "parser.h"
 
+/******************************************************************************
+ * CExpression
+ ******************************************************************************/
+
 CExpression::CExpression(const CToken &AToken)
 {
 	Type = AToken.GetType();
@@ -15,6 +19,10 @@ string CExpression::GetName() const
 {
 	return Name;
 }
+
+/******************************************************************************
+ * CUnaryOp
+ ******************************************************************************/
 
 CUnaryOp::CUnaryOp(const CToken &AToken) : CExpression(AToken)
 {
@@ -34,6 +42,10 @@ void CUnaryOp::SetArgument(CExpression *AArgument)
 {
 	Argument = AArgument;
 }
+
+/******************************************************************************
+ * CBinaryOp
+ ******************************************************************************/
 
 CBinaryOp::CBinaryOp(const CToken &AToken) : CExpression(AToken)
 {
@@ -64,9 +76,17 @@ void CBinaryOp::SetRight(CExpression *ARight)
 	Right = ARight;
 }
 
+/******************************************************************************
+ * CConst
+ ******************************************************************************/
+
 CConst::CConst(const CToken &AToken) : CExpression(AToken)
 {
 }
+
+/******************************************************************************
+ * CIntegerConst
+ ******************************************************************************/
 
 CIntegerConst::CIntegerConst(const CIntegerConstToken &AToken) : CConst(AToken)
 {
@@ -83,6 +103,10 @@ int CIntegerConst::GetValue() const
 	return Value;
 }
 
+/******************************************************************************
+ * CFloatConst
+ ******************************************************************************/
+
 void CFloatConst::Accept(CExpressionVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
@@ -92,6 +116,10 @@ double CFloatConst::GetValue() const
 {
 	return Value;
 }
+
+/******************************************************************************
+ * CSymbolConst
+ ******************************************************************************/
 
 void CSymbolConst::Accept(CExpressionVisitor &AVisitor)
 {
@@ -103,6 +131,10 @@ char CSymbolConst::GetValue() const
 	return Value;
 }
 
+/******************************************************************************
+ * CStringConst
+ ******************************************************************************/
+
 void CStringConst::Accept(CExpressionVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
@@ -113,6 +145,10 @@ string CStringConst::GetValue() const
 	return Value;
 }
 
+/******************************************************************************
+ * CVariable
+ ******************************************************************************/
+
 CVariable::CVariable(const CToken &AToken) : CExpression(AToken)
 {
 }
@@ -121,6 +157,10 @@ void CVariable::Accept(CExpressionVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
+
+/******************************************************************************
+ * CExpressionLinearPrintVisitor
+ ******************************************************************************/
 
 CExpressionLinearPrintVisitor::CExpressionLinearPrintVisitor(ostream &AStream) : Stream(AStream)
 {
@@ -172,6 +212,10 @@ void CExpressionLinearPrintVisitor::Visit(CVariable &AExpr)
 {
 	Stream << AExpr.GetName();
 }
+
+/******************************************************************************
+ * CExpressionTreePrintVisitor
+ ******************************************************************************/
 
 CExpressionTreePrintVisitor::CExpressionTreePrintVisitor(ostream &AStream) : Stream(AStream), Nesting(0)
 {

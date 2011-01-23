@@ -7,10 +7,11 @@ RM = rm
 endif
 
 SOURCES		=	src/main.cpp \
+			src/common.cpp \
+			src/cli.cpp \
 			src/scanner.cpp \
 			src/parser.cpp \
-			src/logger.cpp \
-			src/common.cpp
+			src/logger.cpp
 
 TARGET		=	bin/ncc
 

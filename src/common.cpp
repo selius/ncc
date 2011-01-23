@@ -1,8 +1,16 @@
 #include "common.h"
 
+/******************************************************************************
+ * CPosition
+ ******************************************************************************/
+
 CPosition::CPosition(int ALine /*= 0*/, int AColumn /*= 0*/) : Line(ALine), Column(AColumn)
 {
 }
+
+/******************************************************************************
+ * CException
+ ******************************************************************************/
 
 CException::CException(const string &AMessage, const CPosition &APosition) : Message(AMessage), Position(APosition)
 {
@@ -16,4 +24,22 @@ string CException::GetMessage() const
 CPosition CException::GetPosition() const
 {
 	return Position;
+}
+
+/******************************************************************************
+ * CFatalException
+ ******************************************************************************/
+
+CFatalException::CFatalException(EExitCode AExitCode, const string &AMessage /*= ""*/) : ExitCode(AExitCode), Message(AMessage)
+{
+}
+
+EExitCode CFatalException::GetExitCode() const
+{
+	return ExitCode;
+}
+
+string CFatalException::GetMessage() const
+{
+	return Message;
 }

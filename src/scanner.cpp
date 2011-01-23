@@ -46,36 +46,36 @@ char CToken::GetSymbolValue() const
 	throw logic_error("CToken can't have symbol value");
 }
 
-CIntegerConstantToken::CIntegerConstantToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_INTEGER, AText, APosition)
+CIntegerConstToken::CIntegerConstToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_INTEGER, AText, APosition)
 {
 	stringstream ss;
 	ss.str(Text);
 	ss >> Value;
 }
 
-int CIntegerConstantToken::GetIntegerValue() const
+int CIntegerConstToken::GetIntegerValue() const
 {
 	return Value;
 }
 
-CFloatConstantToken::CFloatConstantToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_FLOAT, AText, APosition)
+CFloatConstToken::CFloatConstToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_FLOAT, AText, APosition)
 {
 	stringstream ss;
 	ss.str(Text);
 	ss >> Value;
 }
 
-double CFloatConstantToken::GetFloatValue() const
+double CFloatConstToken::GetFloatValue() const
 {
 	return Value;
 }
 
-CSymbolConstantToken::CSymbolConstantToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_SYMBOL, AText, APosition)
+CSymbolConstToken::CSymbolConstToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_SYMBOL, AText, APosition)
 {
 	Value = AText[0];
 }
 
-char CSymbolConstantToken::GetSymbolValue() const
+char CSymbolConstToken::GetSymbolValue() const
 {
 	return Value;
 }
@@ -521,7 +521,7 @@ CToken* CScanner::ScanSymbolConstant()
 		throw CException("unterminated symbol constant", StartPosition);
 	}
 
-	return new CSymbolConstantToken(Text, StartPosition);
+	return new CSymbolConstToken(Text, StartPosition);
 }
 
 CToken* CScanner::ScanNumericalConstant()
@@ -552,9 +552,9 @@ CToken* CScanner::ScanNumericalConstant()
 
 	CToken *NewToken;
 	if (FloatConstant) {
-		NewToken = new CFloatConstantToken(Text, StartPosition);
+		NewToken = new CFloatConstToken(Text, StartPosition);
 	} else {
-		NewToken = new CIntegerConstantToken(Text, StartPosition);
+		NewToken = new CIntegerConstToken(Text, StartPosition);
 	}
 
 	return NewToken;

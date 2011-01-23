@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "scanner.h"
+#include "parser.h"
 
 using namespace std;
 
@@ -34,6 +35,12 @@ enum ECompilerMode
 	COMPILER_MODE_PARSE,
 	COMPILER_MODE_GENERATE,
 	COMPILER_MODE_OPTIMIZE,
+};
+
+enum EParserOutputMode
+{
+	PARSER_OUTPUT_MODE_TREE,
+	PARSER_OUTPUT_MODE_LINEAR,
 };
 
 void PrintVersion()
@@ -77,6 +84,7 @@ int main(int argc, char *argv[])
 	string InputFilename;
 	string OutputFilename;
 	ECompilerMode CompilerMode = COMPILER_MODE_UNDEFINED;
+	EParserOutputMode ParserOutputMode = PARSER_OUTPUT_MODE_TREE;
 
 	string CurArg;
 	string CurOpt;
@@ -115,8 +123,23 @@ int main(int argc, char *argv[])
 				} else if (CurArg == "-O") {
 					CompilerMode = COMPILER_MODE_OPTIMIZE;
 				}
+			} else if (CurArg == "--parser-output-mode") {
+				if (i == (argc - 1)) {
+					return Error("--parser-output-mode option requires an argument", EXIT_CODE_INVALID_ARGUMENTS);
+				}
+
+				string OptValue = argv[++i];
+				if (OptValue == "linear") {
+					ParserOutputMode = PARSER_OUTPUT_MODE_LINEAR;
+				} else if (OptValue == "tree") {
+					ParserOutputMode = PARSER_OUTPUT_MODE_TREE;
+				} else {
+					return Error("invalid value for --parser-output-mode option", EXIT_CODE_INVALID_ARGUMENTS);
+				}
 			} else if (CurArg == "--") {
 				OptionsEnd = true;
+			} else {
+				return Error(string("invalid option: ") + CurArg, EXIT_CODE_INVALID_ARGUMENTS);
 			}
 		} else {
 			if (!InputFilename.empty()) {
@@ -165,6 +188,29 @@ int main(int argc, char *argv[])
 				<< ": error: " << e.GetMessage() << endl;
 			ExitCode = EXIT_CODE_SCANNER_ERROR;
 		}
+	} else if (CompilerMode == COMPILER_MODE_PARSE) {
+		CExpressionVisitor *vis;
+		if (ParserOutputMode == PARSER_OUTPUT_MODE_TREE) {
+			vis = new CExpressionTreePrintVisitor(*out);
+		} else {
+			vis = new CExpressionLinearPrintVisitor(*out);
+		}
+		CBinaryOp *expr = new CBinaryOp(CToken(TOKEN_TYPE_OPERATION_PLUS, "+", CPosition()));
+		expr->SetLeft(new CIntegerConst(CIntegerConstToken("5", CPosition())));
+
+		CBinaryOp *subexpr = new CBinaryOp(CToken(TOKEN_TYPE_OPERATION_PLUS, "+", CPosition()));
+		subexpr->SetLeft(new CVariable(CToken(TOKEN_TYPE_IDENTIFIER, "a", CPosition())));
+		
+		CBinaryOp *subsubexpr = new CBinaryOp(CToken(TOKEN_TYPE_OPERATION_ASTERISK, "*", CPosition()));
+		subsubexpr->SetLeft(new CIntegerConst(CIntegerConstToken("2", CPosition())));
+		subsubexpr->SetRight(new CVariable(CToken(TOKEN_TYPE_IDENTIFIER, "b", CPosition())));
+
+		subexpr->SetRight(subsubexpr);
+		expr->SetRight(subexpr);
+
+		expr->Accept(*vis);
+
+		delete vis;
 	} else {
 		ExitCode = Error("mode is not implemented yet", EXIT_CODE_NOT_IMPLEMENTED);
 	}

@@ -108,10 +108,10 @@ protected:
 	friend class CScanner;
 };
 
-class CIntegerConstantToken : public CToken
+class CIntegerConstToken : public CToken
 {
 public:
-	CIntegerConstantToken(const string &AText, const CPosition &APosition);
+	CIntegerConstToken(const string &AText, const CPosition &APosition);
 
 	int GetIntegerValue() const;
 
@@ -120,10 +120,10 @@ protected:
 
 };
 
-class CFloatConstantToken : public CToken
+class CFloatConstToken : public CToken
 {
 public:
-	CFloatConstantToken(const string &AText, const CPosition &APosition);
+	CFloatConstToken(const string &AText, const CPosition &APosition);
 
 	double GetFloatValue() const;
 
@@ -132,10 +132,10 @@ protected:
 
 };
 
-class CSymbolConstantToken : public CToken
+class CSymbolConstToken : public CToken
 {
 public:
-	CSymbolConstantToken(const string &AText, const CPosition &APosition);
+	CSymbolConstToken(const string &AText, const CPosition &APosition);
 
 	char GetSymbolValue() const;
 

@@ -8,6 +8,7 @@ endif
 
 SOURCES		=	src/main.cpp \
 			src/scanner.cpp \
+			src/parser.cpp \
 			src/logger.cpp \
 			src/common.cpp
 

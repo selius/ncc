@@ -1,13 +1,22 @@
 #!/bin/bash
 # run-tests - script to run ncc tests
 
-for i in `ls tests/reference-output/`
-do
-	bin/ncc -S tests/$i.c > tests/output/$i 2>&1
-	if diff -u --strip-trailing-cr tests/reference-output/$i tests/output/$i
-	then
-		echo "OK - $i"
-	else
-		echo "FAILED - $i"
-	fi
-done
+# TestMode($1 = Mode, $2 = Argument)
+TestMode()
+{
+	echo -e "\nRunning $1 tests...\n"
+
+	for i in `ls tests/$1/reference-output/`
+	do
+		bin/ncc $2 tests/$1/$i.c > tests/$1/output/$i 2>&1
+		if diff -u --strip-trailing-cr tests/$1/reference-output/$i tests/$1/output/$i
+		then
+			echo "OK - $i"
+		else
+			echo "FAILED - $i"
+		fi
+	done
+}
+
+TestMode scanner -S
+TestMode parser -P

@@ -58,10 +58,10 @@ int main(int argc, char *argv[])
 			ExitCode = EXIT_CODE_SCANNER_ERROR;
 		}
 	} else if (Parameters.CompilerMode == COMPILER_MODE_PARSE) {
-		CScanner scanner(in);
-		CParser parser(scanner);
-
 		try {
+			CScanner scanner(in);
+			CParser parser(scanner);
+
 			CExpressionVisitor *vis;
 
 			CExpression *expr = parser.ParseSimpleExpression();

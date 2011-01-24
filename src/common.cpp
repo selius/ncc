@@ -26,6 +26,11 @@ CPosition CException::GetPosition() const
 	return Position;
 }
 
+void CException::Output(ostream &Stream) const
+{
+	Stream << Position.Line << ", " << Position.Column << ": error: " << Message << endl;
+}
+
 /******************************************************************************
  * CFatalException
  ******************************************************************************/

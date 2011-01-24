@@ -97,7 +97,7 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 	}
 
 	if (Parameters.CompilerMode == COMPILER_MODE_UNDEFINED) {
-		Parameters.CompilerMode = COMPILER_MODE_SCAN;	// set to the latest implemented mode..
+		Parameters.CompilerMode = COMPILER_MODE_PARSE;	// set to the latest implemented mode..
 	}
 
 	return Parameters;

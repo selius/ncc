@@ -54,33 +54,37 @@ int main(int argc, char *argv[])
 			} while (token->GetType() != TOKEN_TYPE_EOF);
 
 		} catch (CException e) {
-			cerr << e.GetPosition().Line << ", " << e.GetPosition().Column
-				<< ": error: " << e.GetMessage() << endl;
+			e.Output(cerr);
 			ExitCode = EXIT_CODE_SCANNER_ERROR;
 		}
 	} else if (Parameters.CompilerMode == COMPILER_MODE_PARSE) {
-		CExpressionVisitor *vis;
-		if (Parameters.ParserOutputMode == PARSER_OUTPUT_MODE_TREE) {
-			vis = new CExpressionTreePrintVisitor(*out);
-		} else {
-			vis = new CExpressionLinearPrintVisitor(*out);
+		CScanner scanner(in);
+		CParser parser(scanner);
+
+		try {
+			CExpressionVisitor *vis;
+
+			CExpression *expr = parser.ParseSimpleExpression();
+
+			if (scanner.GetToken()->GetType() != TOKEN_TYPE_EOF) {
+				throw CException("trailing characters", scanner.GetToken()->GetPosition());
+			}
+
+			if (Parameters.ParserOutputMode == PARSER_OUTPUT_MODE_TREE) {
+				vis = new CExpressionTreePrintVisitor(*out);
+			} else {
+				vis = new CExpressionLinearPrintVisitor(*out);
+			}
+
+			expr->Accept(*vis);
+
+			delete vis;
+			delete expr;
+
+		} catch (CException e) {
+			e.Output(cerr);
+			ExitCode = EXIT_CODE_PARSER_ERROR;
 		}
-		CBinaryOp *expr = new CBinaryOp(CToken(TOKEN_TYPE_OPERATION_PLUS, "+", CPosition()));
-		expr->SetLeft(new CIntegerConst(CIntegerConstToken("5", CPosition())));
-
-		CBinaryOp *subexpr = new CBinaryOp(CToken(TOKEN_TYPE_OPERATION_PLUS, "+", CPosition()));
-		subexpr->SetLeft(new CVariable(CToken(TOKEN_TYPE_IDENTIFIER, "a", CPosition())));
-		
-		CBinaryOp *subsubexpr = new CBinaryOp(CToken(TOKEN_TYPE_OPERATION_ASTERISK, "*", CPosition()));
-		subsubexpr->SetLeft(new CIntegerConst(CIntegerConstToken("2", CPosition())));
-		subsubexpr->SetRight(new CVariable(CToken(TOKEN_TYPE_IDENTIFIER, "b", CPosition())));
-
-		subexpr->SetRight(subsubexpr);
-		expr->SetRight(subexpr);
-
-		expr->Accept(*vis);
-
-		delete vis;
 	} else {
 		ExitCode = Error("mode is not implemented yet", EXIT_CODE_NOT_IMPLEMENTED);
 	}

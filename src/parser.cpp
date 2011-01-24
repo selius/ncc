@@ -10,6 +10,10 @@ CExpression::CExpression(const CToken &AToken)
 	Name = AToken.GetText();
 }
 
+CExpression::~CExpression()
+{
+}
+
 ETokenType CExpression::GetType() const
 {
 	return Type;
@@ -24,8 +28,13 @@ string CExpression::GetName() const
  * CUnaryOp
  ******************************************************************************/
 
-CUnaryOp::CUnaryOp(const CToken &AToken) : CExpression(AToken)
+CUnaryOp::CUnaryOp(const CToken &AToken, CExpression *AArgument /*= NULL*/) : CExpression(AToken), Argument(AArgument)
 {
+}
+
+CUnaryOp::~CUnaryOp()
+{
+	delete Argument;
 }
 
 void CUnaryOp::Accept(CExpressionVisitor &AVisitor)
@@ -47,8 +56,14 @@ void CUnaryOp::SetArgument(CExpression *AArgument)
  * CBinaryOp
  ******************************************************************************/
 
-CBinaryOp::CBinaryOp(const CToken &AToken) : CExpression(AToken)
+CBinaryOp::CBinaryOp(const CToken &AToken, CExpression *ALeft /*= NULL*/, CExpression *ARight /*= NULL*/) : CExpression(AToken), Left(ALeft), Right(ARight)
 {
+}
+
+CBinaryOp::~CBinaryOp()
+{
+	delete Left;
+	delete Right;
 }
 
 void CBinaryOp::Accept(CExpressionVisitor &AVisitor)
@@ -156,6 +171,15 @@ CVariable::CVariable(const CToken &AToken) : CExpression(AToken)
 void CVariable::Accept(CExpressionVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
+}
+
+/******************************************************************************
+ * CExpressionVisitor
+ ******************************************************************************/
+
+CExpressionVisitor::~CExpressionVisitor()
+{
+
 }
 
 /******************************************************************************
@@ -302,4 +326,89 @@ void CExpressionTreePrintVisitor::PrintTreeDecoration()
 			Stream << "|- ";
 		}
 	}
+}
+
+/******************************************************************************
+ * CParser
+ ******************************************************************************/
+
+CParser::CParser(CScanner &AScanner) : Scanner(AScanner)
+{
+	AdvanceOneToken();
+}
+
+CExpression* CParser::ParseSimpleExpression()
+{
+	CExpression *Expr = ParseTerm();
+
+	CBinaryOp *Op;
+
+	while (Token->GetType() == TOKEN_TYPE_OPERATION_PLUS || Token->GetType() == TOKEN_TYPE_OPERATION_MINUS) {
+		Op = new CBinaryOp(*Token);
+
+		AdvanceOneToken();
+
+		Op->SetLeft(Expr);
+		Op->SetRight(ParseTerm());
+
+		Expr = Op;
+	}
+
+	return Expr;
+}
+
+CExpression* CParser::ParseTerm()
+{
+	CExpression *Expr = ParseFactor();
+
+	CBinaryOp *Op;
+
+	while (Token->GetType() == TOKEN_TYPE_OPERATION_ASTERISK || Token->GetType() == TOKEN_TYPE_OPERATION_SLASH) {
+		Op = new CBinaryOp(*Token);
+
+		AdvanceOneToken();
+
+		Op->SetLeft(Expr);
+		Op->SetRight(ParseFactor());
+
+		Expr = Op;
+	}
+
+	return Expr;
+}
+
+CExpression* CParser::ParseFactor()
+{
+	if (Token->GetType() == TOKEN_TYPE_OPERATION_MINUS || Token->GetType() == TOKEN_TYPE_OPERATION_PLUS) {
+		CUnaryOp *Op = new CUnaryOp(*Token);
+		AdvanceOneToken();
+		Op->SetArgument(ParseFactor());
+		return Op;
+	}
+
+	CExpression *Expr;
+
+	if (Token->GetType() == TOKEN_TYPE_LEFT_PARENTHESIS) {
+		AdvanceOneToken();
+		Expr = ParseSimpleExpression();
+		if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
+			throw CException("parenthesis mismatch", Token->GetPosition());
+		}
+	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_INTEGER) {
+		Expr = new CIntegerConst(*dynamic_cast<const CIntegerConstToken *>(Token));
+	} else if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
+		Expr = new CVariable(*Token);
+	} else {
+		throw CException("expected primary-expression, got " + Token->GetStringifiedType(), Token->GetPosition());
+		//throw CException("not implemented....", Token->GetPosition());
+	}
+
+	AdvanceOneToken();
+
+	return Expr;
+}
+
+void CParser::AdvanceOneToken()
+{
+	Token = Scanner.Next();
 }

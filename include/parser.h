@@ -9,6 +9,7 @@ class CExpression
 {
 public:
 	CExpression(const CToken &AToken);
+	virtual ~CExpression();
 
 	virtual void Accept(CExpressionVisitor &AVisitor) = 0;
 
@@ -24,7 +25,8 @@ private:
 class CUnaryOp : public CExpression
 {
 public:
-	CUnaryOp(const CToken &AToken);
+	CUnaryOp(const CToken &AToken, CExpression *AArgument = NULL);
+	~CUnaryOp();
 
 	void Accept(CExpressionVisitor &AVisitor);
 
@@ -39,7 +41,8 @@ private:
 class CBinaryOp : public CExpression
 {
 public:
-	CBinaryOp(const CToken &AToken);
+	CBinaryOp(const CToken &AToken, CExpression *ALeft = NULL, CExpression *ARight = NULL);
+	~CBinaryOp();
 
 	void Accept(CExpressionVisitor &AVisitor);
 
@@ -125,6 +128,8 @@ public:
 class CExpressionVisitor
 {
 public:
+	virtual ~CExpressionVisitor();
+
 	virtual void Visit(CUnaryOp &AExpr) = 0;
 	virtual void Visit(CBinaryOp &AExpr) = 0;
 	virtual void Visit(CIntegerConst &AExpr) = 0;
@@ -186,7 +191,11 @@ private:
 	CExpression* ParseTerm();
 	CExpression* ParseFactor();
 
+	void AdvanceOneToken();
+
 	CScanner &Scanner;
+
+	const CToken *Token;
 
 };
 

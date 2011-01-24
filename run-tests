@@ -3,7 +3,7 @@
 
 for i in `ls tests/reference-output/`
 do
-	bin/ncc tests/$i.c > tests/output/$i 2>&1
+	bin/ncc -S tests/$i.c > tests/output/$i 2>&1
 	if diff -u --strip-trailing-cr tests/reference-output/$i tests/output/$i
 	then
 		echo "OK - $i"

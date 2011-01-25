@@ -392,7 +392,8 @@ CExpression* CParser::ParseFactor()
 		AdvanceOneToken();
 		Expr = ParseSimpleExpression();
 		if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
-			throw CException("parenthesis mismatch", Token->GetPosition());
+			throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
+				+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_INTEGER) {
 		Expr = new CIntegerConst(*dynamic_cast<const CIntegerConstToken *>(Token));

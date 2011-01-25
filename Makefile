@@ -10,8 +10,7 @@ SOURCES		=	src/main.cpp \
 			src/common.cpp \
 			src/cli.cpp \
 			src/scanner.cpp \
-			src/parser.cpp \
-			src/logger.cpp
+			src/parser.cpp
 
 TARGET		=	bin/ncc
 
@@ -32,3 +31,4 @@ tags:
 
 distclean:
 	-$(RM) $(TARGET)
+	-$(RM) tests/*/output/*

@@ -1,6 +1,8 @@
 #!/bin/bash
 # run-tests - script to run ncc tests
 
+NCC=bin/ncc
+
 # TestMode($1 = Mode, $2 = Argument)
 TestMode()
 {
@@ -8,7 +10,7 @@ TestMode()
 
 	for i in `ls tests/$1/reference-output/`
 	do
-		bin/ncc $2 tests/$1/$i.c > tests/$1/output/$i 2>&1
+		$NCC $2 tests/$1/$i.c &> tests/$1/output/$i
 		if diff -u --strip-trailing-cr tests/$1/reference-output/$i tests/$1/output/$i
 		then
 			echo "OK - $i"
@@ -17,6 +19,12 @@ TestMode()
 		fi
 	done
 }
+
+if [[ ! -x $NCC ]]
+then
+	echo "Build the compiler by running make first"
+	exit
+fi
 
 TestMode scanner -S
 TestMode parser -P

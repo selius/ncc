@@ -1,23 +1,36 @@
 #!/bin/bash
 # run-tests - script to run ncc tests
 
-NCC=bin/ncc
+if [[ -z "$COMSPEC" ]]
+then
+	NCC=bin/ncc
+else
+	NCC=bin/ncc.exe
+fi
 
 # TestMode($1 = Mode, $2 = Argument)
 TestMode()
 {
 	echo -e "\nRunning $1 tests...\n"
 
+	SUCCESSFUL=0
+	FAILED=0
+
 	for i in `ls tests/$1/reference-output/`
 	do
 		$NCC $2 tests/$1/$i.c &> tests/$1/output/$i
 		if diff -u --strip-trailing-cr tests/$1/reference-output/$i tests/$1/output/$i
 		then
+			((SUCCESSFUL += 1))
 			echo "OK - $i"
 		else
+			((FAILED += 1))
 			echo "FAILED - $i"
 		fi
 	done
+
+	echo -e "\nSuccessful: $SUCCESSFUL"
+	echo -e "Failed: $FAILED\n"
 }
 
 if [[ ! -x $NCC ]]

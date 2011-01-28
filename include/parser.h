@@ -83,6 +83,8 @@ private:
 class CFloatConst : public CConst
 {
 public:
+	CFloatConst(const CFloatConstToken &AToken);
+
 	void Accept(CExpressionVisitor &AVisitor);
 
 	double GetValue() const;

@@ -122,6 +122,11 @@ int CIntegerConst::GetValue() const
  * CFloatConst
  ******************************************************************************/
 
+CFloatConst::CFloatConst(const CFloatConstToken &AToken) : CConst(AToken)
+{
+	Value = AToken.GetFloatValue();
+}
+
 void CFloatConst::Accept(CExpressionVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
@@ -397,11 +402,12 @@ CExpression* CParser::ParseFactor()
 		}
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_INTEGER) {
 		Expr = new CIntegerConst(*dynamic_cast<const CIntegerConstToken *>(Token));
+	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_FLOAT) {
+		Expr = new CFloatConst(*dynamic_cast<const CFloatConstToken *>(Token));
 	} else if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
 		Expr = new CVariable(*Token);
 	} else {
 		throw CException("expected primary-expression, got " + Token->GetStringifiedType(), Token->GetPosition());
-		//throw CException("not implemented....", Token->GetPosition());
 	}
 
 	AdvanceOneToken();

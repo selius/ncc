@@ -3,14 +3,6 @@
 #include "scanner.h"
 #include "parser.h"
 
-const int TOKEN_NAME_FIELD_WIDTH = 31;
-
-EExitCode Error(const string &Message, EExitCode ExitCode)
-{
-	cerr << COMPILER_NAME ": " << Message << endl << endl;
-	return ExitCode;
-}
-
 int main(int argc, char *argv[])
 {
 	CCommandLineInterface CLI(argc, argv);
@@ -21,7 +13,7 @@ int main(int argc, char *argv[])
 		Parameters = CLI.ParseArguments();
 	} catch (CFatalException e) {
 		if (!e.GetMessage().empty()) {
-			Error(e.GetMessage(), e.GetExitCode());
+			CLI.Error(e.GetMessage(), e.GetExitCode());
 		}
 
 		return e.GetExitCode();
@@ -41,7 +33,8 @@ int main(int argc, char *argv[])
 			CScanner scanner(in);
 			const CToken *token = NULL;
 
-			streamsize w = cout.width();
+			const streamsize TOKEN_NAME_FIELD_WIDTH = 31;
+			streamsize w = out->width();
 
 			do {
 				token = scanner.Next();
@@ -86,7 +79,7 @@ int main(int argc, char *argv[])
 			ExitCode = EXIT_CODE_PARSER_ERROR;
 		}
 	} else {
-		ExitCode = Error("mode is not implemented yet", EXIT_CODE_NOT_IMPLEMENTED);
+		ExitCode = CLI.Error("mode is not implemented yet", EXIT_CODE_NOT_IMPLEMENTED);
 	}
 
 	if (out != &cout) {

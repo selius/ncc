@@ -25,6 +25,8 @@ public:
 	void PrintVersion();
 	void PrintHelp(bool Full = false);
 
+	EExitCode Error(const string &Message, EExitCode ExitCode);
+
 private:
 	class CHelpContainer
 	{

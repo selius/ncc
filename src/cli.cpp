@@ -77,7 +77,7 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 				} else if (OptValue == "tree") {
 					Parameters.ParserOutputMode = PARSER_OUTPUT_MODE_TREE;
 				} else {
-					throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "invalid value for --parser-output-mode option");
+					throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "invalid value for " + CurArg + " option");
 				}
 			} else if (CurArg == "--") {
 				OptionsEnd = true;
@@ -97,7 +97,7 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 	}
 
 	if (Parameters.CompilerMode == COMPILER_MODE_UNDEFINED) {
-		Parameters.CompilerMode = COMPILER_MODE_PARSE;	// set to the latest implemented mode..
+		Parameters.CompilerMode = COMPILER_MODE_PARSE;	// default mode
 	}
 
 	return Parameters;
@@ -118,6 +118,12 @@ void CCommandLineInterface::PrintHelp(bool Full /*= false*/)
 	}
 
 	cout << endl;
+}
+
+EExitCode CCommandLineInterface::Error(const string &Message, EExitCode ExitCode)
+{
+	cerr << COMPILER_NAME ": " << Message << endl << endl;
+	return ExitCode;
 }
 
 CCommandLineInterface::CHelpContainer::CHelpEntry::CHelpEntry(const string &AShort, const string &ALong, const string &ADescription) : Short(AShort), Long(ALong), Description(ADescription)

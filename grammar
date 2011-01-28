@@ -1,13 +1,14 @@
 TODO:
-	* Leave one:
-		- int
-		- float
-	* Remove:
-		- char
-		- string
-		- pointers to functions
-		- enum
+	* Decide what to do with built-in data types (int, float, char, etc.)
 
+Changes:
+	- Removed enum-specifier
+	- Removed enumerator
+	- Removed vararg (", ..." in parameter-type-list)
+	- Removed pointers to functions and pointers to arrays
+	- Removed bit fields in structures
+	- Removed register storage-class-specifier
+	- Removed unions
 
 ( ) groups,
 ? means optional,
@@ -30,30 +31,23 @@ declaration: declaration-specifiers init-declarator% ";"
 
 declaration-specifiers: (storage-class-specifier | type-specifier | type-qualifier)+
 
-storage-class-specifier: ("auto" | "register" | "static" | "extern" | "typedef")
+storage-class-specifier: ("auto" | "static" | "extern" | "typedef")
 
 type-specifier:
 	("void" | "char" | "short" | "int" | "long" | "float" | "double" | "signed" | "unsigned" |
-	struct-or-union-specifier | enum-specifier | typedef-name)
+	struct-specifier | typedef-name)
 
 type-qualifier: ("const" | "volatile")
 
-struct-or-union-specifier:
-	("struct" | "union")
-	(identifier? "{" struct-declaration+ "}" | identifier)
+struct-specifier:
+	"struct" (identifier? "{" struct-declaration+ "}" | identifier)
 
 init-declarator: declarator ("=" initializer)?
 
-struct-declaration: (type-specifier | type-qualifier)+ struct-declarator%
-
-struct-declarator: declarator | declarator? ":" constant-expression
-
-enum-specifier: "enum" (identifier | identifier? "{" enumerator% "}")
-
-enumerator: identifier ("=" constant-expression)?
+struct-declaration: (type-specifier | type-qualifier)+ declarator%
 
 declarator:
-	pointer? (identifier | "(" declarator ")")
+	pointer? identifier
 	(
 		"[" constant-expression? "]" |
 		"(" parameter-type-list ")" |
@@ -62,7 +56,7 @@ declarator:
 
 pointer: ("*" type-qualifier*)*
 
-parameter-type-list: parameter-declaration% ("," "...")?
+parameter-type-list: parameter-declaration%
 
 parameter-declaration: declaration-specifiers (declarator | abstract-declarator)?
 
@@ -71,8 +65,7 @@ initializer: assignment-expression | "{" initializer% ","? "}"
 type-name: (type-specifier | type-qualifier)+ abstract-declarator?
 
 abstract-declarator:
-	pointer ("(" abstract-declarator ")")?
-	("[" constant-expression? "]" | "(" parameter-type-list? ")")*
+	pointer ("[" constant-expression? "]")*
 
 statement:
 	((identifier | "case" constant-expression | "default") ":")*

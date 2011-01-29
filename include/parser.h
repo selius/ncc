@@ -97,6 +97,8 @@ private:
 class CSymbolConst : public CConst
 {
 public:
+	CSymbolConst(const CSymbolConstToken &AToken);
+
 	void Accept(CExpressionVisitor &AVisitor);
 
 	char GetValue() const;
@@ -109,6 +111,8 @@ private:
 class CStringConst : public CConst
 {
 public:
+	CStringConst(const CToken &AToken);
+
 	void Accept(CExpressionVisitor &AVisitor);
 
 	string GetValue() const;

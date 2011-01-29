@@ -141,6 +141,11 @@ double CFloatConst::GetValue() const
  * CSymbolConst
  ******************************************************************************/
 
+CSymbolConst::CSymbolConst(const CSymbolConstToken &AToken) : CConst(AToken)
+{
+	Value = AToken.GetSymbolValue();
+}
+
 void CSymbolConst::Accept(CExpressionVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
@@ -154,6 +159,11 @@ char CSymbolConst::GetValue() const
 /******************************************************************************
  * CStringConst
  ******************************************************************************/
+
+CStringConst::CStringConst(const CToken &AToken) : CConst(AToken)
+{
+	Value = AToken.GetText();
+}
 
 void CStringConst::Accept(CExpressionVisitor &AVisitor)
 {

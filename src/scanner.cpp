@@ -204,6 +204,8 @@ CScanner::CScanner(istream &AInputStream) : InputStream(AInputStream), LastToken
 		TokenTypesNames[TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN] = "OPERATION_BITWISE_XOR_ASSIGN";
 		TokenTypesNames[TOKEN_TYPE_OPERATION_SHIFT_LEFT] = "OPERATION_SHIFT_LEFT";
 		TokenTypesNames[TOKEN_TYPE_OPERATION_SHIFT_RIGHT] = "OPERATION_SHIFT_RIGHT";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_SHIFT_LEFT_ASSIGN] = "OPERATION_SHIFT_LEFT_ASSIGN";
+		TokenTypesNames[TOKEN_TYPE_OPERATION_SHIFT_RIGHT_ASSIGN] = "OPERATION_SHIFT_RIGHT_ASSIGN";
 		TokenTypesNames[TOKEN_TYPE_OPERATION_DOT] = "OPERATION_DOT";
 		TokenTypesNames[TOKEN_TYPE_OPERATION_INDIRECT_ACCESS] = "OPERATION_INDIRECT_ACCESS";
 		TokenTypesNames[TOKEN_TYPE_OPERATION_INCREMENT] = "OPERATION_INCREMENT";
@@ -275,9 +277,13 @@ CToken* CScanner::ScanOperation()
 	ETokenType Type;
 
 	char fs = AdvanceOneSymbol();
-	char ss = InputStream.peek();
+	char ss = InputStream.get();
+	char ts = InputStream.peek();
 
-	bool TwoSymbolOperation = true;
+	InputStream.clear();
+	InputStream.putback(ss);
+
+	int OperationLength = 2;
 
 	switch (fs) {
 	case '+':
@@ -290,7 +296,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_PLUS;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '-':
@@ -306,7 +312,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_MINUS;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '*':
@@ -316,7 +322,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_ASTERISK;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '/':
@@ -326,7 +332,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_SLASH;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '%':
@@ -336,7 +342,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_PERCENT;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '~':
@@ -346,7 +352,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_BITWISE_NOT;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '^':
@@ -356,7 +362,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_BITWISE_XOR;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '&':
@@ -369,7 +375,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_AMPERSAND;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '|':
@@ -382,7 +388,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_BITWISE_OR;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '!':
@@ -392,7 +398,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_LOGIC_NOT;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '=':
@@ -402,7 +408,7 @@ CToken* CScanner::ScanOperation()
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_ASSIGN;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '<':
@@ -411,11 +417,16 @@ CToken* CScanner::ScanOperation()
 			Type = TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL;
 			break;
 		case '<':
-			Type = TOKEN_TYPE_OPERATION_SHIFT_LEFT;
+			if (ts == '=') {
+				Type = TOKEN_TYPE_OPERATION_SHIFT_LEFT_ASSIGN;
+				OperationLength = 3;
+			} else {
+				Type = TOKEN_TYPE_OPERATION_SHIFT_LEFT;
+			}
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_LESS_THAN;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '>':
@@ -424,28 +435,38 @@ CToken* CScanner::ScanOperation()
 			Type = TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL;
 			break;
 		case '>':
-			Type = TOKEN_TYPE_OPERATION_SHIFT_RIGHT;
+			if (ts == '=') {
+				Type = TOKEN_TYPE_OPERATION_SHIFT_RIGHT_ASSIGN;
+				OperationLength = 3;
+			} else {
+				Type = TOKEN_TYPE_OPERATION_SHIFT_RIGHT;
+			}
 			break;
 		default:
 			Type = TOKEN_TYPE_OPERATION_GREATER_THAN;
-			TwoSymbolOperation = false;
+			OperationLength = 1;
 		}
 		break;
 	case '.':
 		Type = TOKEN_TYPE_OPERATION_DOT;
-		TwoSymbolOperation = false;
+		OperationLength = 1;
 		break;
 	case '?':
 		Type = TOKEN_TYPE_OPERATION_CONDITIONAL;
-		TwoSymbolOperation = false;
+		OperationLength = 1;
 		break;
 	}
 
 	string Text = string(1, fs);
 
-	if (TwoSymbolOperation) {
-		AdvanceOneSymbol();
+	if (OperationLength > 1) {
 		Text += ss;
+		AdvanceOneSymbol();
+	}
+
+	if (OperationLength > 2) {
+		Text += ts;
+		AdvanceOneSymbol();
 	}
 
 	return new CToken(Type, Text, StartPosition);

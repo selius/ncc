@@ -191,13 +191,15 @@ class CParser
 public:
 	CParser(CScanner &AScanner);
 
+	CExpression* ParseExpression();
+
 	CExpression* ParseSimpleExpression();
 
 private:
 	CExpression* ParseTerm();
 	CExpression* ParseFactor();
 
-	void AdvanceOneToken();
+	void NextToken();
 
 	CScanner &Scanner;
 

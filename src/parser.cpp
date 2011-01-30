@@ -349,7 +349,27 @@ void CExpressionTreePrintVisitor::PrintTreeDecoration()
 
 CParser::CParser(CScanner &AScanner) : Scanner(AScanner)
 {
-	AdvanceOneToken();
+	NextToken();
+}
+
+CExpression* CParser::ParseExpression()
+{
+	CExpression *Expr = ParseSimpleExpression(); // = ParseAssignmentExpression();
+
+	CBinaryOp *Op;
+
+	while (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA) {
+		Op = new CBinaryOp(*Token);
+
+		NextToken();
+
+		Op->SetLeft(Expr);
+		Op->SetRight(ParseSimpleExpression());
+
+		Expr = Op;
+	}
+
+	return Expr;
 }
 
 CExpression* CParser::ParseSimpleExpression()
@@ -361,7 +381,7 @@ CExpression* CParser::ParseSimpleExpression()
 	while (Token->GetType() == TOKEN_TYPE_OPERATION_PLUS || Token->GetType() == TOKEN_TYPE_OPERATION_MINUS) {
 		Op = new CBinaryOp(*Token);
 
-		AdvanceOneToken();
+		NextToken();
 
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseTerm());
@@ -381,7 +401,7 @@ CExpression* CParser::ParseTerm()
 	while (Token->GetType() == TOKEN_TYPE_OPERATION_ASTERISK || Token->GetType() == TOKEN_TYPE_OPERATION_SLASH) {
 		Op = new CBinaryOp(*Token);
 
-		AdvanceOneToken();
+		NextToken();
 
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseFactor());
@@ -396,7 +416,7 @@ CExpression* CParser::ParseFactor()
 {
 	if (Token->GetType() == TOKEN_TYPE_OPERATION_MINUS || Token->GetType() == TOKEN_TYPE_OPERATION_PLUS) {
 		CUnaryOp *Op = new CUnaryOp(*Token);
-		AdvanceOneToken();
+		NextToken();
 		Op->SetArgument(ParseFactor());
 		return Op;
 	}
@@ -404,7 +424,7 @@ CExpression* CParser::ParseFactor()
 	CExpression *Expr;
 
 	if (Token->GetType() == TOKEN_TYPE_LEFT_PARENTHESIS) {
-		AdvanceOneToken();
+		NextToken();
 		Expr = ParseSimpleExpression();
 		if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 			throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
@@ -414,18 +434,22 @@ CExpression* CParser::ParseFactor()
 		Expr = new CIntegerConst(*dynamic_cast<const CIntegerConstToken *>(Token));
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_FLOAT) {
 		Expr = new CFloatConst(*dynamic_cast<const CFloatConstToken *>(Token));
+	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_SYMBOL) {
+		Expr = new CSymbolConst(*dynamic_cast<const CSymbolConstToken *>(Token));
+	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_STRING) {
+		Expr = new CStringConst(*Token);
 	} else if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
 		Expr = new CVariable(*Token);
 	} else {
 		throw CException("expected primary-expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
-	AdvanceOneToken();
+	NextToken();
 
 	return Expr;
 }
 
-void CParser::AdvanceOneToken()
+void CParser::NextToken()
 {
 	Token = Scanner.Next();
 }

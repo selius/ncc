@@ -57,7 +57,8 @@ int main(int argc, char *argv[])
 
 			CExpressionVisitor *vis;
 
-			CExpression *expr = parser.ParseSimpleExpression();
+			//CExpression *expr = parser.ParseSimpleExpression();
+			CExpression *expr = parser.ParseExpression();
 
 			if (scanner.GetToken()->GetType() != TOKEN_TYPE_EOF) {
 				throw CException("trailing characters", scanner.GetToken()->GetPosition());

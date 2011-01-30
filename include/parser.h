@@ -16,7 +16,9 @@ public:
 	ETokenType GetType() const;
 	string GetName() const;
 
-private:
+	virtual bool IsLValue() const;
+
+protected:
 	ETokenType Type;
 	string Name;
 
@@ -32,6 +34,8 @@ public:
 
 	CExpression* GetArgument() const;
 	void SetArgument(CExpression *AArgument);
+
+	bool IsLValue() const;
 
 private:
 	CExpression *Argument;
@@ -54,6 +58,30 @@ public:
 private:
 	CExpression *Left;
 	CExpression *Right;
+};
+
+class CConditionalOp : public CExpression
+{
+public:
+	CConditionalOp(const CToken &AToken, CExpression *ACondition = NULL, CExpression *ATrueExpr = NULL, CExpression *AFalseExpr = NULL);
+	~CConditionalOp();
+
+	void Accept(CExpressionVisitor &AVisitor);
+
+	CExpression* GetCondition() const;
+	CExpression* GetTrueExpr() const;
+	CExpression* GetFalseExpr() const;
+	void SetCondition(CExpression *ACondition);
+	void SetTrueExpr(CExpression *ATrueExpr);
+	void SetFalseExpr(CExpression *AFalseExpr);
+
+	bool IsLValue() const;
+
+private:
+	CExpression *Condition;
+	CExpression *TrueExpr;
+	CExpression *FalseExpr;
+
 };
 
 class CConst : public CExpression
@@ -129,6 +157,8 @@ public:
 
 	void Accept(CExpressionVisitor &AVisitor);
 
+	bool IsLValue() const;
+
 };
 
 class CExpressionVisitor
@@ -138,6 +168,7 @@ public:
 
 	virtual void Visit(CUnaryOp &AExpr) = 0;
 	virtual void Visit(CBinaryOp &AExpr) = 0;
+	virtual void Visit(CConditionalOp &AExpr) = 0;
 	virtual void Visit(CIntegerConst &AExpr) = 0;
 	virtual void Visit(CFloatConst &AExpr) = 0;
 	virtual void Visit(CSymbolConst &AExpr) = 0;
@@ -152,6 +183,7 @@ public:
 
 	void Visit(CUnaryOp &AExpr);
 	void Visit(CBinaryOp &AExpr);
+	void Visit(CConditionalOp &AExpr);
 	void Visit(CIntegerConst &AExpr);
 	void Visit(CFloatConst &AExpr);
 	void Visit(CSymbolConst &AExpr);
@@ -160,6 +192,10 @@ public:
 
 private:
 	ostream &Stream;
+
+	static const char *LEFT_ENCLOSING;
+	static const char *RIGHT_ENCLOSING;
+	static const char *DELIMITER;
 
 };
 
@@ -170,6 +206,7 @@ public:
 
 	void Visit(CUnaryOp &AExpr);
 	void Visit(CBinaryOp &AExpr);
+	void Visit(CConditionalOp &AExpr);
 	void Visit(CIntegerConst &AExpr);
 	void Visit(CFloatConst &AExpr);
 	void Visit(CSymbolConst &AExpr);
@@ -193,11 +230,24 @@ public:
 
 	CExpression* ParseExpression();
 
-	CExpression* ParseSimpleExpression();
-
 private:
+	CExpression* ParseAssignment();
+	CExpression* ParseConditional();
+	CExpression* ParseLogicalOr();
+	CExpression* ParseLogicalAnd();
+	CExpression* ParseBitwiseOr();
+	CExpression* ParseBitwiseXor();
+	CExpression* ParseBitwiseAnd();
+	CExpression* ParseEqualityExpression();
+	CExpression* ParseRelationalExpression();
+	CExpression* ParseShiftExpression();
+
+	CExpression* ParseSimpleExpression();
 	CExpression* ParseTerm();
-	CExpression* ParseFactor();
+	CExpression* ParseCastExpression();
+	CExpression* ParsePostfixExpression();
+
+	CExpression* ParsePrimaryExpression();
 
 	void NextToken();
 

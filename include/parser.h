@@ -161,6 +161,14 @@ public:
 
 };
 
+class CPostfixOp : public CUnaryOp
+{
+public:
+	CPostfixOp(const CToken &AToken, CExpression *AArgument = NULL);
+
+	void Accept(CExpressionVisitor &AVisitor);
+};
+
 class CExpressionVisitor
 {
 public:
@@ -174,6 +182,7 @@ public:
 	virtual void Visit(CSymbolConst &AExpr) = 0;
 	virtual void Visit(CStringConst &AExpr) = 0;
 	virtual void Visit(CVariable &AExpr) = 0;
+	virtual void Visit(CPostfixOp &AExpr) = 0;
 };
 
 class CExpressionLinearPrintVisitor : public CExpressionVisitor
@@ -189,6 +198,7 @@ public:
 	void Visit(CSymbolConst &AExpr);
 	void Visit(CStringConst &AExpr);
 	void Visit(CVariable &AExpr);
+	void Visit(CPostfixOp &AExpr);
 
 private:
 	ostream &Stream;
@@ -212,6 +222,7 @@ public:
 	void Visit(CSymbolConst &AExpr);
 	void Visit(CStringConst &AExpr);
 	void Visit(CVariable &AExpr);
+	void Visit(CPostfixOp &AExpr);
 
 private:
 	void PrintTreeDecoration();
@@ -222,6 +233,22 @@ private:
 
 };
 
+class CTokenStream
+{
+public:
+	CTokenStream(CScanner &AScanner);
+	~CTokenStream();
+
+	const CToken* Next();
+	const CToken* GetToken();
+	const CToken* Previous();
+
+private:
+	CScanner &Scanner;
+	deque<CToken *> Buffer;
+	deque<CToken *>::iterator Current;
+	static const size_t TOKEN_STREAM_SIZE = 5;
+};
 
 class CParser
 {
@@ -232,26 +259,33 @@ public:
 
 private:
 	CExpression* ParseAssignment();
+
 	CExpression* ParseConditional();
+
 	CExpression* ParseLogicalOr();
 	CExpression* ParseLogicalAnd();
+
 	CExpression* ParseBitwiseOr();
 	CExpression* ParseBitwiseXor();
 	CExpression* ParseBitwiseAnd();
+
 	CExpression* ParseEqualityExpression();
 	CExpression* ParseRelationalExpression();
-	CExpression* ParseShiftExpression();
 
-	CExpression* ParseSimpleExpression();
-	CExpression* ParseTerm();
+	CExpression* ParseShiftExpression();
+	CExpression* ParseAdditiveExpression();
+	CExpression* ParseMultiplicativeExpression();
+
 	CExpression* ParseCastExpression();
+	CExpression* ParseUnaryExpression();
 	CExpression* ParsePostfixExpression();
 
 	CExpression* ParsePrimaryExpression();
 
 	void NextToken();
+	void PreviousToken();
 
-	CScanner &Scanner;
+	CTokenStream TokenStream;
 
 	const CToken *Token;
 

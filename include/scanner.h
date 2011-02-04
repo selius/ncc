@@ -86,6 +86,8 @@ public:
 	CToken(ETokenType AType, const string &AText, const CPosition &APosition);
 	virtual ~CToken();
 
+	virtual CToken* Clone() const;
+
 	ETokenType GetType() const;
 	string GetStringifiedType() const;
 	string GetText() const;
@@ -108,6 +110,8 @@ class CIntegerConstToken : public CToken
 public:
 	CIntegerConstToken(const string &AText, const CPosition &APosition);
 
+	CIntegerConstToken* Clone() const;
+
 	int GetIntegerValue() const;
 
 protected:
@@ -120,6 +124,8 @@ class CFloatConstToken : public CToken
 public:
 	CFloatConstToken(const string &AText, const CPosition &APosition);
 
+	CFloatConstToken* Clone() const;
+
 	double GetFloatValue() const;
 
 protected:
@@ -131,6 +137,8 @@ class CSymbolConstToken : public CToken
 {
 public:
 	CSymbolConstToken(const string &AText, const CPosition &APosition);
+
+	CSymbolConstToken* Clone() const;
 
 	char GetSymbolValue() const;
 

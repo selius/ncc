@@ -12,6 +12,11 @@ CToken::~CToken()
 {
 }
 
+CToken* CToken::Clone() const
+{
+	return new CToken(*this);
+}
+
 ETokenType CToken::GetType() const
 {
 	return Type;
@@ -58,6 +63,11 @@ CIntegerConstToken::CIntegerConstToken(const string &AText, const CPosition &APo
 	ss >> Value;
 }
 
+CIntegerConstToken* CIntegerConstToken::Clone() const
+{
+	return new CIntegerConstToken(*this);
+}
+
 int CIntegerConstToken::GetIntegerValue() const
 {
 	return Value;
@@ -74,6 +84,11 @@ CFloatConstToken::CFloatConstToken(const string &AText, const CPosition &APositi
 	ss >> Value;
 }
 
+CFloatConstToken* CFloatConstToken::Clone() const
+{
+	return new CFloatConstToken(*this);
+}
+
 double CFloatConstToken::GetFloatValue() const
 {
 	return Value;
@@ -86,6 +101,11 @@ double CFloatConstToken::GetFloatValue() const
 CSymbolConstToken::CSymbolConstToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_SYMBOL, AText, APosition)
 {
 	Value = AText[0];
+}
+
+CSymbolConstToken* CSymbolConstToken::Clone() const
+{
+	return new CSymbolConstToken(*this);
 }
 
 char CSymbolConstToken::GetSymbolValue() const

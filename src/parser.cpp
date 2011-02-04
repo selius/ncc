@@ -261,6 +261,19 @@ bool CVariable::IsLValue() const
 }
 
 /******************************************************************************
+ * CPostfixOp
+ ******************************************************************************/
+
+CPostfixOp::CPostfixOp(const CToken &AToken, CExpression *AArgument /*= NULL*/) : CUnaryOp(AToken, AArgument)
+{
+}
+
+void CPostfixOp::Accept(CExpressionVisitor &AVisitor)
+{
+	AVisitor.Visit(*this);
+}
+
+/******************************************************************************
  * CExpressionVisitor
  ******************************************************************************/
 
@@ -338,6 +351,15 @@ void CExpressionLinearPrintVisitor::Visit(CStringConst &AExpr)
 void CExpressionLinearPrintVisitor::Visit(CVariable &AExpr)
 {
 	Stream << AExpr.GetName();
+}
+
+void CExpressionLinearPrintVisitor::Visit(CPostfixOp &AExpr)
+{
+	Stream << AExpr.GetName() << "(postfix)" << LEFT_ENCLOSING;
+	if (AExpr.GetArgument()) {
+		AExpr.GetArgument()->Accept(*this);
+	}
+	Stream << RIGHT_ENCLOSING;
 }
 
 const char *CExpressionLinearPrintVisitor::LEFT_ENCLOSING = "{";
@@ -434,6 +456,20 @@ void CExpressionTreePrintVisitor::Visit(CVariable &AExpr)
 	Stream << AExpr.GetName() << endl;
 }
 
+void CExpressionTreePrintVisitor::Visit(CPostfixOp &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << "(postfix)" << endl;
+
+	Nesting++;
+	LastChild[Nesting] = true;
+	if (AExpr.GetArgument()) {
+		AExpr.GetArgument()->Accept(*this);
+	}
+	Nesting--;
+}
+
 void CExpressionTreePrintVisitor::PrintTreeDecoration()
 {
 	for (int i = 1; i < Nesting; i++) {
@@ -456,17 +492,66 @@ void CExpressionTreePrintVisitor::PrintTreeDecoration()
 }
 
 /******************************************************************************
+ * CTokenStream
+ ******************************************************************************/
+
+CTokenStream::CTokenStream(CScanner &AScanner) : Scanner(AScanner)
+{
+	Current = --Buffer.end();
+}
+
+CTokenStream::~CTokenStream()
+{
+	while (!Buffer.empty()) {
+		delete Buffer.back();
+		Buffer.pop_back();
+	}
+}
+
+const CToken* CTokenStream::Next()
+{
+	++Current;
+
+	if (Current == Buffer.end()) {
+		Buffer.push_back(Scanner.Next()->Clone());
+		if (Buffer.size() > TOKEN_STREAM_SIZE) {
+			delete Buffer.front();
+			Buffer.pop_front();
+		}
+		Current = --Buffer.end();
+	}
+
+	return GetToken();
+}
+
+const CToken* CTokenStream::GetToken()
+{
+	return *Current;
+}
+
+const CToken* CTokenStream::Previous()
+{
+	if (Current == Buffer.begin()) {
+		return NULL;
+	}
+
+	--Current;
+
+	return GetToken();
+}
+
+/******************************************************************************
  * CParser
  ******************************************************************************/
 
-CParser::CParser(CScanner &AScanner) : Scanner(AScanner)
+CParser::CParser(CScanner &AScanner) : TokenStream(AScanner)
 {
 	NextToken();
 }
 
 CExpression* CParser::ParseExpression()
 {
-	CExpression *Expr = ParseAssignment(); // ParseSimpleExpression();
+	CExpression *Expr = ParseAssignment();
 
 	CBinaryOp *Op;
 
@@ -527,6 +612,29 @@ bool IsRelational(const CToken &Token)
 
 	for (int i = 0; RelationalOps[i] != TOKEN_TYPE_INVALID; i++) {
 		if (t == RelationalOps[i]) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool IsUnaryOp(const CToken &Token)
+{
+	static const ETokenType UnaryOps[] = {
+		TOKEN_TYPE_OPERATION_AMPERSAND,
+		TOKEN_TYPE_OPERATION_ASTERISK,
+		TOKEN_TYPE_OPERATION_PLUS,
+		TOKEN_TYPE_OPERATION_MINUS,
+		TOKEN_TYPE_OPERATION_BITWISE_NOT,
+		TOKEN_TYPE_OPERATION_LOGIC_NOT,
+		TOKEN_TYPE_INVALID
+		};
+
+	ETokenType t = Token.GetType();
+
+	for (int i = 0; UnaryOps[i] != TOKEN_TYPE_INVALID; i++) {
+		if (t == UnaryOps[i]) {
 			return true;
 		}
 	}
@@ -748,7 +856,7 @@ CExpression* CParser::ParseRelationalExpression()
 
 CExpression* CParser::ParseShiftExpression()
 {
-	CExpression *Expr = ParseSimpleExpression();
+	CExpression *Expr = ParseAdditiveExpression();
 
 	CBinaryOp *Op;
 
@@ -758,7 +866,7 @@ CExpression* CParser::ParseShiftExpression()
 		NextToken();
 
 		Op->SetLeft(Expr);
-		Op->SetRight(ParseSimpleExpression());
+		Op->SetRight(ParseAdditiveExpression());
 
 		Expr = Op;
 	}
@@ -766,9 +874,9 @@ CExpression* CParser::ParseShiftExpression()
 	return Expr;
 }
 
-CExpression* CParser::ParseSimpleExpression()
+CExpression* CParser::ParseAdditiveExpression()
 {
-	CExpression *Expr = ParseTerm();
+	CExpression *Expr = ParseMultiplicativeExpression();
 
 	CBinaryOp *Op;
 
@@ -778,7 +886,7 @@ CExpression* CParser::ParseSimpleExpression()
 		NextToken();
 
 		Op->SetLeft(Expr);
-		Op->SetRight(ParseTerm());
+		Op->SetRight(ParseMultiplicativeExpression());
 
 		Expr = Op;
 	}
@@ -786,9 +894,9 @@ CExpression* CParser::ParseSimpleExpression()
 	return Expr;
 }
 
-CExpression* CParser::ParseTerm()
+CExpression* CParser::ParseMultiplicativeExpression()
 {
-	CExpression *Expr = ParsePrimaryExpression();
+	CExpression *Expr = ParseCastExpression();
 
 	CBinaryOp *Op;
 
@@ -798,7 +906,7 @@ CExpression* CParser::ParseTerm()
 		NextToken();
 
 		Op->SetLeft(Expr);
-		Op->SetRight(ParsePrimaryExpression());
+		Op->SetRight(ParseCastExpression());
 
 		Expr = Op;
 	}
@@ -811,10 +919,51 @@ CExpression* CParser::ParseCastExpression()
 	if (Token->GetType() == TOKEN_TYPE_LEFT_PARENTHESIS) {
 		NextToken();
 		if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
-
+			// parse type..
+			//CSymbol *CastType = NULL;
+			CExpression *CastType = NULL;
+			//CastType = ParseType();
+			if (CastType) {
+				/*if (Token->GetType() == TOKEN_TYPE_RIGHT_PARENTHESIS) {
+					CCastOperator *Op = new CCastOperator(CastType);
+					Op->SetArgument(ParseCastExpression());
+					return Op;
+				} else {
+					throw CException("expected RIGHT_PARENTHESIS, got " + Token->GetStringifiedType(), Token->GetPosition());
+				}*/
+			}
 		}
+		PreviousToken();
 	}
 
+	return ParseUnaryExpression();
+}
+
+CExpression* CParser::ParseUnaryExpression()
+{
+	if (IsUnaryOp(*Token)) {
+		CUnaryOp *Op = new CUnaryOp(*Token);
+		NextToken();
+		Op->SetArgument(ParseCastExpression());
+		return Op;
+	}
+
+	if (Token->GetType() == TOKEN_TYPE_OPERATION_INCREMENT || Token->GetType() == TOKEN_TYPE_OPERATION_DECREMENT) {
+		CUnaryOp *Op = new CUnaryOp(*Token);
+		NextToken();
+		CPosition ArgPos = Token->GetPosition();
+		Op->SetArgument(ParseUnaryExpression());
+		if (!Op->GetArgument()->IsLValue()) {
+			throw CException("lvalue required as operand of prefix increment or decrement", ArgPos);
+		}
+		return Op;
+	}
+
+	if (Token->GetType() == TOKEN_TYPE_KEYWORD && Token->GetText() == "sizeof") {
+		// handle sizeof somehow..
+	}
+
+	return ParsePostfixExpression();
 }
 
 CExpression* CParser::ParsePostfixExpression()
@@ -822,7 +971,7 @@ CExpression* CParser::ParsePostfixExpression()
 	CExpression *Expr = ParsePrimaryExpression();
 
 	while (IsPostfix(*Token)) {
-		CExpression *Op;
+		//CExpression *Op;
 
 		switch (Token->GetType()) {
 		case TOKEN_TYPE_OPERATION_DOT:
@@ -832,16 +981,54 @@ CExpression* CParser::ParsePostfixExpression()
 			NextToken();
 
 			if (Token->GetType() != TOKEN_TYPE_IDENTIFIER) {
-				throw CExpression("expected IDENTIFIER as right operand of OPERATION_DOT, got " + Token->GetStringifiedType(), Token->GetPosition());
+				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+					+ " as right operand of " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_DOT]
+					+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
 			}
 			Op->SetRight(new CVariable(*Token));*/
 
 
 			///////// NOT DONE YET! //////////
 			break;
+		case TOKEN_TYPE_OPERATION_INDIRECT_ACCESS:
+			/*CIndirectAccess *Op = new CIndirectAccess(*Token);
+			Op->SetLeft(Expr);
+
+			NextToken();
+
+			if (Token->GetType() != TOKEN_TYPE_IDENTIFIER) {
+				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+					+ " as right operand of " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_INDIRECT_ACCESS]
+					+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
+			}
+			Op->SetRight(new CVariable(*Token));*/
+
+			///////// NOT DONE YET! //////////
+			break;
+		case TOKEN_TYPE_LEFT_SQUARE_BRACKET:
+			/*CArrayAccess *Op = new CArrayAccess(*Token);
+			Op->SetLeft(Expr);
+
+			NextToken();
+
+			Op->SetRight(ParseExpression());
+			if (Token->GetType() != TOKEN_TYPE_RIGHT_SQUARE_BRACKET) {
+				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET]
+					+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
+			}
+			Expr = Op;*/
+
+			///////// NOT DONE YET! //////////
+			break;
+		case TOKEN_TYPE_OPERATION_INCREMENT:
+			CPostfixOp *Op = new CPostfixOp(*Token);
+			Op->SetArgument(Expr);
+			NextToken();
+			Expr = Op;
+			break;
 		}
 
-		Expr = Op;
+		//Expr = Op;
 	}
 
 	return Expr;
@@ -849,14 +1036,6 @@ CExpression* CParser::ParsePostfixExpression()
 
 CExpression* CParser::ParsePrimaryExpression()
 {
-	// TODO: move to ParseUnary..
-	if (Token->GetType() == TOKEN_TYPE_OPERATION_MINUS || Token->GetType() == TOKEN_TYPE_OPERATION_PLUS) {
-		CUnaryOp *Op = new CUnaryOp(*Token);
-		NextToken();
-		Op->SetArgument(ParsePrimaryExpression());
-		return Op;
-	}
-
 	CExpression *Expr;
 
 	if (Token->GetType() == TOKEN_TYPE_LEFT_PARENTHESIS) {
@@ -887,5 +1066,10 @@ CExpression* CParser::ParsePrimaryExpression()
 
 void CParser::NextToken()
 {
-	Token = Scanner.Next();
+	Token = TokenStream.Next();
+}
+
+void CParser::PreviousToken()
+{
+	Token = TokenStream.Previous();
 }

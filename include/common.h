@@ -2,6 +2,7 @@
 #define _COMMON_H_
 
 #include <algorithm>
+#include <deque>
 #include <fstream>
 #include <istream>
 #include <iostream>
@@ -16,7 +17,7 @@ using namespace std;
 
 #define COMPILER_NAME "ncc"
 #define COMPILER_TITLE "Nartov C Compiler"
-#define COMPILER_VERSION "0.2.0"
+#define COMPILER_VERSION "0.2.4"
 
 enum EExitCode
 {

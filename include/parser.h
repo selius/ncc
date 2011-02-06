@@ -8,6 +8,7 @@ class CExpressionVisitor;
 class CExpression
 {
 public:
+	CExpression();
 	CExpression(const CToken &AToken);
 	virtual ~CExpression();
 
@@ -169,6 +170,28 @@ public:
 	void Accept(CExpressionVisitor &AVisitor);
 };
 
+class CFunctionCall : public CExpression
+{
+public:
+	typedef vector<CExpression *> ArgumentsContainer;
+	typedef ArgumentsContainer::iterator ArgumentsIterator;
+
+	CFunctionCall(CExpression *AFunction);
+	~CFunctionCall();
+
+	void Accept(CExpressionVisitor &AVisitor);
+
+	ArgumentsIterator Begin();
+	ArgumentsIterator End();
+
+	void AddArgument(CExpression *AArgument);
+
+private:
+	CExpression *Function;
+	ArgumentsContainer Arguments;
+
+};
+
 class CExpressionVisitor
 {
 public:
@@ -183,6 +206,7 @@ public:
 	virtual void Visit(CStringConst &AExpr) = 0;
 	virtual void Visit(CVariable &AExpr) = 0;
 	virtual void Visit(CPostfixOp &AExpr) = 0;
+	virtual void Visit(CFunctionCall &AExpr) = 0;
 };
 
 class CExpressionLinearPrintVisitor : public CExpressionVisitor
@@ -199,6 +223,7 @@ public:
 	void Visit(CStringConst &AExpr);
 	void Visit(CVariable &AExpr);
 	void Visit(CPostfixOp &AExpr);
+	void Visit(CFunctionCall &AExpr);
 
 private:
 	ostream &Stream;
@@ -223,6 +248,7 @@ public:
 	void Visit(CStringConst &AExpr);
 	void Visit(CVariable &AExpr);
 	void Visit(CPostfixOp &AExpr);
+	void Visit(CFunctionCall &AExpr);
 
 private:
 	void PrintTreeDecoration();

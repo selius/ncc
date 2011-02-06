@@ -4,6 +4,10 @@
  * CExpression
  ******************************************************************************/
 
+CExpression::CExpression() : Type(TOKEN_TYPE_INVALID)
+{
+}
+
 CExpression::CExpression(const CToken &AToken)
 {
 	Type = AToken.GetType();
@@ -274,6 +278,49 @@ void CPostfixOp::Accept(CExpressionVisitor &AVisitor)
 }
 
 /******************************************************************************
+ * CFunctionCall
+ ******************************************************************************/
+
+CFunctionCall::CFunctionCall(CExpression *AFunction)
+{
+	//Type = TOKEN_TYPE_IDENTIFIER;
+	Function = AFunction;
+	if (Function) {
+		Name = Function->GetName() + "()";
+	}
+}
+
+CFunctionCall::~CFunctionCall()
+{
+	delete Function;
+
+	while (!Arguments.empty()) {
+		delete Arguments.back();
+		Arguments.pop_back();
+	}
+}
+
+void CFunctionCall::Accept(CExpressionVisitor &AVisitor)
+{
+	AVisitor.Visit(*this);
+}
+
+CFunctionCall::ArgumentsIterator CFunctionCall::Begin()
+{
+	return Arguments.begin();
+}
+
+CFunctionCall::ArgumentsIterator CFunctionCall::End()
+{
+	return Arguments.end();
+}
+
+void CFunctionCall::AddArgument(CExpression *AArgument)
+{
+	Arguments.push_back(AArgument);
+}
+
+/******************************************************************************
  * CExpressionVisitor
  ******************************************************************************/
 
@@ -340,12 +387,12 @@ void CExpressionLinearPrintVisitor::Visit(CFloatConst &AExpr)
 
 void CExpressionLinearPrintVisitor::Visit(CSymbolConst &AExpr)
 {
-	Stream << AExpr.GetValue();
+	Stream << '\'' << AExpr.GetValue() << '\'';
 }
 
 void CExpressionLinearPrintVisitor::Visit(CStringConst &AExpr)
 {
-	Stream << AExpr.GetValue();
+	Stream << '"' << AExpr.GetValue() << '"';
 }
 
 void CExpressionLinearPrintVisitor::Visit(CVariable &AExpr)
@@ -358,6 +405,21 @@ void CExpressionLinearPrintVisitor::Visit(CPostfixOp &AExpr)
 	Stream << AExpr.GetName() << "(postfix)" << LEFT_ENCLOSING;
 	if (AExpr.GetArgument()) {
 		AExpr.GetArgument()->Accept(*this);
+	}
+	Stream << RIGHT_ENCLOSING;
+}
+
+void CExpressionLinearPrintVisitor::Visit(CFunctionCall &AExpr)
+{
+	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	for (CFunctionCall::ArgumentsIterator it = AExpr.Begin(); it != AExpr.End(); ++it) {
+		if (*it) {
+			(*it)->Accept(*this); 
+		}
+
+		if (it != --AExpr.End()) {
+			Stream << ", ";
+		}
 	}
 	Stream << RIGHT_ENCLOSING;
 }
@@ -441,13 +503,13 @@ void CExpressionTreePrintVisitor::Visit(CFloatConst &AExpr)
 void CExpressionTreePrintVisitor::Visit(CSymbolConst &AExpr)
 {
 	PrintTreeDecoration();
-	Stream << AExpr.GetValue() << endl;
+	Stream << '\'' << AExpr.GetValue() << '\'' << endl;
 }
 
 void CExpressionTreePrintVisitor::Visit(CStringConst &AExpr)
 {
 	PrintTreeDecoration();
-	Stream << AExpr.GetValue() << endl;
+	Stream << '"' << AExpr.GetValue() << '"' << endl;
 }
 
 void CExpressionTreePrintVisitor::Visit(CVariable &AExpr)
@@ -466,6 +528,24 @@ void CExpressionTreePrintVisitor::Visit(CPostfixOp &AExpr)
 	LastChild[Nesting] = true;
 	if (AExpr.GetArgument()) {
 		AExpr.GetArgument()->Accept(*this);
+	}
+	Nesting--;
+}
+
+void CExpressionTreePrintVisitor::Visit(CFunctionCall &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << endl;
+
+	Nesting++;
+	for (CFunctionCall::ArgumentsIterator it = AExpr.Begin(); it != AExpr.End(); ++it) {
+		if (it == --AExpr.End()) {
+			LastChild[Nesting] = true;
+		}
+		if (*it) {
+			(*it)->Accept(*this);
+		}
 	}
 	Nesting--;
 }
@@ -1021,10 +1101,40 @@ CExpression* CParser::ParsePostfixExpression()
 			///////// NOT DONE YET! //////////
 			break;
 		case TOKEN_TYPE_OPERATION_INCREMENT:
-			CPostfixOp *Op = new CPostfixOp(*Token);
-			Op->SetArgument(Expr);
+		case TOKEN_TYPE_OPERATION_DECREMENT:
+			{
+				if (!Expr->IsLValue()) {
+					throw CException("lvalue required as operand of postfix increment or decrement", Token->GetPosition());
+				}
+
+				CPostfixOp *Op = new CPostfixOp(*Token);
+				Op->SetArgument(Expr);
+				NextToken();
+				Expr = Op;
+			}
+			break;
+		case TOKEN_TYPE_LEFT_PARENTHESIS:
+			if (Expr->GetType() != TOKEN_TYPE_IDENTIFIER) {
+				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+					+ " before function call operator, got " + CScanner::TokenTypesNames[Expr->GetType()], Token->GetPosition());
+			}
+			CFunctionCall *FuncCall = new CFunctionCall(Expr);
 			NextToken();
-			Expr = Op;
+			if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
+				PreviousToken();
+				do {
+					NextToken();
+					FuncCall->AddArgument(ParseAssignment());
+				} while (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA);
+			}
+			
+			if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
+				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
+					+ " after function arguments list, got " + Token->GetStringifiedType(), Token->GetPosition());
+			}
+			NextToken();
+
+			Expr = FuncCall;
 			break;
 		}
 

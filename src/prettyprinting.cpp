@@ -1,14 +1,14 @@
 #include "prettyprinting.h"
 
 /******************************************************************************
- * CExpressionLinearPrintVisitor
+ * CStatementLinearPrintVisitor
  ******************************************************************************/
 
-CExpressionLinearPrintVisitor::CExpressionLinearPrintVisitor(ostream &AStream) : Stream(AStream)
+CStatementLinearPrintVisitor::CStatementLinearPrintVisitor(ostream &AStream) : Stream(AStream)
 {
 }
 
-void CExpressionLinearPrintVisitor::Visit(CUnaryOp &AExpr)
+void CStatementLinearPrintVisitor::Visit(CUnaryOp &AExpr)
 {
 	Stream << AExpr.GetName() << LEFT_ENCLOSING;
 	if (AExpr.GetArgument()) {
@@ -17,7 +17,7 @@ void CExpressionLinearPrintVisitor::Visit(CUnaryOp &AExpr)
 	Stream << RIGHT_ENCLOSING;
 }
 
-void CExpressionLinearPrintVisitor::Visit(CBinaryOp &AExpr)
+void CStatementLinearPrintVisitor::Visit(CBinaryOp &AExpr)
 {
 	Stream << AExpr.GetName() << LEFT_ENCLOSING;
 	if (AExpr.GetLeft()) {
@@ -30,7 +30,7 @@ void CExpressionLinearPrintVisitor::Visit(CBinaryOp &AExpr)
 	Stream << RIGHT_ENCLOSING;
 }
 
-void CExpressionLinearPrintVisitor::Visit(CConditionalOp &AExpr)
+void CStatementLinearPrintVisitor::Visit(CConditionalOp &AExpr)
 {
 	Stream << AExpr.GetName() << LEFT_ENCLOSING;
 	if (AExpr.GetCondition()) {
@@ -47,32 +47,32 @@ void CExpressionLinearPrintVisitor::Visit(CConditionalOp &AExpr)
 	Stream << RIGHT_ENCLOSING;
 }
 
-void CExpressionLinearPrintVisitor::Visit(CIntegerConst &AExpr)
+void CStatementLinearPrintVisitor::Visit(CIntegerConst &AExpr)
 {
 	Stream << AExpr.GetValue();
 }
 
-void CExpressionLinearPrintVisitor::Visit(CFloatConst &AExpr)
+void CStatementLinearPrintVisitor::Visit(CFloatConst &AExpr)
 {
 	Stream << AExpr.GetValue();
 }
 
-void CExpressionLinearPrintVisitor::Visit(CSymbolConst &AExpr)
+void CStatementLinearPrintVisitor::Visit(CSymbolConst &AExpr)
 {
 	Stream << '\'' << AExpr.GetValue() << '\'';
 }
 
-void CExpressionLinearPrintVisitor::Visit(CStringConst &AExpr)
+void CStatementLinearPrintVisitor::Visit(CStringConst &AExpr)
 {
 	Stream << '"' << AExpr.GetValue() << '"';
 }
 
-void CExpressionLinearPrintVisitor::Visit(CVariable &AExpr)
+void CStatementLinearPrintVisitor::Visit(CVariable &AExpr)
 {
 	Stream << AExpr.GetName();
 }
 
-void CExpressionLinearPrintVisitor::Visit(CPostfixOp &AExpr)
+void CStatementLinearPrintVisitor::Visit(CPostfixOp &AExpr)
 {
 	Stream << AExpr.GetName() << "(postfix)" << LEFT_ENCLOSING;
 	if (AExpr.GetArgument()) {
@@ -81,7 +81,7 @@ void CExpressionLinearPrintVisitor::Visit(CPostfixOp &AExpr)
 	Stream << RIGHT_ENCLOSING;
 }
 
-void CExpressionLinearPrintVisitor::Visit(CFunctionCall &AExpr)
+void CStatementLinearPrintVisitor::Visit(CFunctionCall &AExpr)
 {
 	Stream << AExpr.GetName() << LEFT_ENCLOSING;
 	for (CFunctionCall::ArgumentsIterator it = AExpr.Begin(); it != AExpr.End(); ++it) {
@@ -96,7 +96,7 @@ void CExpressionLinearPrintVisitor::Visit(CFunctionCall &AExpr)
 	Stream << RIGHT_ENCLOSING;
 }
 
-void CExpressionLinearPrintVisitor::Visit(CStructAccess &AExpr)
+void CStatementLinearPrintVisitor::Visit(CStructAccess &AExpr)
 {
 	Stream << AExpr.GetName() << LEFT_ENCLOSING;
 	if (AExpr.GetStruct()) {
@@ -109,7 +109,7 @@ void CExpressionLinearPrintVisitor::Visit(CStructAccess &AExpr)
 	Stream << RIGHT_ENCLOSING;
 }
 
-void CExpressionLinearPrintVisitor::Visit(CIndirectAccess &AExpr)
+void CStatementLinearPrintVisitor::Visit(CIndirectAccess &AExpr)
 {
 	Stream << AExpr.GetName() << LEFT_ENCLOSING;
 	if (AExpr.GetPointer()) {
@@ -122,7 +122,7 @@ void CExpressionLinearPrintVisitor::Visit(CIndirectAccess &AExpr)
 	Stream << RIGHT_ENCLOSING;
 }
 
-/*void CExpressionLinearPrintVisitor::Visit(CArrayAccess &AExpr)
+/*void CStatementLinearPrintVisitor::Visit(CArrayAccess &AExpr)
 {
 	Stream << AExpr.GetName() << LEFT_ENCLOSING;
 	if (AExpr.GetLeft()) {
@@ -135,20 +135,40 @@ void CExpressionLinearPrintVisitor::Visit(CIndirectAccess &AExpr)
 	Stream << RIGHT_ENCLOSING;
 }*/
 
-const char *CExpressionLinearPrintVisitor::LEFT_ENCLOSING = "{";
-const char *CExpressionLinearPrintVisitor::RIGHT_ENCLOSING = "}";
-const char *CExpressionLinearPrintVisitor::DELIMITER = ", ";
+void CStatementLinearPrintVisitor::Visit(CNullStatement &AExpr)
+{
+	Stream << AExpr.GetName();
+}
+
+void CStatementLinearPrintVisitor::Visit(CBlockStatement &AExpr)
+{
+	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	for (CBlockStatement::StatementsIterator it = AExpr.Begin(); it != AExpr.End(); ++it) {
+		if (*it) {
+			(*it)->Accept(*this); 
+		}
+
+		if (it != --AExpr.End()) {
+			Stream << ", ";
+		}
+	}
+	Stream << RIGHT_ENCLOSING;
+}
+
+const char *CStatementLinearPrintVisitor::LEFT_ENCLOSING = "{";
+const char *CStatementLinearPrintVisitor::RIGHT_ENCLOSING = "}";
+const char *CStatementLinearPrintVisitor::DELIMITER = ", ";
 
 /******************************************************************************
- * CExpressionTreePrintVisitor
+ * CStatementTreePrintVisitor
  ******************************************************************************/
 
-CExpressionTreePrintVisitor::CExpressionTreePrintVisitor(ostream &AStream) : Stream(AStream), Nesting(0)
+CStatementTreePrintVisitor::CStatementTreePrintVisitor(ostream &AStream) : Stream(AStream), Nesting(0)
 {
 	LastChild[0] = true;
 }
 
-void CExpressionTreePrintVisitor::Visit(CUnaryOp &AExpr)
+void CStatementTreePrintVisitor::Visit(CUnaryOp &AExpr)
 {
 	PrintTreeDecoration();
 
@@ -162,7 +182,7 @@ void CExpressionTreePrintVisitor::Visit(CUnaryOp &AExpr)
 	Nesting--;
 }
 
-void CExpressionTreePrintVisitor::Visit(CBinaryOp &AExpr)
+void CStatementTreePrintVisitor::Visit(CBinaryOp &AExpr)
 {
 	PrintTreeDecoration();
 
@@ -179,7 +199,7 @@ void CExpressionTreePrintVisitor::Visit(CBinaryOp &AExpr)
 	Nesting--;
 }
 
-void CExpressionTreePrintVisitor::Visit(CConditionalOp &AExpr)
+void CStatementTreePrintVisitor::Visit(CConditionalOp &AExpr)
 {
 	PrintTreeDecoration();
 
@@ -199,37 +219,37 @@ void CExpressionTreePrintVisitor::Visit(CConditionalOp &AExpr)
 	Nesting--;
 }
 
-void CExpressionTreePrintVisitor::Visit(CIntegerConst &AExpr)
+void CStatementTreePrintVisitor::Visit(CIntegerConst &AExpr)
 {
 	PrintTreeDecoration();
 	Stream << AExpr.GetValue() << endl;
 }
 
-void CExpressionTreePrintVisitor::Visit(CFloatConst &AExpr)
+void CStatementTreePrintVisitor::Visit(CFloatConst &AExpr)
 {
 	PrintTreeDecoration();
 	Stream << AExpr.GetValue() << endl;
 }
 
-void CExpressionTreePrintVisitor::Visit(CSymbolConst &AExpr)
+void CStatementTreePrintVisitor::Visit(CSymbolConst &AExpr)
 {
 	PrintTreeDecoration();
 	Stream << '\'' << AExpr.GetValue() << '\'' << endl;
 }
 
-void CExpressionTreePrintVisitor::Visit(CStringConst &AExpr)
+void CStatementTreePrintVisitor::Visit(CStringConst &AExpr)
 {
 	PrintTreeDecoration();
 	Stream << '"' << AExpr.GetValue() << '"' << endl;
 }
 
-void CExpressionTreePrintVisitor::Visit(CVariable &AExpr)
+void CStatementTreePrintVisitor::Visit(CVariable &AExpr)
 {
 	PrintTreeDecoration();
 	Stream << AExpr.GetName() << endl;
 }
 
-void CExpressionTreePrintVisitor::Visit(CPostfixOp &AExpr)
+void CStatementTreePrintVisitor::Visit(CPostfixOp &AExpr)
 {
 	PrintTreeDecoration();
 
@@ -243,7 +263,7 @@ void CExpressionTreePrintVisitor::Visit(CPostfixOp &AExpr)
 	Nesting--;
 }
 
-void CExpressionTreePrintVisitor::Visit(CFunctionCall &AExpr)
+void CStatementTreePrintVisitor::Visit(CFunctionCall &AExpr)
 {
 	PrintTreeDecoration();
 
@@ -261,7 +281,7 @@ void CExpressionTreePrintVisitor::Visit(CFunctionCall &AExpr)
 	Nesting--;
 }
 
-void CExpressionTreePrintVisitor::Visit(CStructAccess &AExpr)
+void CStatementTreePrintVisitor::Visit(CStructAccess &AExpr)
 {
 	PrintTreeDecoration();
 
@@ -278,7 +298,7 @@ void CExpressionTreePrintVisitor::Visit(CStructAccess &AExpr)
 	Nesting--;
 }
 
-void CExpressionTreePrintVisitor::Visit(CIndirectAccess &AExpr)
+void CStatementTreePrintVisitor::Visit(CIndirectAccess &AExpr)
 {
 	PrintTreeDecoration();
 
@@ -295,7 +315,31 @@ void CExpressionTreePrintVisitor::Visit(CIndirectAccess &AExpr)
 	Nesting--;
 }
 
-void CExpressionTreePrintVisitor::PrintTreeDecoration()
+void CStatementTreePrintVisitor::Visit(CNullStatement &AExpr)
+{
+	PrintTreeDecoration();
+	Stream << AExpr.GetName() << endl;
+}
+
+void CStatementTreePrintVisitor::Visit(CBlockStatement &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << endl;
+
+	Nesting++;
+	for (CBlockStatement::StatementsIterator it = AExpr.Begin(); it != AExpr.End(); ++it) {
+		if (it == --AExpr.End()) {
+			LastChild[Nesting] = true;
+		}
+		if (*it) {
+			(*it)->Accept(*this);
+		}
+	}
+	Nesting--;
+}
+
+void CStatementTreePrintVisitor::PrintTreeDecoration()
 {
 	for (int i = 1; i < Nesting; i++) {
 		if (LastChild[i]) {

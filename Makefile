@@ -13,6 +13,7 @@ SOURCES		=	src/main.cpp \
 			src/scanner.cpp \
 			src/parser.cpp \
 			src/expressions.cpp \
+			src/statements.cpp \
 			src/symbols.cpp 
 
 TARGET		=	bin/ncc

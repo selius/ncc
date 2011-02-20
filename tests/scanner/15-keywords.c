@@ -6,12 +6,10 @@ continue
 default
 do
 else
-enum
 extern
 for
 goto
 if
-register
 return
 static
 struct

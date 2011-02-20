@@ -1,29 +1,26 @@
 #ifndef _EXPRESSIONS_H_
 #define _EXPRESSIONS_H_
 
+#include "common.h"
 #include "scanner.h"
 #include "symbols.h"
+#include "statements.h"
 
-class CExpressionVisitor;
-
-class CExpression
+class CExpression : public CStatement
 {
 public:
 	CExpression();
 	CExpression(const CToken &AToken);
 	virtual ~CExpression();
 
-	virtual void Accept(CExpressionVisitor &AVisitor) = 0;
+	//virtual void Accept(CStatementVisitor &AVisitor) = 0;
 
 	ETokenType GetType() const;
-	string GetName() const;
 
 	virtual bool IsLValue() const;
 
 protected:
 	ETokenType Type;
-	string Name;
-
 };
 
 class CUnaryOp : public CExpression
@@ -32,7 +29,7 @@ public:
 	CUnaryOp(const CToken &AToken, CExpression *AArgument = NULL);
 	~CUnaryOp();
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	CExpression* GetArgument() const;
 	void SetArgument(CExpression *AArgument);
@@ -51,7 +48,7 @@ public:
 	CBinaryOp();
 	~CBinaryOp();
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	CExpression* GetLeft() const;
 	CExpression* GetRight() const;
@@ -69,7 +66,7 @@ public:
 	CConditionalOp(const CToken &AToken, CExpression *ACondition = NULL, CExpression *ATrueExpr = NULL, CExpression *AFalseExpr = NULL);
 	~CConditionalOp();
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	CExpression* GetCondition() const;
 	CExpression* GetTrueExpr() const;
@@ -102,7 +99,7 @@ class CIntegerConst : public CConst
 public:
 	CIntegerConst(const CIntegerConstToken &AToken);
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	int GetValue() const;
 
@@ -116,7 +113,7 @@ class CFloatConst : public CConst
 public:
 	CFloatConst(const CFloatConstToken &AToken);
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	double GetValue() const;
 
@@ -130,7 +127,7 @@ class CSymbolConst : public CConst
 public:
 	CSymbolConst(const CSymbolConstToken &AToken);
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	char GetValue() const;
 
@@ -144,7 +141,7 @@ class CStringConst : public CConst
 public:
 	CStringConst(const CToken &AToken);
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	string GetValue() const;
 
@@ -158,17 +155,13 @@ class CVariable : public CExpression
 public:
 	CVariable(const CToken &AToken, CSymbol *ASymbol = NULL);
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	bool IsLValue() const;
-
-	string GetName() const;
-	void SetName(const string &AName);
 
 	CSymbol* GetSymbol() const;
 
 private:
-	string Name;
 	CSymbol *Symbol;
 
 };
@@ -178,7 +171,7 @@ class CPostfixOp : public CUnaryOp
 public:
 	CPostfixOp(const CToken &AToken, CExpression *AArgument = NULL);
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 };
 
 class CFunctionCall : public CExpression
@@ -190,7 +183,7 @@ public:
 	CFunctionCall(CSymbol *AFunction);
 	~CFunctionCall();
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	ArgumentsIterator Begin();
 	ArgumentsIterator End();
@@ -209,7 +202,7 @@ public:
 	CStructAccess(const CToken &AToken, CExpression *AStruct = NULL, CVariable *AField = NULL);
 	~CStructAccess();
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	CExpression* GetStruct() const;
 	CVariable* GetField() const;
@@ -227,7 +220,7 @@ public:
 	CIndirectAccess(const CToken &AToken, CExpression *APointer = NULL, CVariable *AField = NULL);
 	~CIndirectAccess();
 
-	void Accept(CExpressionVisitor &AVisitor);
+	void Accept(CStatementVisitor &AVisitor);
 
 	CExpression* GetPointer() const;
 	CVariable* GetField() const;
@@ -245,27 +238,7 @@ public:
 	CArrayAccess(CExpression *ALeft = NULL, CExpression *ARight = NULL);
 	~CArrayAccess();
 
-	void Accept(CExpressionVisitor &AVisitor);
-};
-
-class CExpressionVisitor
-{
-public:
-	virtual ~CExpressionVisitor();
-
-	virtual void Visit(CUnaryOp &AExpr) = 0;
-	virtual void Visit(CBinaryOp &AExpr) = 0;
-	virtual void Visit(CConditionalOp &AExpr) = 0;
-	virtual void Visit(CIntegerConst &AExpr) = 0;
-	virtual void Visit(CFloatConst &AExpr) = 0;
-	virtual void Visit(CSymbolConst &AExpr) = 0;
-	virtual void Visit(CStringConst &AExpr) = 0;
-	virtual void Visit(CVariable &AExpr) = 0;
-	virtual void Visit(CPostfixOp &AExpr) = 0;
-	virtual void Visit(CFunctionCall &AExpr) = 0;
-	virtual void Visit(CStructAccess &AExpr) = 0;
-	virtual void Visit(CIndirectAccess &AExpr) = 0;
-	/*virtual void Visit(CArrayAccess &AExpr) = 0;*/
+	void Accept(CStatementVisitor &AVisitor);
 };
 
 #endif // _EXPRESSIONS_H_

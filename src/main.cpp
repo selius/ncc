@@ -3,6 +3,7 @@
 #include "scanner.h"
 #include "parser.h"
 #include "prettyprinting.h"
+#include "statements.h"
 
 int main(int argc, char *argv[])
 {
@@ -56,25 +57,25 @@ int main(int argc, char *argv[])
 			CScanner scanner(in);
 			CParser parser(scanner);
 
-			CExpressionVisitor *vis;
+			CStatementVisitor *vis;
 
-			//CExpression *expr = parser.ParseSimpleExpression();
-			CExpression *expr = parser.ParseExpression();
+			//CExpression *expr = parser.ParseExpression();
+			CStatement *SynNode = parser.ParseBlock();	// replace by something like ParseModule or ParseBody or ParseProgram..
 
 			if (scanner.GetToken()->GetType() != TOKEN_TYPE_EOF) {
 				throw CException("trailing characters", scanner.GetToken()->GetPosition());
 			}
 
 			if (Parameters.ParserOutputMode == PARSER_OUTPUT_MODE_TREE) {
-				vis = new CExpressionTreePrintVisitor(*out);
+				vis = new CStatementTreePrintVisitor(*out);
 			} else {
-				vis = new CExpressionLinearPrintVisitor(*out);
+				vis = new CStatementLinearPrintVisitor(*out);
 			}
 
-			expr->Accept(*vis);
+			SynNode->Accept(*vis);
 
 			delete vis;
-			delete expr;
+			delete SynNode;
 
 		} catch (CException e) {
 			e.Output(cerr);

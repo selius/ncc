@@ -48,3 +48,11 @@ string CFatalException::GetMessage() const
 {
 	return Message;
 }
+
+/******************************************************************************
+ * CStatementVisitor
+ ******************************************************************************/
+
+CStatementVisitor::~CStatementVisitor()
+{
+}

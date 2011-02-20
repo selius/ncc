@@ -4,6 +4,7 @@
 #include "scanner.h"
 #include "symbols.h"
 #include "expressions.h"
+#include "statements.h"
 
 class CTokenStream
 {
@@ -28,6 +29,7 @@ public:
 	CParser(CScanner &AScanner);
 
 	CStatement* ParseStatement();
+	CStatement* ParseBlock();
 
 	CExpression* ParseExpression();
 

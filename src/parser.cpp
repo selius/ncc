@@ -62,6 +62,62 @@ CParser::CParser(CScanner &AScanner) : TokenStream(AScanner)
 	SymbolTableStack.GetTop()->Add(main_sym_test);
 }
 
+CStatement* CParser::ParseStatement()
+{
+	ETokenType type = Token->GetType();
+	if (type == TOKEN_TYPE_KEYWORD) {
+		CStatement *result = NULL;
+		string text = Token->GetText();
+		/*if (text == "if") {
+			result = ParseIf();
+		} else if (text == "for") {
+			result = ParseFor();
+		} else if (text == "while") {
+			result = ParseWhile();
+		} else if (text == "do") {
+			result = ParseDo();
+		} else if (text == "return") {
+			result = ParseReturn;
+		} else if (text == "switch") {
+			result = ParseSwitch();
+		}*/
+		return result;
+	} else if (type == TOKEN_TYPE_BLOCK_START) {
+		return ParseBlock();
+	} else if (type == TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+		NextToken();
+		return new CNullStatement;
+	} else {
+		CStatement *Expr = ParseExpression();
+		if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+			throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
+				+ " after expression, got " + CScanner::TokenTypesNames[type], Token->GetPosition());
+		}
+		NextToken();
+		return Expr;
+	}
+}
+
+CStatement* CParser::ParseBlock()
+{
+	NextToken();
+
+	CBlockStatement *Stmt = new CBlockStatement;
+
+	while (Token->GetType() != TOKEN_TYPE_BLOCK_END) {
+		if (Token->GetType() == TOKEN_TYPE_EOF) {
+			throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_END]
+				+ ", got " + CScanner::TokenTypesNames[TOKEN_TYPE_EOF], Token->GetPosition());
+		}
+
+		Stmt->Add(ParseStatement());
+	}
+
+	NextToken();
+
+	return Stmt;
+}
+
 CExpression* CParser::ParseExpression()
 {
 	CExpression *Expr = ParseAssignment();

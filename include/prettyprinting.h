@@ -1,12 +1,15 @@
 #ifndef _PRETTYPRINTING_H_
 #define _PRETTYPRINTING_H_
 
+//#include "common.h"
 #include "expressions.h"
+#include "statements.h"
 
-class CExpressionLinearPrintVisitor : public CExpressionVisitor
+
+class CStatementLinearPrintVisitor : public CStatementVisitor
 {
 public:
-	CExpressionLinearPrintVisitor(ostream &AStream);
+	CStatementLinearPrintVisitor(ostream &AStream);
 
 	void Visit(CUnaryOp &AExpr);
 	void Visit(CBinaryOp &AExpr);
@@ -21,6 +24,8 @@ public:
 	void Visit(CStructAccess &AExpr);
 	void Visit(CIndirectAccess &AExpr);
 	/*void Visit(CArrayAccess &AExpr);*/
+	void Visit(CNullStatement &AExpr);
+	void Visit(CBlockStatement &AExpr);
 
 private:
 	ostream &Stream;
@@ -31,10 +36,10 @@ private:
 
 };
 
-class CExpressionTreePrintVisitor : public CExpressionVisitor
+class CStatementTreePrintVisitor : public CStatementVisitor
 {
 public:
-	CExpressionTreePrintVisitor(ostream &AStream);
+	CStatementTreePrintVisitor(ostream &AStream);
 
 	void Visit(CUnaryOp &AExpr);
 	void Visit(CBinaryOp &AExpr);
@@ -49,6 +54,8 @@ public:
 	void Visit(CStructAccess &AExpr);
 	void Visit(CIndirectAccess &AExpr);
 	/*void Visit(CArrayAccess &AExpr);*/
+	void Visit(CNullStatement &AExpr);
+	void Visit(CBlockStatement &AExpr);
 
 private:
 	void PrintTreeDecoration();

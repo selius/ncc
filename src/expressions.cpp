@@ -23,11 +23,6 @@ ETokenType CExpression::GetType() const
 	return Type;
 }
 
-string CExpression::GetName() const
-{
-	return Name;
-}
-
 bool CExpression::IsLValue() const
 {
 	return false;
@@ -46,7 +41,7 @@ CUnaryOp::~CUnaryOp()
 	delete Argument;
 }
 
-void CUnaryOp::Accept(CExpressionVisitor &AVisitor)
+void CUnaryOp::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -84,7 +79,7 @@ CBinaryOp::~CBinaryOp()
 	delete Right;
 }
 
-void CBinaryOp::Accept(CExpressionVisitor &AVisitor)
+void CBinaryOp::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -125,7 +120,7 @@ CConditionalOp::~CConditionalOp()
 	delete FalseExpr;
 }
 
-void CConditionalOp::Accept(CExpressionVisitor &AVisitor)
+void CConditionalOp::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -182,7 +177,7 @@ CIntegerConst::CIntegerConst(const CIntegerConstToken &AToken) : CConst(AToken)
 	Value = AToken.GetIntegerValue();
 }
 
-void CIntegerConst::Accept(CExpressionVisitor &AVisitor)
+void CIntegerConst::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -201,7 +196,7 @@ CFloatConst::CFloatConst(const CFloatConstToken &AToken) : CConst(AToken)
 	Value = AToken.GetFloatValue();
 }
 
-void CFloatConst::Accept(CExpressionVisitor &AVisitor)
+void CFloatConst::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -220,7 +215,7 @@ CSymbolConst::CSymbolConst(const CSymbolConstToken &AToken) : CConst(AToken)
 	Value = AToken.GetSymbolValue();
 }
 
-void CSymbolConst::Accept(CExpressionVisitor &AVisitor)
+void CSymbolConst::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -239,7 +234,7 @@ CStringConst::CStringConst(const CToken &AToken) : CConst(AToken)
 	Value = AToken.GetText();
 }
 
-void CStringConst::Accept(CExpressionVisitor &AVisitor)
+void CStringConst::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -258,7 +253,7 @@ CVariable::CVariable(const CToken &AToken, CSymbol *ASymbol /*= NULL*/) : CExpre
 	Name = AToken.GetText();
 }
 
-void CVariable::Accept(CExpressionVisitor &AVisitor)
+void CVariable::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -267,16 +262,6 @@ bool CVariable::IsLValue() const
 {
 	// TODO: add check for constness using info from symbol object
 	return true;
-}
-
-string CVariable::GetName() const
-{
-	return Name;
-}
-
-void CVariable::SetName(const string &AName)
-{
-	Name = AName;
 }
 
 CSymbol* CVariable::GetSymbol() const
@@ -292,7 +277,7 @@ CPostfixOp::CPostfixOp(const CToken &AToken, CExpression *AArgument /*= NULL*/) 
 {
 }
 
-void CPostfixOp::Accept(CExpressionVisitor &AVisitor)
+void CPostfixOp::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -321,7 +306,7 @@ CFunctionCall::~CFunctionCall()
 	}
 }
 
-void CFunctionCall::Accept(CExpressionVisitor &AVisitor)
+void CFunctionCall::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -354,7 +339,7 @@ CStructAccess::~CStructAccess()
 	delete Struct;
 }
 
-void CStructAccess::Accept(CExpressionVisitor &AVisitor)
+void CStructAccess::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -392,7 +377,7 @@ CIndirectAccess::~CIndirectAccess()
 	delete Pointer;
 }
 
-void CIndirectAccess::Accept(CExpressionVisitor &AVisitor)
+void CIndirectAccess::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
@@ -433,16 +418,8 @@ CArrayAccess::~CArrayAccess()
 {
 }
 
-void CArrayAccess::Accept(CExpressionVisitor &AVisitor)
+void CArrayAccess::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
-}
-
-/******************************************************************************
- * CExpressionVisitor
- ******************************************************************************/
-
-CExpressionVisitor::~CExpressionVisitor()
-{
 }
 

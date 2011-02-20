@@ -83,5 +83,42 @@ private:
 
 };
 
+class CUnaryOp;
+class CBinaryOp;
+class CConditionalOp;
+class CIntegerConst;
+class CFloatConst;
+class CSymbolConst;
+class CStringConst;
+class CVariable;
+class CPostfixOp;
+class CFunctionCall;
+class CStructAccess;
+class CIndirectAccess;
+//class CArrayAccess;
+class CNullStatement;
+class CBlockStatement;
+
+class CStatementVisitor
+{
+public:
+	virtual ~CStatementVisitor();
+
+	virtual void Visit(CUnaryOp &AExpr) = 0;
+	virtual void Visit(CBinaryOp &AExpr) = 0;
+	virtual void Visit(CConditionalOp &AExpr) = 0;
+	virtual void Visit(CIntegerConst &AExpr) = 0;
+	virtual void Visit(CFloatConst &AExpr) = 0;
+	virtual void Visit(CSymbolConst &AExpr) = 0;
+	virtual void Visit(CStringConst &AExpr) = 0;
+	virtual void Visit(CVariable &AExpr) = 0;
+	virtual void Visit(CPostfixOp &AExpr) = 0;
+	virtual void Visit(CFunctionCall &AExpr) = 0;
+	virtual void Visit(CStructAccess &AExpr) = 0;
+	virtual void Visit(CIndirectAccess &AExpr) = 0;
+	/*virtual void Visit(CArrayAccess &AExpr) = 0;*/
+	virtual void Visit(CNullStatement &AExpr) = 0;
+	virtual void Visit(CBlockStatement &AExpr) = 0;
+};
 
 #endif // _COMMON_H_

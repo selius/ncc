@@ -2,6 +2,7 @@
 #include "cli.h"
 #include "scanner.h"
 #include "parser.h"
+#include "prettyprinting.h"
 
 int main(int argc, char *argv[])
 {

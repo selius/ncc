@@ -1,577 +1,6 @@
 #include "parser.h"
 
 /******************************************************************************
- * CExpression
- ******************************************************************************/
-
-CExpression::CExpression() : Type(TOKEN_TYPE_INVALID)
-{
-}
-
-CExpression::CExpression(const CToken &AToken)
-{
-	Type = AToken.GetType();
-	Name = AToken.GetText();
-}
-
-CExpression::~CExpression()
-{
-}
-
-ETokenType CExpression::GetType() const
-{
-	return Type;
-}
-
-string CExpression::GetName() const
-{
-	return Name;
-}
-
-bool CExpression::IsLValue() const
-{
-	return false;
-}
-
-/******************************************************************************
- * CUnaryOp
- ******************************************************************************/
-
-CUnaryOp::CUnaryOp(const CToken &AToken, CExpression *AArgument /*= NULL*/) : CExpression(AToken), Argument(AArgument)
-{
-}
-
-CUnaryOp::~CUnaryOp()
-{
-	delete Argument;
-}
-
-void CUnaryOp::Accept(CExpressionVisitor &AVisitor)
-{
-	AVisitor.Visit(*this);
-}
-
-CExpression* CUnaryOp::GetArgument() const
-{
-	return Argument;
-}
-
-void CUnaryOp::SetArgument(CExpression *AArgument)
-{
-	Argument = AArgument;
-}
-
-bool CUnaryOp::IsLValue() const
-{
-	return (Type == TOKEN_TYPE_OPERATION_ASTERISK);
-}
-
-/******************************************************************************
- * CBinaryOp
- ******************************************************************************/
-
-CBinaryOp::CBinaryOp(const CToken &AToken, CExpression *ALeft /*= NULL*/, CExpression *ARight /*= NULL*/) : CExpression(AToken), Left(ALeft), Right(ARight)
-{
-}
-
-CBinaryOp::~CBinaryOp()
-{
-	delete Left;
-	delete Right;
-}
-
-void CBinaryOp::Accept(CExpressionVisitor &AVisitor)
-{
-	AVisitor.Visit(*this);
-}
-
-CExpression* CBinaryOp::GetLeft() const
-{
-	return Left;
-}
-
-CExpression* CBinaryOp::GetRight() const
-{
-	return Right;
-}
-
-void CBinaryOp::SetLeft(CExpression *ALeft)
-{
-	Left = ALeft;
-}
-
-void CBinaryOp::SetRight(CExpression *ARight)
-{
-	Right = ARight;
-}
-
-/******************************************************************************
- * CConditionalOp
- ******************************************************************************/
-
-CConditionalOp::CConditionalOp(const CToken &AToken, CExpression *ACondition /*= NULL*/, CExpression *ATrueExpr /*= NULL*/, CExpression *AFalseExpr /*= NULL*/)
-	: CExpression(AToken), Condition(ACondition), TrueExpr(ATrueExpr), FalseExpr(AFalseExpr)
-{
-}
-
-CConditionalOp::~CConditionalOp()
-{
-	delete Condition;
-	delete TrueExpr;
-	delete FalseExpr;
-}
-
-void CConditionalOp::Accept(CExpressionVisitor &AVisitor)
-{
-	AVisitor.Visit(*this);
-}
-
-CExpression* CConditionalOp::GetCondition() const
-{
-	return Condition;
-}
-
-CExpression* CConditionalOp::GetTrueExpr() const
-{
-	return TrueExpr;
-}
-
-CExpression* CConditionalOp::GetFalseExpr() const
-{
-	return FalseExpr;
-}
-
-void CConditionalOp::SetCondition(CExpression *ACondition)
-{
-	Condition = ACondition;
-}
-
-void CConditionalOp::SetTrueExpr(CExpression *ATrueExpr)
-{
-	TrueExpr = ATrueExpr;
-}
-
-void CConditionalOp::SetFalseExpr(CExpression *AFalseExpr)
-{
-	FalseExpr = AFalseExpr;
-}
-
-bool CConditionalOp::IsLValue() const
-{
-	return true;
-}
-
-/******************************************************************************
- * CConst
- ******************************************************************************/
-
-CConst::CConst(const CToken &AToken) : CExpression(AToken)
-{
-}
-
-/******************************************************************************
- * CIntegerConst
- ******************************************************************************/
-
-CIntegerConst::CIntegerConst(const CIntegerConstToken &AToken) : CConst(AToken)
-{
-	Value = AToken.GetIntegerValue();
-}
-
-void CIntegerConst::Accept(CExpressionVisitor &AVisitor)
-{
-	AVisitor.Visit(*this);
-}
-
-int CIntegerConst::GetValue() const
-{
-	return Value;
-}
-
-/******************************************************************************
- * CFloatConst
- ******************************************************************************/
-
-CFloatConst::CFloatConst(const CFloatConstToken &AToken) : CConst(AToken)
-{
-	Value = AToken.GetFloatValue();
-}
-
-void CFloatConst::Accept(CExpressionVisitor &AVisitor)
-{
-	AVisitor.Visit(*this);
-}
-
-double CFloatConst::GetValue() const
-{
-	return Value;
-}
-
-/******************************************************************************
- * CSymbolConst
- ******************************************************************************/
-
-CSymbolConst::CSymbolConst(const CSymbolConstToken &AToken) : CConst(AToken)
-{
-	Value = AToken.GetSymbolValue();
-}
-
-void CSymbolConst::Accept(CExpressionVisitor &AVisitor)
-{
-	AVisitor.Visit(*this);
-}
-
-char CSymbolConst::GetValue() const
-{
-	return Value;
-}
-
-/******************************************************************************
- * CStringConst
- ******************************************************************************/
-
-CStringConst::CStringConst(const CToken &AToken) : CConst(AToken)
-{
-	Value = AToken.GetText();
-}
-
-void CStringConst::Accept(CExpressionVisitor &AVisitor)
-{
-	AVisitor.Visit(*this);
-}
-
-string CStringConst::GetValue() const
-{
-	return Value;
-}
-
-/******************************************************************************
- * CVariable
- ******************************************************************************/
-
-CVariable::CVariable(const CToken &AToken) : CExpression(AToken)
-{
-}
-
-void CVariable::Accept(CExpressionVisitor &AVisitor)
-{
-	AVisitor.Visit(*this);
-}
-
-bool CVariable::IsLValue() const
-{
-	// TODO: add check for constness using info from symbol object
-	return true;
-}
-
-/******************************************************************************
- * CPostfixOp
- ******************************************************************************/
-
-CPostfixOp::CPostfixOp(const CToken &AToken, CExpression *AArgument /*= NULL*/) : CUnaryOp(AToken, AArgument)
-{
-}
-
-void CPostfixOp::Accept(CExpressionVisitor &AVisitor)
-{
-	AVisitor.Visit(*this);
-}
-
-/******************************************************************************
- * CFunctionCall
- ******************************************************************************/
-
-CFunctionCall::CFunctionCall(CExpression *AFunction)
-{
-	//Type = TOKEN_TYPE_IDENTIFIER;
-	Function = AFunction;
-	if (Function) {
-		Name = Function->GetName() + "()";
-	}
-}
-
-CFunctionCall::~CFunctionCall()
-{
-	delete Function;
-
-	while (!Arguments.empty()) {
-		delete Arguments.back();
-		Arguments.pop_back();
-	}
-}
-
-void CFunctionCall::Accept(CExpressionVisitor &AVisitor)
-{
-	AVisitor.Visit(*this);
-}
-
-CFunctionCall::ArgumentsIterator CFunctionCall::Begin()
-{
-	return Arguments.begin();
-}
-
-CFunctionCall::ArgumentsIterator CFunctionCall::End()
-{
-	return Arguments.end();
-}
-
-void CFunctionCall::AddArgument(CExpression *AArgument)
-{
-	Arguments.push_back(AArgument);
-}
-
-/******************************************************************************
- * CExpressionVisitor
- ******************************************************************************/
-
-CExpressionVisitor::~CExpressionVisitor()
-{
-}
-
-/******************************************************************************
- * CExpressionLinearPrintVisitor
- ******************************************************************************/
-
-CExpressionLinearPrintVisitor::CExpressionLinearPrintVisitor(ostream &AStream) : Stream(AStream)
-{
-}
-
-void CExpressionLinearPrintVisitor::Visit(CUnaryOp &AExpr)
-{
-	Stream << AExpr.GetName() << LEFT_ENCLOSING;
-	if (AExpr.GetArgument()) {
-		AExpr.GetArgument()->Accept(*this);
-	}
-	Stream << RIGHT_ENCLOSING;
-}
-
-void CExpressionLinearPrintVisitor::Visit(CBinaryOp &AExpr)
-{
-	Stream << AExpr.GetName() << LEFT_ENCLOSING;
-	if (AExpr.GetLeft()) {
-		AExpr.GetLeft()->Accept(*this);
-	}
-	Stream << DELIMITER;
-	if (AExpr.GetRight()) {
-		AExpr.GetRight()->Accept(*this);
-	}
-	Stream << RIGHT_ENCLOSING;
-}
-
-void CExpressionLinearPrintVisitor::Visit(CConditionalOp &AExpr)
-{
-	Stream << AExpr.GetName() << LEFT_ENCLOSING;
-	if (AExpr.GetCondition()) {
-		AExpr.GetCondition()->Accept(*this);
-	}
-	Stream << DELIMITER;
-	if (AExpr.GetTrueExpr()) {
-		AExpr.GetTrueExpr()->Accept(*this);
-	}
-	Stream << DELIMITER;
-	if (AExpr.GetFalseExpr()) {
-		AExpr.GetFalseExpr()->Accept(*this);
-	}
-	Stream << RIGHT_ENCLOSING;
-}
-
-void CExpressionLinearPrintVisitor::Visit(CIntegerConst &AExpr)
-{
-	Stream << AExpr.GetValue();
-}
-
-void CExpressionLinearPrintVisitor::Visit(CFloatConst &AExpr)
-{
-	Stream << AExpr.GetValue();
-}
-
-void CExpressionLinearPrintVisitor::Visit(CSymbolConst &AExpr)
-{
-	Stream << '\'' << AExpr.GetValue() << '\'';
-}
-
-void CExpressionLinearPrintVisitor::Visit(CStringConst &AExpr)
-{
-	Stream << '"' << AExpr.GetValue() << '"';
-}
-
-void CExpressionLinearPrintVisitor::Visit(CVariable &AExpr)
-{
-	Stream << AExpr.GetName();
-}
-
-void CExpressionLinearPrintVisitor::Visit(CPostfixOp &AExpr)
-{
-	Stream << AExpr.GetName() << "(postfix)" << LEFT_ENCLOSING;
-	if (AExpr.GetArgument()) {
-		AExpr.GetArgument()->Accept(*this);
-	}
-	Stream << RIGHT_ENCLOSING;
-}
-
-void CExpressionLinearPrintVisitor::Visit(CFunctionCall &AExpr)
-{
-	Stream << AExpr.GetName() << LEFT_ENCLOSING;
-	for (CFunctionCall::ArgumentsIterator it = AExpr.Begin(); it != AExpr.End(); ++it) {
-		if (*it) {
-			(*it)->Accept(*this); 
-		}
-
-		if (it != --AExpr.End()) {
-			Stream << ", ";
-		}
-	}
-	Stream << RIGHT_ENCLOSING;
-}
-
-const char *CExpressionLinearPrintVisitor::LEFT_ENCLOSING = "{";
-const char *CExpressionLinearPrintVisitor::RIGHT_ENCLOSING = "}";
-const char *CExpressionLinearPrintVisitor::DELIMITER = ", ";
-
-/******************************************************************************
- * CExpressionTreePrintVisitor
- ******************************************************************************/
-
-CExpressionTreePrintVisitor::CExpressionTreePrintVisitor(ostream &AStream) : Stream(AStream), Nesting(0)
-{
-	LastChild[0] = true;
-}
-
-void CExpressionTreePrintVisitor::Visit(CUnaryOp &AExpr)
-{
-	PrintTreeDecoration();
-
-	Stream << AExpr.GetName() << endl;
-
-	Nesting++;
-	LastChild[Nesting] = true;
-	if (AExpr.GetArgument()) {
-		AExpr.GetArgument()->Accept(*this);
-	}
-	Nesting--;
-}
-
-void CExpressionTreePrintVisitor::Visit(CBinaryOp &AExpr)
-{
-	PrintTreeDecoration();
-
-	Stream << AExpr.GetName() << endl;
-
-	Nesting++;
-	if (AExpr.GetLeft()) {
-		AExpr.GetLeft()->Accept(*this);
-	}
-	LastChild[Nesting] = true;
-	if (AExpr.GetRight()) {
-		AExpr.GetRight()->Accept(*this);
-	}
-	Nesting--;
-}
-
-void CExpressionTreePrintVisitor::Visit(CConditionalOp &AExpr)
-{
-	PrintTreeDecoration();
-
-	Stream << AExpr.GetName() << endl;
-
-	Nesting++;
-	if (AExpr.GetCondition()) {
-		AExpr.GetCondition()->Accept(*this);
-	}
-	if (AExpr.GetTrueExpr()) {
-		AExpr.GetTrueExpr()->Accept(*this);
-	}
-	LastChild[Nesting] = true;
-	if (AExpr.GetFalseExpr()) {
-		AExpr.GetFalseExpr()->Accept(*this);
-	}
-	Nesting--;
-}
-
-void CExpressionTreePrintVisitor::Visit(CIntegerConst &AExpr)
-{
-	PrintTreeDecoration();
-	Stream << AExpr.GetValue() << endl;
-}
-
-void CExpressionTreePrintVisitor::Visit(CFloatConst &AExpr)
-{
-	PrintTreeDecoration();
-	Stream << AExpr.GetValue() << endl;
-}
-
-void CExpressionTreePrintVisitor::Visit(CSymbolConst &AExpr)
-{
-	PrintTreeDecoration();
-	Stream << '\'' << AExpr.GetValue() << '\'' << endl;
-}
-
-void CExpressionTreePrintVisitor::Visit(CStringConst &AExpr)
-{
-	PrintTreeDecoration();
-	Stream << '"' << AExpr.GetValue() << '"' << endl;
-}
-
-void CExpressionTreePrintVisitor::Visit(CVariable &AExpr)
-{
-	PrintTreeDecoration();
-	Stream << AExpr.GetName() << endl;
-}
-
-void CExpressionTreePrintVisitor::Visit(CPostfixOp &AExpr)
-{
-	PrintTreeDecoration();
-
-	Stream << AExpr.GetName() << "(postfix)" << endl;
-
-	Nesting++;
-	LastChild[Nesting] = true;
-	if (AExpr.GetArgument()) {
-		AExpr.GetArgument()->Accept(*this);
-	}
-	Nesting--;
-}
-
-void CExpressionTreePrintVisitor::Visit(CFunctionCall &AExpr)
-{
-	PrintTreeDecoration();
-
-	Stream << AExpr.GetName() << endl;
-
-	Nesting++;
-	for (CFunctionCall::ArgumentsIterator it = AExpr.Begin(); it != AExpr.End(); ++it) {
-		if (it == --AExpr.End()) {
-			LastChild[Nesting] = true;
-		}
-		if (*it) {
-			(*it)->Accept(*this);
-		}
-	}
-	Nesting--;
-}
-
-void CExpressionTreePrintVisitor::PrintTreeDecoration()
-{
-	for (int i = 1; i < Nesting; i++) {
-		if (LastChild[i]) {
-			Stream << "   ";
-		} else {
-			Stream << "|  ";
-		}
-	}
-
-	LastChild[Nesting + 1] = false;
-
-	if (Nesting > 0) {
-		if (LastChild[Nesting]) {
-			Stream << "`- ";
-		} else {
-			Stream << "|- ";
-		}
-	}
-}
-
-/******************************************************************************
  * CTokenStream
  ******************************************************************************/
 
@@ -627,6 +56,10 @@ const CToken* CTokenStream::Previous()
 CParser::CParser(CScanner &AScanner) : TokenStream(AScanner)
 {
 	NextToken();
+	SymbolTableStack.Push(new CSymbolTable);
+	CFunctionSymbol *main_sym_test = new CFunctionSymbol;
+	main_sym_test->SetName("main");
+	SymbolTableStack.GetTop()->Add(main_sym_test);
 }
 
 CExpression* CParser::ParseExpression()
@@ -1049,56 +482,60 @@ CExpression* CParser::ParseUnaryExpression()
 CExpression* CParser::ParsePostfixExpression()
 {
 	CExpression *Expr = ParsePrimaryExpression();
+	CExpression *Op;
 
 	while (IsPostfix(*Token)) {
-		//CExpression *Op;
-
 		switch (Token->GetType()) {
 		case TOKEN_TYPE_OPERATION_DOT:
-			/*CStructAccess *Op = new CStructAccess(*Token);
-			Op->SetLeft(Expr);
+			{
+				CStructAccess *StructAccess = new CStructAccess(*Token, Expr);
+				Op = StructAccess;
 
-			NextToken();
+				NextToken();
 
-			if (Token->GetType() != TOKEN_TYPE_IDENTIFIER) {
-				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
-					+ " as right operand of " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_DOT]
-					+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
+				if (Token->GetType() != TOKEN_TYPE_IDENTIFIER) {
+					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+						+ " as right operand of " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_DOT]
+						+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
+				}
+
+				StructAccess->SetField(new CVariable(*Token));
 			}
-			Op->SetRight(new CVariable(*Token));*/
-
-
-			///////// NOT DONE YET! //////////
 			break;
 		case TOKEN_TYPE_OPERATION_INDIRECT_ACCESS:
-			/*CIndirectAccess *Op = new CIndirectAccess(*Token);
-			Op->SetLeft(Expr);
+			{
+				CIndirectAccess *IndirectAccess = new CIndirectAccess(*Token, Expr);
+				Op = IndirectAccess;
 
-			NextToken();
+				NextToken();
 
-			if (Token->GetType() != TOKEN_TYPE_IDENTIFIER) {
-				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
-					+ " as right operand of " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_INDIRECT_ACCESS]
-					+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
+				if (Token->GetType() != TOKEN_TYPE_IDENTIFIER) {
+					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+						+ " as right operand of " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_INDIRECT_ACCESS]
+						+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
+				}
+
+				IndirectAccess->SetField(new CVariable(*Token));
 			}
-			Op->SetRight(new CVariable(*Token));*/
-
-			///////// NOT DONE YET! //////////
 			break;
 		case TOKEN_TYPE_LEFT_SQUARE_BRACKET:
-			/*CArrayAccess *Op = new CArrayAccess(*Token);
-			Op->SetLeft(Expr);
+			{
+				CArrayAccess *ArrayAccess = new CArrayAccess;
+				Op = ArrayAccess;
 
-			NextToken();
+				ArrayAccess->SetLeft(Expr);
 
-			Op->SetRight(ParseExpression());
-			if (Token->GetType() != TOKEN_TYPE_RIGHT_SQUARE_BRACKET) {
-				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET]
-					+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
+				NextToken();
+
+				ArrayAccess->SetRight(ParseExpression());
+
+				// TODO: check types..
+
+				if (Token->GetType() != TOKEN_TYPE_RIGHT_SQUARE_BRACKET) {
+					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET]
+						+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
+				}
 			}
-			Expr = Op;*/
-
-			///////// NOT DONE YET! //////////
 			break;
 		case TOKEN_TYPE_OPERATION_INCREMENT:
 		case TOKEN_TYPE_OPERATION_DECREMENT:
@@ -1107,38 +544,42 @@ CExpression* CParser::ParsePostfixExpression()
 					throw CException("lvalue required as operand of postfix increment or decrement", Token->GetPosition());
 				}
 
-				CPostfixOp *Op = new CPostfixOp(*Token);
-				Op->SetArgument(Expr);
-				NextToken();
-				Expr = Op;
+				CPostfixOp *PostfixOp = new CPostfixOp(*Token);
+				Op = PostfixOp; 
+				PostfixOp->SetArgument(Expr);
 			}
 			break;
 		case TOKEN_TYPE_LEFT_PARENTHESIS:
-			if (Expr->GetType() != TOKEN_TYPE_IDENTIFIER) {
-				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
-					+ " before function call operator, got " + CScanner::TokenTypesNames[Expr->GetType()], Token->GetPosition());
-			}
-			CFunctionCall *FuncCall = new CFunctionCall(Expr);
-			NextToken();
-			if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
-				PreviousToken();
-				do {
-					NextToken();
-					FuncCall->AddArgument(ParseAssignment());
-				} while (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA);
-			}
-			
-			if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
-				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
-					+ " after function arguments list, got " + Token->GetStringifiedType(), Token->GetPosition());
-			}
-			NextToken();
+			{
+				CVariable *VarExpr = dynamic_cast<CVariable *>(Expr);
+				if (!VarExpr) {
+					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+						+ " before function call operator, got " + CScanner::TokenTypesNames[Expr->GetType()], Token->GetPosition());
+				}
 
-			Expr = FuncCall;
+				CFunctionCall *FuncCall = new CFunctionCall(VarExpr->GetSymbol());
+				Op = FuncCall;
+
+				NextToken();
+
+				if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
+					PreviousToken();
+					do {
+						NextToken();
+						FuncCall->AddArgument(ParseAssignment());
+					} while (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA);
+				}
+				
+				if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
+					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
+						+ " after function arguments list, got " + Token->GetStringifiedType(), Token->GetPosition());
+				}
+			}
 			break;
 		}
 
-		//Expr = Op;
+		NextToken();
+		Expr = Op;
 	}
 
 	return Expr;
@@ -1164,7 +605,12 @@ CExpression* CParser::ParsePrimaryExpression()
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_STRING) {
 		Expr = new CStringConst(*Token);
 	} else if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
-		Expr = new CVariable(*Token);
+		CSymbol *Sym = SymbolTableStack.Lookup(Token->GetText());
+		/*if (!Sym) {
+			throw CException("undeclared identifier `" + Token->GetText() + "`", Token->GetPosition());
+		}*/
+
+		Expr = new CVariable(*Token, Sym);
 	} else {
 		throw CException("expected primary-expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
@@ -1183,3 +629,4 @@ void CParser::PreviousToken()
 {
 	Token = TokenStream.Previous();
 }
+

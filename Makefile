@@ -9,8 +9,11 @@ endif
 SOURCES		=	src/main.cpp \
 			src/common.cpp \
 			src/cli.cpp \
+			src/prettyprinting.cpp \
 			src/scanner.cpp \
-			src/parser.cpp
+			src/parser.cpp \
+			src/expressions.cpp \
+			src/symbols.cpp 
 
 TARGET		=	bin/ncc
 

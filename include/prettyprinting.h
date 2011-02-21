@@ -23,9 +23,20 @@ public:
 	void Visit(CFunctionCall &AExpr);
 	void Visit(CStructAccess &AExpr);
 	void Visit(CIndirectAccess &AExpr);
-	/*void Visit(CArrayAccess &AExpr);*/
+	void Visit(CArrayAccess &AExpr);
 	void Visit(CNullStatement &AExpr);
 	void Visit(CBlockStatement &AExpr);
+	void Visit(CIfStatement &AExpr);
+	void Visit(CForStatement &AExpr);
+	void Visit(CWhileStatement &AExpr);
+	void Visit(CDoStatement &AExpr);
+	void Visit(CLabel &AExpr);
+	void Visit(CCaseLabel &AExpr);
+	void Visit(CDefaultCaseLabel &AExpr);
+	void Visit(CGotoStatement &AExpr);
+	void Visit(CBreakStatement &AExpr);
+	void Visit(CContinueStatement &AExpr);
+	void Visit(CReturnStatement &AExpr);
 
 private:
 	ostream &Stream;
@@ -53,9 +64,20 @@ public:
 	void Visit(CFunctionCall &AExpr);
 	void Visit(CStructAccess &AExpr);
 	void Visit(CIndirectAccess &AExpr);
-	/*void Visit(CArrayAccess &AExpr);*/
+	void Visit(CArrayAccess &AExpr);
 	void Visit(CNullStatement &AExpr);
 	void Visit(CBlockStatement &AExpr);
+	void Visit(CIfStatement &AExpr);
+	void Visit(CForStatement &AExpr);
+	void Visit(CWhileStatement &AExpr);
+	void Visit(CDoStatement &AExpr);
+	void Visit(CLabel &AExpr);
+	void Visit(CCaseLabel &AExpr);
+	void Visit(CDefaultCaseLabel &AExpr);
+	void Visit(CGotoStatement &AExpr);
+	void Visit(CBreakStatement &AExpr);
+	void Visit(CContinueStatement &AExpr);
+	void Visit(CReturnStatement &AExpr);
 
 private:
 	void PrintTreeDecoration();

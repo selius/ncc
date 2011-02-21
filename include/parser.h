@@ -34,6 +34,29 @@ public:
 	CExpression* ParseExpression();
 
 private:
+	enum EBlockType
+	{
+		BLOCK_TYPE_DEFAULT,
+		BLOCK_TYPE_LOOP,
+		BLOCK_TYPE_SWITCH,
+	};
+
+	CStatement* ParseIf();
+
+	CStatement* ParseFor();
+	CStatement* ParseWhile();
+	CStatement* ParseDo();
+
+	CStatement* ParseCase();
+	CStatement* ParseDefault();
+
+	CStatement* ParseGoto();
+	CStatement* ParseBreak();
+	CStatement* ParseContinue();
+	CStatement* ParseReturn();
+
+	CStatement* ParseSwitch();
+
 	CExpression* ParseAssignment();
 
 	CExpression* ParseConditional();
@@ -66,8 +89,8 @@ private:
 	const CToken *Token;
 
 	CSymbolTableStack SymbolTableStack;
-
+	map<string, CLabel *> LabelTable;
+	stack<EBlockType> BlockType;
 };
-
 
 #endif // _PARSER_H_

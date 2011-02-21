@@ -90,7 +90,7 @@ void CStatementLinearPrintVisitor::Visit(CFunctionCall &AExpr)
 		}
 
 		if (it != --AExpr.End()) {
-			Stream << ", ";
+			Stream << DELIMITER;
 		}
 	}
 	Stream << RIGHT_ENCLOSING;
@@ -122,9 +122,10 @@ void CStatementLinearPrintVisitor::Visit(CIndirectAccess &AExpr)
 	Stream << RIGHT_ENCLOSING;
 }
 
-/*void CStatementLinearPrintVisitor::Visit(CArrayAccess &AExpr)
+void CStatementLinearPrintVisitor::Visit(CArrayAccess &AExpr)
 {
-	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	Visit(static_cast<CBinaryOp &>(AExpr));
+	/*Stream << AExpr.GetName() << LEFT_ENCLOSING;
 	if (AExpr.GetLeft()) {
 		AExpr.GetLeft()->Accept(*this);
 	}
@@ -132,8 +133,8 @@ void CStatementLinearPrintVisitor::Visit(CIndirectAccess &AExpr)
 	if (AExpr.GetRight()) {
 		AExpr.GetRight()->Accept(*this);
 	}
-	Stream << RIGHT_ENCLOSING;
-}*/
+	Stream << RIGHT_ENCLOSING;*/
+}
 
 void CStatementLinearPrintVisitor::Visit(CNullStatement &AExpr)
 {
@@ -142,15 +143,130 @@ void CStatementLinearPrintVisitor::Visit(CNullStatement &AExpr)
 
 void CStatementLinearPrintVisitor::Visit(CBlockStatement &AExpr)
 {
-	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	Stream << LEFT_ENCLOSING;
 	for (CBlockStatement::StatementsIterator it = AExpr.Begin(); it != AExpr.End(); ++it) {
 		if (*it) {
 			(*it)->Accept(*this); 
 		}
 
 		if (it != --AExpr.End()) {
-			Stream << ", ";
+			Stream << DELIMITER;
 		}
+	}
+	Stream << RIGHT_ENCLOSING;
+}
+
+void CStatementLinearPrintVisitor::Visit(CIfStatement &AExpr)
+{
+	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	if (AExpr.GetCondition()) {
+		AExpr.GetCondition()->Accept(*this);
+	}
+	Stream << DELIMITER;
+	if (AExpr.GetThenStatement()) {
+		AExpr.GetThenStatement()->Accept(*this);
+	}
+	if (AExpr.GetElseStatement()) {
+		Stream << DELIMITER;
+		AExpr.GetElseStatement()->Accept(*this);
+	}
+	Stream << RIGHT_ENCLOSING;
+}
+
+void CStatementLinearPrintVisitor::Visit(CForStatement &AExpr)
+{
+	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	if (AExpr.GetInit()) {
+		AExpr.GetInit()->Accept(*this);
+	}
+	Stream << DELIMITER;
+	if (AExpr.GetCondition()) {
+		AExpr.GetCondition()->Accept(*this);
+	}
+	Stream << DELIMITER;
+	if (AExpr.GetUpdate()) {
+		AExpr.GetUpdate()->Accept(*this);
+	}
+	Stream << DELIMITER;
+	if (AExpr.GetBody()) {
+		AExpr.GetBody()->Accept(*this);
+	}
+	Stream << RIGHT_ENCLOSING;
+}
+
+void CStatementLinearPrintVisitor::Visit(CWhileStatement &AExpr)
+{
+	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	if (AExpr.GetCondition()) {
+		AExpr.GetCondition()->Accept(*this);
+	}
+	Stream << DELIMITER;
+	if (AExpr.GetBody()) {
+		AExpr.GetBody()->Accept(*this);
+	}
+	Stream << RIGHT_ENCLOSING;
+}
+
+void CStatementLinearPrintVisitor::Visit(CDoStatement &AExpr)
+{
+	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	if (AExpr.GetBody()) {
+		AExpr.GetBody()->Accept(*this);
+	}
+	Stream << DELIMITER;
+	if (AExpr.GetCondition()) {
+		AExpr.GetCondition()->Accept(*this);
+	}
+	Stream << RIGHT_ENCLOSING;
+}
+
+void CStatementLinearPrintVisitor::Visit(CLabel &AExpr)
+{
+	Stream << AExpr.GetName() << ":" << LEFT_ENCLOSING;
+	if (AExpr.GetNext()) {
+		AExpr.GetNext()->Accept(*this);
+	}
+	Stream << RIGHT_ENCLOSING;
+}
+
+void CStatementLinearPrintVisitor::Visit(CCaseLabel &AExpr)
+{
+	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	if (AExpr.GetCaseExpression()) {
+		AExpr.GetCaseExpression()->Accept(*this);
+	}
+	Stream << DELIMITER;
+	if (AExpr.GetNext()) {
+		AExpr.GetNext()->Accept(*this);
+	}
+	Stream << RIGHT_ENCLOSING;
+}
+
+void CStatementLinearPrintVisitor::Visit(CDefaultCaseLabel &AExpr)
+{
+	Visit(static_cast<CLabel &>(AExpr));
+}
+
+void CStatementLinearPrintVisitor::Visit(CGotoStatement &AExpr)
+{
+	Stream << AExpr.GetName() << LEFT_ENCLOSING << AExpr.GetLabelName() << RIGHT_ENCLOSING;
+}
+
+void CStatementLinearPrintVisitor::Visit(CBreakStatement &AExpr)
+{
+	Stream << AExpr.GetName();
+}
+
+void CStatementLinearPrintVisitor::Visit(CContinueStatement &AExpr)
+{
+	Stream << AExpr.GetName();
+}
+
+void CStatementLinearPrintVisitor::Visit(CReturnStatement &AExpr)
+{
+	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	if (AExpr.GetReturnExpression()) {
+		AExpr.GetReturnExpression()->Accept(*this);
 	}
 	Stream << RIGHT_ENCLOSING;
 }
@@ -315,6 +431,11 @@ void CStatementTreePrintVisitor::Visit(CIndirectAccess &AExpr)
 	Nesting--;
 }
 
+void CStatementTreePrintVisitor::Visit(CArrayAccess &AExpr)
+{
+	Visit(static_cast<CBinaryOp &>(AExpr));
+}
+
 void CStatementTreePrintVisitor::Visit(CNullStatement &AExpr)
 {
 	PrintTreeDecoration();
@@ -335,6 +456,161 @@ void CStatementTreePrintVisitor::Visit(CBlockStatement &AExpr)
 		if (*it) {
 			(*it)->Accept(*this);
 		}
+	}
+	Nesting--;
+}
+
+void CStatementTreePrintVisitor::Visit(CIfStatement &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << endl;
+
+	Nesting++;
+	if (AExpr.GetCondition()) {
+		AExpr.GetCondition()->Accept(*this);
+	}
+
+	LastChild[Nesting] = !AExpr.GetElseStatement();
+	if (AExpr.GetThenStatement()) {
+		AExpr.GetThenStatement()->Accept(*this);
+	}
+
+	LastChild[Nesting] = true;
+	if (AExpr.GetElseStatement()) {
+		AExpr.GetElseStatement()->Accept(*this);
+	}
+	Nesting--;
+}
+
+void CStatementTreePrintVisitor::Visit(CForStatement &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << endl;
+
+	Nesting++;
+	if (AExpr.GetInit()) {
+		AExpr.GetInit()->Accept(*this);
+	}
+	if (AExpr.GetCondition()) {
+		AExpr.GetCondition()->Accept(*this);
+	}
+	if (AExpr.GetUpdate()) {
+		AExpr.GetUpdate()->Accept(*this);
+	}
+	LastChild[Nesting] = true;
+	if (AExpr.GetBody()) {
+		AExpr.GetBody()->Accept(*this);
+	}
+	Nesting--;
+}
+
+void CStatementTreePrintVisitor::Visit(CWhileStatement &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << endl;
+
+	Nesting++;
+	if (AExpr.GetCondition()) {
+		AExpr.GetCondition()->Accept(*this);
+	}
+	LastChild[Nesting] = true;
+	if (AExpr.GetBody()) {
+		AExpr.GetBody()->Accept(*this);
+	}
+	Nesting--;
+}
+
+void CStatementTreePrintVisitor::Visit(CDoStatement &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << endl;
+
+	Nesting++;
+	if (AExpr.GetBody()) {
+		AExpr.GetBody()->Accept(*this);
+	}
+	LastChild[Nesting] = true;
+	if (AExpr.GetCondition()) {
+		AExpr.GetCondition()->Accept(*this);
+	}
+	Nesting--;
+}
+
+void CStatementTreePrintVisitor::Visit(CLabel &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << ":" << endl;
+
+	Nesting++;
+	LastChild[Nesting] = true;
+	if (AExpr.GetNext()) {
+		AExpr.GetNext()->Accept(*this);
+	}
+	Nesting--;
+}
+
+void CStatementTreePrintVisitor::Visit(CCaseLabel &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << endl;
+
+	Nesting++;
+	if (AExpr.GetCaseExpression()) {
+		AExpr.GetCaseExpression()->Accept(*this);
+	}
+	LastChild[Nesting] = true;
+	if (AExpr.GetNext()) {
+		AExpr.GetNext()->Accept(*this);
+	}
+	Nesting--;
+}
+
+void CStatementTreePrintVisitor::Visit(CDefaultCaseLabel &AExpr)
+{
+	Visit(static_cast<CLabel &>(AExpr));
+}
+
+void CStatementTreePrintVisitor::Visit(CGotoStatement &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << endl;
+
+	Nesting++;
+	LastChild[Nesting] = true;
+	PrintTreeDecoration(); 
+	Stream << AExpr.GetLabelName() << endl;
+	Nesting--;
+}
+
+void CStatementTreePrintVisitor::Visit(CBreakStatement &AExpr)
+{
+	PrintTreeDecoration();
+	Stream << AExpr.GetName() << endl;
+}
+
+void CStatementTreePrintVisitor::Visit(CContinueStatement &AExpr)
+{
+	PrintTreeDecoration();
+	Stream << AExpr.GetName() << endl;
+}
+
+void CStatementTreePrintVisitor::Visit(CReturnStatement &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << endl;
+
+	Nesting++;
+	LastChild[Nesting] = true;
+	if (AExpr.GetReturnExpression()) {
+		AExpr.GetReturnExpression()->Accept(*this);
 	}
 	Nesting--;
 }

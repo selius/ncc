@@ -95,9 +95,20 @@ class CPostfixOp;
 class CFunctionCall;
 class CStructAccess;
 class CIndirectAccess;
-//class CArrayAccess;
+class CArrayAccess;
 class CNullStatement;
 class CBlockStatement;
+class CIfStatement;
+class CForStatement;
+class CWhileStatement;
+class CDoStatement;
+class CLabel;
+class CCaseLabel;
+class CDefaultCaseLabel;
+class CGotoStatement;
+class CBreakStatement;
+class CContinueStatement;
+class CReturnStatement;
 
 class CStatementVisitor
 {
@@ -116,9 +127,20 @@ public:
 	virtual void Visit(CFunctionCall &AExpr) = 0;
 	virtual void Visit(CStructAccess &AExpr) = 0;
 	virtual void Visit(CIndirectAccess &AExpr) = 0;
-	/*virtual void Visit(CArrayAccess &AExpr) = 0;*/
+	virtual void Visit(CArrayAccess &AExpr) = 0;
 	virtual void Visit(CNullStatement &AExpr) = 0;
 	virtual void Visit(CBlockStatement &AExpr) = 0;
+	virtual void Visit(CIfStatement &AExpr) = 0;
+	virtual void Visit(CForStatement &AExpr) = 0;
+	virtual void Visit(CWhileStatement &AExpr) = 0;
+	virtual void Visit(CDoStatement &AExpr) = 0;
+	virtual void Visit(CLabel &AExpr) = 0;
+	virtual void Visit(CCaseLabel &AExpr) = 0;
+	virtual void Visit(CDefaultCaseLabel &AExpr) = 0;
+	virtual void Visit(CGotoStatement &AExpr) = 0;
+	virtual void Visit(CBreakStatement &AExpr) = 0;
+	virtual void Visit(CContinueStatement &AExpr) = 0;
+	virtual void Visit(CReturnStatement &AExpr) = 0;
 };
 
 #endif // _COMMON_H_

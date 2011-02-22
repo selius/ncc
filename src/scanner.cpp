@@ -152,10 +152,9 @@ bool CTraits::IsOperationSymbol(char c)
 bool CTraits::IsKeyword(const string &s)
 {
 	// we need something like set<string> Keywords, but there is no suitable way to initialize it now..
-	return (s == "auto" || s == "break" || s == "case" || s == "const" || s == "continue" || s == "default" ||
-		s == "do" || s == "double" || s == "else" || s == "extern" || s == "float" || s == "for" || s == "goto" || s == "if" ||
-		s == "int" || s == "long" || s == "return" || s == "short" || s == "signed" || s == "sizeof" || s == "static" ||
-		s == "struct" || s == "switch" || s == "typedef" || s == "union" || s == "unsigned" || s == "void" || s == "volatile" || s == "while");
+	return (s == "break" || s == "case" || s == "const" || s == "continue" || s == "default" || s == "do" ||
+		s == "else" || s == "for" || s == "goto" || s == "if" || s == "return" || s == "sizeof" ||
+		s == "struct" || s == "switch" || s == "typedef" || s == "while");
 }
 
 /******************************************************************************

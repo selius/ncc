@@ -26,6 +26,15 @@ void CSymbol::SetName(const string &AName)
  * CSymbolTable
  ******************************************************************************/
 
+CSymbolTable::~CSymbolTable()
+{
+	for (SymbolsIterator it = Begin(); it != End(); ++it) {
+		delete it->second;
+	}
+
+	Symbols.clear();
+}
+
 void CSymbolTable::Add(CSymbol *ASymbol)
 {
 	if (!ASymbol) {
@@ -43,6 +52,26 @@ CSymbol* CSymbolTable::Get(const string &AName) const
 	}
 
 	return it->second;
+}
+
+bool CSymbolTable::Exists(const string &AName) const
+{
+	return Symbols.count(AName);
+}
+
+CSymbolTable::SymbolsIterator CSymbolTable::Begin() const
+{
+	return Symbols.begin();
+}
+
+CSymbolTable::SymbolsIterator CSymbolTable::End() const
+{
+	return Symbols.end();
+}
+
+unsigned int CSymbolTable::GetSize() const
+{
+	return Symbols.size();
 }
 
 /******************************************************************************
@@ -66,22 +95,245 @@ CSymbolTable* CSymbolTableStack::GetTop() const
 	return Tables.front();
 }
 
-CSymbol* CSymbolTableStack::Lookup(const string &AName) const
+/******************************************************************************
+ * CTypeSymbol
+ ******************************************************************************/
+
+CTypeSymbol::CTypeSymbol() : Const(false)
 {
-	// FIXME: delete this test code
-	CSymbol *r = new CFunctionSymbol;
-	r->SetName(AName);
-	return r;
-	//
+}
 
-	CSymbol *result = NULL;
+bool CTypeSymbol::GetConst() const
+{
+	return Const;
+}
 
-	for (TablesIterator it = Tables.begin(); it != Tables.end(); ++it) {
-		result = (*it)->Get(AName); 
-		if (result) {
-			return result;
-		}
+void CTypeSymbol::SetConst(bool AConst)
+{
+	Const = AConst;
+}
+
+/******************************************************************************
+ * CIntegerSymbol
+ ******************************************************************************/
+
+CIntegerSymbol::CIntegerSymbol()
+{
+	Name = "int";
+}
+
+size_t CIntegerSymbol::GetSize() const
+{
+	return 4; // FIXME: magic number, add header with sizes of data types
+}
+
+/******************************************************************************
+ * CFloatSymbol
+ ******************************************************************************/
+
+CFloatSymbol::CFloatSymbol()
+{
+	Name = "float";
+}
+
+size_t CFloatSymbol::GetSize() const
+{
+	return 4; // FIXME: magic number
+}
+
+/******************************************************************************
+ * CVoidSymbol
+ ******************************************************************************/
+
+CVoidSymbol::CVoidSymbol()
+{
+	Name = "void";
+}
+
+size_t CVoidSymbol::GetSize() const
+{
+	return 0;
+}
+
+/******************************************************************************
+ * CArraySymbol
+ ******************************************************************************/
+
+size_t CArraySymbol::GetSize() const
+{
+	return Length * (ElementsType ? ElementsType->GetSize() : 0);
+}
+
+CTypeSymbol* CArraySymbol::GetElementsType() const
+{
+	return ElementsType;
+}
+
+void CArraySymbol::SetElementsType(CTypeSymbol *AElementsType)
+{
+	ElementsType = AElementsType;
+}
+
+unsigned int CArraySymbol::GetLength() const
+{
+	return Length;
+}
+
+void CArraySymbol::SetLength(unsigned int ALength)
+{
+	Length = ALength;
+}
+
+/******************************************************************************
+ * CStructSymbol
+ ******************************************************************************/
+
+CStructSymbol::CStructSymbol() : Fields(NULL)
+{
+
+}
+
+CStructSymbol::~CStructSymbol()
+{
+	delete Fields;
+}
+
+size_t CStructSymbol::GetSize() const
+{
+	if (!Fields) {
+		return 0;
 	}
 
-	return NULL;
+	size_t result = 0;
+
+	for (CSymbolTable::SymbolsIterator it = Fields->Begin(); it != Fields->End(); ++it) {
+		result += static_cast<CVariableSymbol *>(it->second)->GetType()->GetSize();
+	}
+
+	return result;
+}
+
+void CStructSymbol::AddField(CSymbol *AField)
+{
+	if (Fields) {
+		Fields->Add(AField);
+	}
+}
+
+CSymbolTable* CStructSymbol::GetSymbolTable()
+{
+	return Fields;
+}
+
+void CStructSymbol::SetSymbolTable(CSymbolTable *ASymbolTable)
+{
+	Fields = ASymbolTable;
+}
+
+unsigned int CStructSymbol::GetFieldsCount() const
+{
+	return (Fields ? Fields->GetSize() : 0);
+}
+
+/******************************************************************************
+ * CPointerSymbol
+ ******************************************************************************/
+
+size_t CPointerSymbol::GetSize() const
+{
+	return 4; // FIXME: magic number
+}
+
+CTypeSymbol* CPointerSymbol::GetRefType() const
+{
+	return RefType;
+}
+
+void CPointerSymbol::SetRefType(CTypeSymbol *ARefType)
+{
+	RefType = ARefType;
+}
+
+/******************************************************************************
+ * CTypedefSymbol
+ ******************************************************************************/
+
+size_t CTypedefSymbol::GetSize() const
+{
+	return (RefType ? RefType->GetSize() : 0);
+}
+
+CTypeSymbol* CTypedefSymbol::GetRefType() const
+{
+	return RefType;
+}
+
+void CTypedefSymbol::SetRefType(CTypeSymbol *ARefType)
+{
+	RefType = ARefType;
+}
+
+/******************************************************************************
+ * CVariableSymbol
+ ******************************************************************************/
+
+CTypeSymbol* CVariableSymbol::GetType() const
+{
+	return Type;
+}
+
+void CVariableSymbol::SetType(CTypeSymbol *AType)
+{
+	Type = AType;
+}
+
+/******************************************************************************
+ * CFunctionSymbol
+ ******************************************************************************/
+
+CFunctionSymbol::CFunctionSymbol() : ReturnType(NULL), Arguments(NULL), Locals(NULL)
+{
+}
+
+CFunctionSymbol::~CFunctionSymbol()
+{
+	delete Arguments;
+	delete Locals;
+}
+
+CTypeSymbol* CFunctionSymbol::GetReturnType() const
+{
+	return ReturnType;
+}
+
+void CFunctionSymbol::SetReturnType(CTypeSymbol *AReturnType)
+{
+	ReturnType = AReturnType;
+}
+
+void CFunctionSymbol::AddArgument(CSymbol *AArgument)
+{
+	if (Arguments) {
+		Arguments->Add(AArgument);
+	}
+}
+
+CSymbolTable* CFunctionSymbol::GetArgumentsSymbolTable()
+{
+	return Arguments;
+}
+
+void CFunctionSymbol::SetArgumentsSymbolTable(CSymbolTable *ASymbolTable)
+{
+	Arguments = ASymbolTable;
+}
+
+CBlockStatement* CFunctionSymbol::GetBody() const
+{
+	return Body;
+}
+
+void CFunctionSymbol::SetBody(CBlockStatement *ABody)
+{
+	Body = ABody;
 }

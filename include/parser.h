@@ -27,9 +27,14 @@ class CParser
 {
 public:
 	CParser(CScanner &AScanner);
+	~CParser();
+
+	CSymbolTable* ParseTranslationUnit();
+
+	bool ParseDeclaration();
 
 	CStatement* ParseStatement();
-	CStatement* ParseBlock();
+	CBlockStatement* ParseBlock();
 
 	CExpression* ParseExpression();
 
@@ -40,6 +45,29 @@ private:
 		BLOCK_TYPE_LOOP,
 		BLOCK_TYPE_SWITCH,
 	};
+
+	enum EScopeType
+	{
+		SCOPE_TYPE_GLOBAL,
+		SCOPE_TYPE_FUNCTION,
+		SCOPE_TYPE_PARAMETERS,
+		SCOPE_TYPE_STRUCT,
+	};
+
+	struct CDeclarationSpecifier
+	{
+		CDeclarationSpecifier();
+
+		CTypeSymbol *Type;
+		bool Typedef;
+	};
+
+	CDeclarationSpecifier ParseDeclarationSpecifier();
+	CSymbol* ParseDeclarator(CDeclarationSpecifier DeclSpec, bool CheckExistense = true);
+	void ParseParameterList(CFunctionSymbol *Func);
+	CPointerSymbol* ParsePointer(CTypeSymbol *ARefType);
+	CArraySymbol* ParseArray(CTypeSymbol *AElemType);
+	CStructSymbol* ParseStruct();
 
 	CStatement* ParseIf();
 
@@ -91,6 +119,8 @@ private:
 	CSymbolTableStack SymbolTableStack;
 	map<string, CLabel *> LabelTable;
 	stack<EBlockType> BlockType;
+	stack<EScopeType> ScopeType;
+	stack<CSwitchStatement *> SwitchesStack;
 };
 
 #endif // _PARSER_H_

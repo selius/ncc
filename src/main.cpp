@@ -60,7 +60,9 @@ int main(int argc, char *argv[])
 			CStatementVisitor *vis;
 
 			//CExpression *expr = parser.ParseExpression();
-			CStatement *SynNode = parser.ParseBlock();	// replace by something like ParseModule or ParseBody or ParseProgram..
+			//CStatement *SynNode = parser.ParseBlock();	// replace by something like ParseModule or ParseBody or ParseProgram..
+
+			CSymbolTable *SymTable = parser.ParseTranslationUnit();
 
 			if (scanner.GetToken()->GetType() != TOKEN_TYPE_EOF) {
 				throw CException("trailing characters", scanner.GetToken()->GetPosition());
@@ -72,10 +74,23 @@ int main(int argc, char *argv[])
 				vis = new CStatementLinearPrintVisitor(*out);
 			}
 
-			SynNode->Accept(*vis);
+			CFunctionSymbol *FuncSym = NULL;
+
+			for (CSymbolTable::SymbolsIterator it = SymTable->Begin(); it != SymTable->End(); ++it) {
+				FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
+				if (FuncSym) {
+					*out << FuncSym->GetName() << ":" << endl;
+					if (FuncSym->GetBody()) {
+						FuncSym->GetBody()->Accept(*vis);
+					} else {
+						*out << "\t(declared, but not defined)" << endl;
+					}
+				}
+			}
+			//SynNode->Accept(*vis);
 
 			delete vis;
-			delete SynNode;
+			//delete SynNode;
 
 		} catch (CException e) {
 			e.Output(cerr);

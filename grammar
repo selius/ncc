@@ -1,6 +1,3 @@
-TODO:
-	* Decide what to do with built-in data types (int, float, char, etc.)
-
 Changes:
 	- Removed enum-specifier
 	- Removed enumerator
@@ -9,6 +6,8 @@ Changes:
 	- Removed bit fields in structures
 	- Removed register storage-class-specifier
 	- Removed unions
+	- Removed volatile, auto, extern, static
+	- Left only one integer and floating point types
 
 ( ) groups,
 ? means optional,
@@ -29,22 +28,17 @@ function-definition: declaration-specifiers? declarator declaration* block
 
 declaration: declaration-specifiers init-declarator% ";"
 
-declaration-specifiers: (storage-class-specifier | type-specifier | type-qualifier)+
-
-storage-class-specifier: ("auto" | "static" | "extern" | "typedef")
+declaration-specifiers: ("typedef" | type-specifier | "const")+
 
 type-specifier:
-	("void" | "char" | "short" | "int" | "long" | "float" | "double" | "signed" | "unsigned" |
-	struct-specifier | typedef-name)
-
-type-qualifier: ("const" | "volatile")
+	("void" | "char" | "int" | "float" | struct-specifier | typedef-name)
 
 struct-specifier:
 	"struct" (identifier? "{" struct-declaration+ "}" | identifier)
 
 init-declarator: declarator ("=" initializer)?
 
-struct-declaration: (type-specifier | type-qualifier)+ declarator%
+struct-declaration: (type-specifier | "const")+ declarator%
 
 declarator:
 	pointer? identifier
@@ -54,7 +48,7 @@ declarator:
 		"(" identifier%? ")"
 	)*
 
-pointer: ("*" type-qualifier*)*
+pointer: ("*" "const"?)*
 
 parameter-type-list: parameter-declaration%
 
@@ -62,7 +56,7 @@ parameter-declaration: declaration-specifiers (declarator | abstract-declarator)
 
 initializer: assignment-expression | "{" initializer% ","? "}"
 
-type-name: (type-specifier | type-qualifier)+ abstract-declarator?
+type-name: (type-specifier | "const")+ abstract-declarator?
 
 abstract-declarator:
 	pointer ("[" constant-expression? "]")*

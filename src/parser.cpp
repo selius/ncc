@@ -50,6 +50,14 @@ const CToken* CTokenStream::Previous()
 }
 
 /******************************************************************************
+ * CParser::CDeclarationSpecifier
+ ******************************************************************************/
+
+CParser::CDeclarationSpecifier::CDeclarationSpecifier() : Type(NULL), Typedef(false)
+{
+}
+
+/******************************************************************************
  * CParser
  ******************************************************************************/
 
@@ -57,14 +65,399 @@ CParser::CParser(CScanner &AScanner) : TokenStream(AScanner)
 {
 	NextToken();
 
-	SymbolTableStack.Push(new CSymbolTable);
+	CSymbolTable *GlobalSymTable = new CSymbolTable;
+	GlobalSymTable->Add(new CIntegerSymbol);
+	GlobalSymTable->Add(new CFloatSymbol);
+	GlobalSymTable->Add(new CVoidSymbol);
+
+	SymbolTableStack.Push(GlobalSymTable);
+
+	
 
 	// FIXME: remove this test code..
-	CFunctionSymbol *main_sym_test = new CFunctionSymbol;
+	/*CFunctionSymbol *main_sym_test = new CFunctionSymbol;
 	main_sym_test->SetName("main");
-	SymbolTableStack.GetTop()->Add(main_sym_test);
+	SymbolTableStack.GetTop()->Add(main_sym_test);*/
 
 	BlockType.push(BLOCK_TYPE_DEFAULT);
+	ScopeType.push(SCOPE_TYPE_GLOBAL);
+}
+
+CParser::~CParser()
+{
+	delete SymbolTableStack.Pop();
+}
+
+CSymbolTable* CParser::ParseTranslationUnit()
+{
+	CSymbol *Sym = NULL;
+
+	while (Token->GetType() != TOKEN_TYPE_EOF) {
+		Sym = ParseDeclarator(ParseDeclarationSpecifier(), false);
+		if (!Sym) {
+			throw CException("expected declaration or function definition, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+		}
+
+		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+			if (SymbolTableStack.GetTop()->Exists(Sym->GetName())) {
+				throw CException("identifier redeclared: `" + Sym->GetName() + "`", Token->GetPosition()); // FIXME: position
+			}
+
+			SymbolTableStack.GetTop()->Add(Sym);
+			NextToken();
+		} else if (Token->GetType() == TOKEN_TYPE_BLOCK_START) {
+			CFunctionSymbol *FuncSym = dynamic_cast<CFunctionSymbol *>(Sym);
+			if (!FuncSym) {
+				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
+					+ ", got " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_START], Token->GetPosition());
+			}
+
+			if (SymbolTableStack.GetTop()->Exists(FuncSym->GetName())) {
+				FuncSym = dynamic_cast<CFunctionSymbol *>(SymbolTableStack.GetTop()->Get(Sym->GetName()));
+				if (!FuncSym) {
+					throw CException("identifier redeclared as different kind of symbol: `" + Sym->GetName() + "`", Token->GetPosition()); // FIXME: position
+				}
+
+				delete Sym;
+			} else {
+				SymbolTableStack.GetTop()->Add(FuncSym);
+			}
+
+			ScopeType.push(SCOPE_TYPE_FUNCTION);
+			SymbolTableStack.Push(FuncSym->GetArgumentsSymbolTable());
+
+			FuncSym->SetBody(ParseBlock());
+
+			SymbolTableStack.Pop();
+			ScopeType.pop();
+			LabelTable.clear();
+		} else {
+			throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_START]
+				+ ", got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+		}
+
+	}
+
+	return SymbolTableStack.GetTop();
+}
+
+bool IsTypeKeyword(const string &s)
+{
+	return (s == "const"|| s == "struct" || s == "typedef");
+}
+
+bool CParser::ParseDeclaration()
+{
+	CDeclarationSpecifier DeclSpec = ParseDeclarationSpecifier();
+	if (!DeclSpec.Type) {
+		return false;
+	}
+
+	CSymbol *Sym;
+
+	ETokenType type;
+	CPosition pos;
+
+	do {
+		Sym = ParseDeclarator(DeclSpec);
+		SymbolTableStack.GetTop()->Add(Sym);
+
+		// TODO: add initialization support - add a pointer to the corresponding block somewhere and add assignment statements to it..
+
+		type = Token->GetType();
+		pos = Token->GetPosition();
+		NextToken();
+	} while (type == TOKEN_TYPE_SEPARATOR_COMMA);
+
+	if (type != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
+			+ " after declaration, got " + CScanner::TokenTypesNames[type], pos);
+	}
+
+	return true;
+}
+
+CParser::CDeclarationSpecifier CParser::ParseDeclarationSpecifier()
+{
+	CDeclarationSpecifier Result;
+
+	ETokenType type = Token->GetType();
+	string text = Token->GetText();
+	CPosition pos = Token->GetPosition();
+
+
+	if (type == TOKEN_TYPE_KEYWORD) {
+		if (!IsTypeKeyword(text)) {
+			return Result;
+		}
+	} else {
+		if (!SymbolTableStack.Lookup<CTypeSymbol>(text)) {
+			return Result;
+		}
+	}
+
+	bool Const = false;
+
+	while (true) {
+		type = Token->GetType();
+		text = Token->GetText();
+		pos = Token->GetPosition();
+
+		if (type == TOKEN_TYPE_KEYWORD) {
+			if (text == "const") {
+				if (Const) {
+					throw CException("duplicate specifier: `" + text + "`", pos);
+				}
+
+				Const = true;
+			} else if (text == "typedef") {
+				if (Result.Typedef) {
+					throw CException("duplicate specifier: `" + text + "`", pos);
+				}
+
+				Result.Typedef = true;
+			} else if (text == "struct") {
+				if (Result.Type) {
+					throw CException("multiple data types in declaration", pos);
+				}
+
+				Result.Type = ParseStruct();
+			} else {
+				throw CException("unexpected `" + text + "` in declaration", pos);
+			}
+		} else if (type == TOKEN_TYPE_IDENTIFIER) {
+			CTypeSymbol *IdentSym = SymbolTableStack.Lookup<CTypeSymbol>(text);
+			if (IdentSym) {
+				if (Result.Type) {
+					throw CException("multiple data types in declaration", pos);
+				}
+
+				Result.Type = IdentSym;
+			} else {
+				if (!Result.Type) {
+					throw CException("expected type specifier, got undeclared identifier: `" + text + "`", pos);
+				}
+
+				Result.Type->SetConst(Const);
+				return Result;
+			}
+		} else if (type == TOKEN_TYPE_OPERATION_ASTERISK) {
+			if (!Result.Type) {
+				throw CException("expected type specifier, got " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_ASTERISK], pos);
+			}
+
+			Result.Type->SetConst(Const);
+			return Result;
+		} else {
+			throw CException("unexpected " + CScanner::TokenTypesNames[type] + " in declaration", pos);
+		}
+
+		NextToken();
+	}
+}
+
+CSymbol* CParser::ParseDeclarator(CParser::CDeclarationSpecifier DeclSpec, bool CheckExistense /*= true*/)
+{
+	if (!DeclSpec.Type) {
+		return NULL;
+	}
+
+	CSymbol *Result = NULL;
+	bool IdentifierFound = false;
+	string text;
+
+	while (!IdentifierFound) {
+		text = Token->GetText();
+
+		if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
+			if (CheckExistense && SymbolTableStack.GetTop()->Exists(text)) {
+				throw CException("identifier redeclared: `" + text + "`", Token->GetPosition());
+			}
+
+			IdentifierFound = true;
+
+		} else if (Token->GetType() == TOKEN_TYPE_OPERATION_ASTERISK) {
+			DeclSpec.Type = ParsePointer(DeclSpec.Type);
+		}
+
+		NextToken();
+	}
+
+	if (Token->GetType() == TOKEN_TYPE_LEFT_PARENTHESIS) {
+		if (ScopeType.top() != SCOPE_TYPE_GLOBAL) {
+			throw CException("function declaration is allowed only in global scope", Token->GetPosition());
+		}
+
+		CFunctionSymbol *FuncSym = new CFunctionSymbol;
+		FuncSym->SetName(text);
+		FuncSym->SetReturnType(DeclSpec.Type);
+
+		ParseParameterList(FuncSym);
+
+		Result = FuncSym;
+	} else {
+		if (Token->GetType() == TOKEN_TYPE_LEFT_SQUARE_BRACKET) {
+			if (ScopeType.top() == SCOPE_TYPE_PARAMETERS || ScopeType.top() == SCOPE_TYPE_STRUCT) {
+				throw CException("array declaration is not allowed here", Token->GetPosition());
+			}
+
+			DeclSpec.Type = ParseArray(DeclSpec.Type);
+		}
+
+		if (DeclSpec.Typedef) {
+			if (ScopeType.top() == SCOPE_TYPE_PARAMETERS || ScopeType.top() == SCOPE_TYPE_STRUCT) {
+				throw CException("typedef is not allowed here", Token->GetPosition());
+			}
+
+			CTypedefSymbol *TypedefSym = new CTypedefSymbol;
+			TypedefSym->SetName(text);
+			TypedefSym->SetRefType(DeclSpec.Type);
+			Result = TypedefSym;
+		} else {
+			CVariableSymbol *VarSym = new CVariableSymbol;
+			VarSym->SetName(text);
+			VarSym->SetType(DeclSpec.Type);
+			Result = VarSym;
+		}
+	}
+
+	return Result;
+}
+
+void CParser::ParseParameterList(CFunctionSymbol *Func)
+{
+	NextToken();
+
+	SymbolTableStack.Push(new CSymbolTable);
+	Func->SetArgumentsSymbolTable(SymbolTableStack.GetTop());
+
+	ScopeType.push(SCOPE_TYPE_PARAMETERS);
+
+	while (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
+		SymbolTableStack.GetTop()->Add(ParseDeclarator(ParseDeclarationSpecifier()));
+	}
+
+	ScopeType.pop();
+
+	SymbolTableStack.Pop();
+
+	NextToken();
+}
+
+CPointerSymbol* CParser::ParsePointer(CTypeSymbol *ARefType)
+{
+	NextToken();
+
+	CPointerSymbol *Sym = new CPointerSymbol;
+
+	if (Token->GetType() == TOKEN_TYPE_OPERATION_ASTERISK) {
+		Sym->SetRefType(ParsePointer(ARefType));
+	} else {
+		Sym->SetRefType(ARefType);
+		PreviousToken();
+	}
+
+	return Sym;
+
+	// TODO: possibly add support of const pointers..
+	/*if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
+		Sym->SetRefType(ARefType);
+		PreviousToken();
+		return Sym;
+	} else if (Token->GetType() == TOKEN_TYPE_OPERATION_ASTERISK) {
+		CPointerSymbol *PointerSym = ParsePointer(ARefType);
+		PointerSym->SetRefType(Sym);
+		return PointerSym;
+	}
+
+	throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_ASTERISK] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+		+ ", got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());*/
+}
+
+CArraySymbol* CParser::ParseArray(CTypeSymbol *AElemType)
+{
+	NextToken();
+
+	CArraySymbol *Sym = new CArraySymbol;
+
+	if (Token->GetType() != TOKEN_TYPE_CONSTANT_INTEGER) {
+		throw CException("expected array length integer constant, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+	}
+	Sym->SetLength(Token->GetIntegerValue());
+
+	NextToken();
+	if (Token->GetType() != TOKEN_TYPE_RIGHT_SQUARE_BRACKET) {
+		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET]
+			+ "after array length, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+	}
+	NextToken();
+
+	Sym->SetElementsType(AElemType);
+
+	if (Token->GetType() == TOKEN_TYPE_LEFT_SQUARE_BRACKET) {
+		Sym->SetElementsType(ParseArray(AElemType));
+	}
+
+	return Sym;
+}
+
+CStructSymbol* CParser::ParseStruct()
+{
+	NextToken();
+
+	CStructSymbol *Sym = NULL;
+
+	string StructName;
+
+	if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
+		StructName = Token->GetText();
+		NextToken();
+
+		if (Token->GetType() != TOKEN_TYPE_BLOCK_START) {
+			Sym = SymbolTableStack.Lookup<CStructSymbol>(StructName);
+			if (!Sym) {
+				throw CException("undeclared identifier `" + StructName + "`", Token->GetPosition());
+			}
+
+			return Sym;
+		}
+
+		if (SymbolTableStack.GetTop()->Get(StructName)) {
+			throw CException("identifier redeclared: `" + StructName + "`", Token->GetPosition());
+		}
+
+	} else  if (Token->GetType() != TOKEN_TYPE_BLOCK_START) {
+		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_START] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+			+ " after `struct`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+	}
+
+	Sym = new CStructSymbol;
+
+	if (!StructName.empty()) {
+		Sym->SetName(StructName);
+		SymbolTableStack.GetTop()->Add(Sym);
+	}
+
+	NextToken();
+
+	SymbolTableStack.Push(new CSymbolTable);
+
+	ScopeType.push(SCOPE_TYPE_STRUCT);
+
+	while (ParseDeclaration());
+
+	ScopeType.pop();
+
+	Sym->SetSymbolTable(SymbolTableStack.Pop());
+
+	if (Token->GetType() != TOKEN_TYPE_BLOCK_END) {
+		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_END]
+			+ " after struct-declaration-list, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+	}
+
+	//NextToken();
+
+	return Sym;
 }
 
 CStatement* CParser::ParseStatement()
@@ -108,9 +501,9 @@ CStatement* CParser::ParseStatement()
 			result = ParseContinue();
 		} else if (text == "return") {
 			result = ParseReturn();
-		} /*else if (text == "switch") {
+		} else if (text == "switch") {
 			result = ParseSwitch();
-		}*/
+		}
 		return result;
 	} else if (type == TOKEN_TYPE_BLOCK_START) {
 		return ParseBlock();
@@ -128,13 +521,15 @@ CStatement* CParser::ParseStatement()
 	}
 }
 
-CStatement* CParser::ParseBlock()
+CBlockStatement* CParser::ParseBlock()
 {
 	NextToken();
 
 	CBlockStatement *Stmt = new CBlockStatement;
 
 	SymbolTableStack.Push(new CSymbolTable);
+
+	while (ParseDeclaration());
 
 	while (Token->GetType() != TOKEN_TYPE_BLOCK_END) {
 		if (Token->GetType() == TOKEN_TYPE_EOF) {
@@ -145,7 +540,7 @@ CStatement* CParser::ParseBlock()
 		Stmt->Add(ParseStatement());
 	}
 
-	delete SymbolTableStack.Pop();
+	Stmt->SetSymbolTable(SymbolTableStack.Pop());
 
 	NextToken();
 
@@ -290,8 +685,6 @@ CStatement* CParser::ParseDo()
 
 CStatement* CParser::ParseCase()
 {
-	// TODO: add a stack of switches and add a label to corresponding switch statement..
-
 	if (BlockType.top() != BLOCK_TYPE_SWITCH) {
 		throw CException("unexpected `case` encountered outside of switch", Token->GetPosition());
 	}
@@ -302,6 +695,11 @@ CStatement* CParser::ParseCase()
 
 	CaseLabel->SetCaseExpression(ParseExpression());	// TODO: check type: integer constant
 
+	// FIXME: check _values_, not pointers to expressions...
+	if (SwitchesStack.top()->Exists(CaseLabel)) {
+		throw CException("duplicate case-expression", Token->GetPosition());	// FIXME: possibly fix this position, make it point to the beginning of the expression
+	}
+
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_COLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_COLON]
 			+ " after case-expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
@@ -309,6 +707,8 @@ CStatement* CParser::ParseCase()
 	NextToken();
 
 	CaseLabel->SetNext(ParseStatement());
+
+	SwitchesStack.top()->AddCase(CaseLabel);
 	
 	return CaseLabel;
 }
@@ -319,15 +719,22 @@ CStatement* CParser::ParseDefault()
 		throw CException("unexpected `default` encountered outside of switch", Token->GetPosition());
 	}
 
+	if (SwitchesStack.top()->GetDefaultCase()) {
+		throw CException("multiple `default` labels in one switch", Token->GetPosition());
+	}
+
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_COLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_COLON]
 			+ " after `default`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
 	}
-
 	NextToken();
 
-	return new CDefaultCaseLabel(ParseStatement());
+	CDefaultCaseLabel *DefCaseLabel = new CDefaultCaseLabel(ParseStatement());
+
+	SwitchesStack.top()->SetDefaultCase(DefCaseLabel);
+
+	return DefCaseLabel;
 }
 
 CStatement* CParser::ParseGoto()
@@ -389,6 +796,10 @@ CStatement* CParser::ParseContinue()
 
 CStatement* CParser::ParseReturn()
 {
+	if (ScopeType.top() != SCOPE_TYPE_FUNCTION) {
+		throw CException("`return` is only allowed in functions", Token->GetPosition());
+	}
+
 	NextToken();
 	CReturnStatement *Stmt = new CReturnStatement;
 
@@ -410,8 +821,29 @@ CStatement* CParser::ParseReturn()
 
 CStatement* CParser::ParseSwitch()
 {
-	// TODO: add BlockType.push(BLOCK_TYPE_SWITCH) somewhere..
+	NextToken();
+	if (Token->GetType() != TOKEN_TYPE_LEFT_PARENTHESIS) {
+		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_LEFT_PARENTHESIS]
+			+ " after `switch`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+	}
+	NextToken();
 
+	CSwitchStatement *Stmt = new CSwitchStatement;
+	Stmt->SetTestExpression(ParseExpression());
+
+	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
+		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
+			+ " after switch-test-expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+	}
+	NextToken();
+
+	SwitchesStack.push(Stmt);
+	BlockType.push(BLOCK_TYPE_SWITCH);
+	Stmt->SetBody(ParseStatement());
+	BlockType.pop();
+	SwitchesStack.pop();
+
+	return Stmt;
 }
 
 CExpression* CParser::ParseExpression()
@@ -957,10 +1389,11 @@ CExpression* CParser::ParsePrimaryExpression()
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_STRING) {
 		Expr = new CStringConst(*Token);
 	} else if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
-		CSymbol *Sym = SymbolTableStack.Lookup(Token->GetText());
-		/*if (!Sym) {
+		// TODO: add check for symbol type.. output "declaration is not allowed here" if it's type symbol
+		CSymbol *Sym = SymbolTableStack.Lookup<CSymbol>(Token->GetText());
+		if (!Sym) {
 			throw CException("undeclared identifier `" + Token->GetText() + "`", Token->GetPosition());
-		}*/
+		}
 
 		Expr = new CVariable(*Token, Sym);
 	} else {

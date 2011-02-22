@@ -2,6 +2,7 @@
 #define _STATEMENTS_H_
 
 #include "common.h"
+#include "symbols.h"
 //#include "expressions.h"
 
 class CExpression;
@@ -35,6 +36,7 @@ public:
 	typedef StatementsContainer::iterator StatementsIterator;
 
 	CBlockStatement();
+	~CBlockStatement();
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -43,14 +45,19 @@ public:
 
 	void Add(CStatement *AStatement);
 
+	CSymbolTable* GetSymbolTable() const;
+	void SetSymbolTable(CSymbolTable *ASymbolTable);
+
 private:
 	StatementsContainer Statements;
+	CSymbolTable *SymbolTable;
 };
 
 class CIfStatement : public CStatement
 {
 public:
 	CIfStatement(CExpression *ACondition = NULL, CStatement *AThenStatement = NULL, CStatement *AElseStatement = NULL);
+	~CIfStatement();
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -73,6 +80,7 @@ class CForStatement : public CStatement
 {
 public:
 	CForStatement(CExpression *AInit = NULL,  CExpression *ACondition = NULL, CExpression *AUpdate = NULL, CStatement *ABody = NULL);
+	~CForStatement();
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -99,6 +107,7 @@ class CSingleConditionLoopStatement : public CStatement
 {
 public:
 	CSingleConditionLoopStatement(CExpression *ACondition, CStatement *ABody);
+	~CSingleConditionLoopStatement();
 
 	CExpression* GetCondition() const;
 	void SetCondition(CExpression *ACondition);
@@ -129,6 +138,7 @@ class CLabel : public CStatement
 {
 public:
 	CLabel(const string &AName, CStatement *ANext = NULL);
+	~CLabel();
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -143,6 +153,7 @@ class CCaseLabel : public CLabel
 {
 public:
 	CCaseLabel(CExpression *ACaseExpression = NULL, CStatement *ANext = NULL);
+	~CCaseLabel();
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -192,6 +203,7 @@ class CReturnStatement : public CStatement
 {
 public:
 	CReturnStatement(CExpression *AReturnExpression = NULL);
+	~CReturnStatement();
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -205,18 +217,35 @@ private:
 class CSwitchStatement : public CBlockStatement
 {
 public:
+	typedef map<CExpression *, CCaseLabel *> CasesContainer;
+	typedef CasesContainer::iterator CasesIterator;
+
+	CSwitchStatement(CExpression *ATestExpression = NULL, CStatement *ABody = NULL);
+	~CSwitchStatement();
+
 	void Accept(CStatementVisitor &AVisitor);
 
 	CExpression* GetTestExpression() const;
 	void SetTestExpression(CExpression *ATestExpression);
 
-	CStatement *GetDefaultCase() const;
-	void SetDefaultCase(CStatement *ADefaultCase);
+	CStatement* GetBody() const;
+	void SetBody(CStatement *ABody);
+
+	void AddCase(CCaseLabel *ACase);
+
+	bool Exists(CCaseLabel *ACase);
+
+	CasesIterator Begin();
+	CasesIterator End();
+
+	CDefaultCaseLabel* GetDefaultCase() const;
+	void SetDefaultCase(CDefaultCaseLabel *ADefaultCase);
 
 private:
 	CExpression *TestExpression;
-	map<CExpression *, CStatement *> Cases;	// how to address them and jump to them?..
-	CStatement *DefaultCase;
+	CStatement *Body;
+	CasesContainer Cases;
+	CDefaultCaseLabel *DefaultCase;
 };
 
 #endif // _STATEMENTS_H_

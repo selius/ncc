@@ -271,6 +271,19 @@ void CStatementLinearPrintVisitor::Visit(CReturnStatement &AExpr)
 	Stream << RIGHT_ENCLOSING;
 }
 
+void CStatementLinearPrintVisitor::Visit(CSwitchStatement &AExpr)
+{
+	Stream << AExpr.GetName() << LEFT_ENCLOSING;
+	if (AExpr.GetTestExpression()) {
+		AExpr.GetTestExpression()->Accept(*this);
+	}
+	Stream << DELIMITER;
+	if (AExpr.GetBody()) {
+		AExpr.GetBody()->Accept(*this);
+	}
+	Stream << RIGHT_ENCLOSING;
+}
+
 const char *CStatementLinearPrintVisitor::LEFT_ENCLOSING = "{";
 const char *CStatementLinearPrintVisitor::RIGHT_ENCLOSING = "}";
 const char *CStatementLinearPrintVisitor::DELIMITER = ", ";
@@ -611,6 +624,23 @@ void CStatementTreePrintVisitor::Visit(CReturnStatement &AExpr)
 	LastChild[Nesting] = true;
 	if (AExpr.GetReturnExpression()) {
 		AExpr.GetReturnExpression()->Accept(*this);
+	}
+	Nesting--;
+}
+
+void CStatementTreePrintVisitor::Visit(CSwitchStatement &AExpr)
+{
+	PrintTreeDecoration();
+
+	Stream << AExpr.GetName() << endl;
+
+	Nesting++;
+	if (AExpr.GetTestExpression()) {
+		AExpr.GetTestExpression()->Accept(*this);
+	}
+	LastChild[Nesting] = true;
+	if (AExpr.GetBody()) {
+		AExpr.GetBody()->Accept(*this);
 	}
 	Nesting--;
 }

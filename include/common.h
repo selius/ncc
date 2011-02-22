@@ -109,6 +109,7 @@ class CGotoStatement;
 class CBreakStatement;
 class CContinueStatement;
 class CReturnStatement;
+class CSwitchStatement;
 
 class CStatementVisitor
 {
@@ -141,6 +142,7 @@ public:
 	virtual void Visit(CBreakStatement &AExpr) = 0;
 	virtual void Visit(CContinueStatement &AExpr) = 0;
 	virtual void Visit(CReturnStatement &AExpr) = 0;
+	virtual void Visit(CSwitchStatement &AExpr) = 0;
 };
 
 #endif // _COMMON_H_

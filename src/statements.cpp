@@ -1,5 +1,7 @@
 #include "statements.h"
 
+#include "expressions.h"
+
 /******************************************************************************
  * CStatement
  ******************************************************************************/
@@ -36,6 +38,16 @@ CBlockStatement::CBlockStatement()
 	Name = "{ }";
 }
 
+CBlockStatement::~CBlockStatement()
+{
+	while (!Statements.empty()) {
+		delete Statements.back();
+		Statements.pop_back();
+	}
+
+	delete SymbolTable;
+}
+
 void CBlockStatement::Add(CStatement *AStatement)
 {
 	Statements.push_back(AStatement);
@@ -56,6 +68,16 @@ CBlockStatement::StatementsIterator CBlockStatement::End()
 	return Statements.end();
 }
 
+CSymbolTable* CBlockStatement::GetSymbolTable() const
+{
+	return SymbolTable;
+}
+
+void CBlockStatement::SetSymbolTable(CSymbolTable *ASymbolTable)
+{
+	SymbolTable = ASymbolTable;
+}
+
 /******************************************************************************
  * CIfStatement
  ******************************************************************************/
@@ -64,6 +86,13 @@ CIfStatement::CIfStatement(CExpression *ACondition /*= NULL*/, CStatement *AThen
 	: Condition(ACondition), ThenStatement(AThenStatement), ElseStatement(AElseStatement)
 {
 	Name = "if";
+}
+
+CIfStatement::~CIfStatement()
+{
+	delete Condition;
+	delete ThenStatement;
+	delete ElseStatement;
 }
 
 void CIfStatement::Accept(CStatementVisitor &AVisitor)
@@ -109,6 +138,14 @@ CForStatement::CForStatement(CExpression *AInit /*= NULL*/,  CExpression *ACondi
 	: Init(AInit), Condition(ACondition), Update(AUpdate), Body(ABody)
 {
 	Name = "for";
+}
+
+CForStatement::~CForStatement()
+{
+	delete Init;
+	delete Condition;
+	delete Update;
+	delete Body;
 }
 
 void CForStatement::Accept(CStatementVisitor &AVisitor)
@@ -162,6 +199,12 @@ void CForStatement::SetBody(CStatement *ABody)
 
 CSingleConditionLoopStatement::CSingleConditionLoopStatement(CExpression *ACondition, CStatement *ABody) : Condition(ACondition), Body(ABody)
 {
+}
+
+CSingleConditionLoopStatement::~CSingleConditionLoopStatement()
+{
+	delete Condition;
+	delete Body;
 }
 
 CExpression* CSingleConditionLoopStatement::GetCondition() const
@@ -221,6 +264,11 @@ CLabel::CLabel(const string &AName, CStatement *ANext /*= NULL*/) : Next(ANext)
 	Name = AName;
 }
 
+CLabel::~CLabel()
+{
+	delete Next;
+}
+
 void CLabel::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
@@ -242,6 +290,11 @@ void CLabel::SetNext(CStatement *ANext)
 
 CCaseLabel::CCaseLabel(CExpression *ACaseExpression /*= NULL*/, CStatement *ANext /*= NULL*/) : CLabel("case", ANext), CaseExpression(ACaseExpression)
 {
+}
+
+CCaseLabel::~CCaseLabel()
+{
+	delete CaseExpression;
 }
 
 void CCaseLabel::Accept(CStatementVisitor &AVisitor)
@@ -333,6 +386,11 @@ CReturnStatement::CReturnStatement(CExpression *AReturnExpression /*= NULL*/) : 
 	Name = "return";
 }
 
+CReturnStatement::~CReturnStatement()
+{
+	delete ReturnExpression;
+}
+
 void CReturnStatement::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
@@ -346,4 +404,80 @@ CExpression* CReturnStatement::GetReturnExpression() const
 void CReturnStatement::SetReturnExpression(CExpression *AReturnExpression)
 {
 	ReturnExpression = AReturnExpression;
+}
+
+/******************************************************************************
+ * CSwitchStatement
+ ******************************************************************************/
+
+CSwitchStatement::CSwitchStatement(CExpression *ATestExpression /*= NULL*/, CStatement *ABody /*= NULL*/) : TestExpression(ATestExpression), Body(ABody)
+{
+	Name = "switch";
+}
+
+CSwitchStatement::~CSwitchStatement()
+{
+	delete TestExpression;
+	delete Body;
+}
+
+void CSwitchStatement::Accept(CStatementVisitor &AVisitor)
+{
+	AVisitor.Visit(*this);
+}
+
+CExpression* CSwitchStatement::GetTestExpression() const
+{
+	return TestExpression;
+}
+
+void CSwitchStatement::SetTestExpression(CExpression *ATestExpression)
+{
+	TestExpression = ATestExpression;
+}
+
+CStatement* CSwitchStatement::GetBody() const
+{
+	return Body;
+}
+
+void CSwitchStatement::SetBody(CStatement *ABody)
+{
+	Body = ABody;
+}
+
+void CSwitchStatement::AddCase(CCaseLabel *ACase)
+{
+	if (ACase) {
+		Cases[ACase->GetCaseExpression()] = ACase;
+	}
+}
+
+bool CSwitchStatement::Exists(CCaseLabel *ACase)
+{
+	if (!ACase) {
+		return false;
+	}
+
+	return Cases.count(ACase->GetCaseExpression());
+}
+
+CSwitchStatement::CasesIterator CSwitchStatement::Begin()
+{
+	return Cases.begin();
+}
+
+CSwitchStatement::CasesIterator CSwitchStatement::End()
+{
+	return Cases.end();
+}
+
+CDefaultCaseLabel* CSwitchStatement::GetDefaultCase() const
+{
+	return DefaultCase;
+}
+
+void CSwitchStatement::SetDefaultCase(CDefaultCaseLabel *ADefaultCase)
+{
+	DefaultCase = ADefaultCase;
 }

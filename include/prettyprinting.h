@@ -37,6 +37,7 @@ public:
 	void Visit(CBreakStatement &AExpr);
 	void Visit(CContinueStatement &AExpr);
 	void Visit(CReturnStatement &AExpr);
+	void Visit(CSwitchStatement &AExpr);
 
 private:
 	ostream &Stream;
@@ -78,6 +79,7 @@ public:
 	void Visit(CBreakStatement &AExpr);
 	void Visit(CContinueStatement &AExpr);
 	void Visit(CReturnStatement &AExpr);
+	void Visit(CSwitchStatement &AExpr);
 
 private:
 	void PrintTreeDecoration();

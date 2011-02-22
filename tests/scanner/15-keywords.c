@@ -1,4 +1,3 @@
-auto
 break
 case
 const
@@ -6,15 +5,11 @@ continue
 default
 do
 else
-extern
 for
 goto
 if
 return
-static
 struct
 switch
 typedef
-union
-volatile
 while

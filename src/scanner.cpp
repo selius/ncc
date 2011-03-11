@@ -157,6 +157,16 @@ bool CTraits::IsKeyword(const string &s)
 		s == "struct" || s == "switch" || s == "typedef" || s == "while");
 }
 
+bool CTraits::IsComparisonOperation(const string &s)
+{
+	return (s == "==" || s == "!=" || s == "<" || s == ">" || s == "<=" || s == ">=");
+}
+
+bool CTraits::IsTrivialOperation(const string &s)
+{
+	return (s == "+" || s == "-" || s == "*" || s == "&" || s == "|" || s == "^" || s == "<<" || s == ">>");
+}
+
 /******************************************************************************
  * CScanner
  ******************************************************************************/

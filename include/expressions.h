@@ -17,10 +17,15 @@ public:
 
 	ETokenType GetType() const;
 
+	virtual CTypeSymbol* GetResultType() const = 0;
+
 	virtual bool IsLValue() const;
+
+	CPosition GetPosition() const;
 
 protected:
 	ETokenType Type;
+	CPosition Position;
 };
 
 class CUnaryOp : public CExpression
@@ -33,6 +38,8 @@ public:
 
 	CExpression* GetArgument() const;
 	void SetArgument(CExpression *AArgument);
+
+	CTypeSymbol* GetResultType() const;
 
 	bool IsLValue() const;
 
@@ -54,6 +61,8 @@ public:
 	CExpression* GetRight() const;
 	void SetLeft(CExpression *ALeft);
 	void SetRight(CExpression *ARight);
+
+	CTypeSymbol* GetResultType() const;
 
 protected:
 	CExpression *Left;
@@ -77,6 +86,8 @@ public:
 
 	bool IsLValue() const;
 
+	CTypeSymbol* GetResultType() const;
+
 private:
 	CExpression *Condition;
 	CExpression *TrueExpr;
@@ -87,9 +98,12 @@ private:
 class CConst : public CExpression
 {
 public:
-	CConst(const CToken &AToken);
+	CConst(const CToken &AToken, CTypeSymbol *AType);
+
+	CTypeSymbol* GetResultType() const;
 
 private:
+	CTypeSymbol *Type;
 	
 
 };
@@ -97,7 +111,7 @@ private:
 class CIntegerConst : public CConst
 {
 public:
-	CIntegerConst(const CIntegerConstToken &AToken);
+	CIntegerConst(const CIntegerConstToken &AToken, CTypeSymbol *AType);
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -111,7 +125,7 @@ private:
 class CFloatConst : public CConst
 {
 public:
-	CFloatConst(const CFloatConstToken &AToken);
+	CFloatConst(const CFloatConstToken &AToken, CTypeSymbol *AType);
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -125,7 +139,7 @@ private:
 class CSymbolConst : public CConst
 {
 public:
-	CSymbolConst(const CSymbolConstToken &AToken);
+	CSymbolConst(const CSymbolConstToken &AToken, CTypeSymbol *AType);
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -139,7 +153,7 @@ private:
 class CStringConst : public CConst
 {
 public:
-	CStringConst(const CToken &AToken);
+	CStringConst(const CToken &AToken, CTypeSymbol *AType);
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -161,6 +175,8 @@ public:
 
 	CSymbol* GetSymbol() const;
 
+	CTypeSymbol* GetResultType() const;
+
 private:
 	CSymbol *Symbol;
 
@@ -179,16 +195,26 @@ class CFunctionCall : public CExpression
 public:
 	typedef vector<CExpression *> ArgumentsContainer;
 	typedef ArgumentsContainer::iterator ArgumentsIterator;
+	typedef ArgumentsContainer::reverse_iterator ArgumentsReverseIterator;
 
 	CFunctionCall(CSymbol *AFunction);
 	~CFunctionCall();
 
 	void Accept(CStatementVisitor &AVisitor);
 
+	CFunctionSymbol* GetFunction() const;
+	void SetFunction(CFunctionSymbol *AFunction);
+
 	ArgumentsIterator Begin();
 	ArgumentsIterator End();
+	ArgumentsReverseIterator RBegin();
+	ArgumentsReverseIterator REnd();
+
+	unsigned int GetArgumentsCount() const;
 
 	void AddArgument(CExpression *AArgument);
+
+	CTypeSymbol* GetResultType() const;
 
 private:
 	CFunctionSymbol *Function;
@@ -209,6 +235,8 @@ public:
 	void SetStruct(CExpression *AStruct);
 	void SetField(CVariable *AField);
 
+	CTypeSymbol* GetResultType() const;
+
 private:
 	CExpression *Struct;
 	CVariable *Field;
@@ -227,6 +255,8 @@ public:
 	void SetPointer(CExpression *APointer);
 	void SetField(CVariable *AField);
 
+	CTypeSymbol* GetResultType() const;
+
 private:
 	CExpression *Pointer;
 	CVariable *Field;
@@ -239,6 +269,8 @@ public:
 	~CArrayAccess();
 
 	void Accept(CStatementVisitor &AVisitor);
+
+	CTypeSymbol* GetResultType() const;
 };
 
 #endif // _EXPRESSIONS_H_

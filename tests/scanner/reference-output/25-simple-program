@@ -1,4 +1,4 @@
-1	1	KEYWORD                        	int
+1	1	IDENTIFIER                     	int
 1	5	IDENTIFIER                     	main
 1	9	LEFT_PARENTHESIS               	(
 1	10	RIGHT_PARENTHESIS              	)

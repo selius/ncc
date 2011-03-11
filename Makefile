@@ -12,6 +12,7 @@ SOURCES		=	src/main.cpp \
 			src/prettyprinting.cpp \
 			src/scanner.cpp \
 			src/parser.cpp \
+			src/codegen.cpp \
 			src/expressions.cpp \
 			src/statements.cpp \
 			src/symbols.cpp 

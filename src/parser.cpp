@@ -72,13 +72,6 @@ CParser::CParser(CScanner &AScanner) : TokenStream(AScanner)
 
 	SymbolTableStack.Push(GlobalSymTable);
 
-	
-
-	// FIXME: remove this test code..
-	/*CFunctionSymbol *main_sym_test = new CFunctionSymbol;
-	main_sym_test->SetName("main");
-	SymbolTableStack.GetTop()->Add(main_sym_test);*/
-
 	BlockType.push(BLOCK_TYPE_DEFAULT);
 	ScopeType.push(SCOPE_TYPE_GLOBAL);
 }
@@ -117,6 +110,8 @@ CSymbolTable* CParser::ParseTranslationUnit()
 				if (!FuncSym) {
 					throw CException("identifier redeclared as different kind of symbol: `" + Sym->GetName() + "`", Token->GetPosition()); // FIXME: position
 				}
+
+				// TODO: check declaration and definition types equality
 
 				delete Sym;
 			} else {
@@ -288,12 +283,8 @@ CSymbol* CParser::ParseDeclarator(CParser::CDeclarationSpecifier DeclSpec, bool 
 			throw CException("function declaration is allowed only in global scope", Token->GetPosition());
 		}
 
-		CFunctionSymbol *FuncSym = new CFunctionSymbol;
-		FuncSym->SetName(text);
-		FuncSym->SetReturnType(DeclSpec.Type);
-
+		CFunctionSymbol *FuncSym = new CFunctionSymbol(text, DeclSpec.Type);
 		ParseParameterList(FuncSym);
-
 		Result = FuncSym;
 	} else {
 		if (Token->GetType() == TOKEN_TYPE_LEFT_SQUARE_BRACKET) {
@@ -309,15 +300,9 @@ CSymbol* CParser::ParseDeclarator(CParser::CDeclarationSpecifier DeclSpec, bool 
 				throw CException("typedef is not allowed here", Token->GetPosition());
 			}
 
-			CTypedefSymbol *TypedefSym = new CTypedefSymbol;
-			TypedefSym->SetName(text);
-			TypedefSym->SetRefType(DeclSpec.Type);
-			Result = TypedefSym;
+			Result = new CTypedefSymbol(text, DeclSpec.Type);
 		} else {
-			CVariableSymbol *VarSym = new CVariableSymbol;
-			VarSym->SetName(text);
-			VarSym->SetType(DeclSpec.Type);
-			Result = VarSym;
+			Result = new CVariableSymbol(text, DeclSpec.Type);
 		}
 	}
 
@@ -587,7 +572,9 @@ CStatement* CParser::ParseFor()
 	CForStatement *Stmt = new CForStatement;
 
 	NextToken();
-	Stmt->SetInit(ParseExpression());
+	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+		Stmt->SetInit(ParseExpression());
+	}
 
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
@@ -595,7 +582,9 @@ CStatement* CParser::ParseFor()
 	}
 
 	NextToken();
-	Stmt->SetCondition(ParseExpression());
+	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+		Stmt->SetCondition(ParseExpression());
+	}
 
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
@@ -603,7 +592,9 @@ CStatement* CParser::ParseFor()
 	}
 
 	NextToken();
-	Stmt->SetUpdate(ParseExpression());
+	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
+		Stmt->SetUpdate(ParseExpression());
+	}
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
@@ -1165,6 +1156,10 @@ CExpression* CParser::ParseShiftExpression()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseAdditiveExpression());
 
+		if (!(Op->GetLeft()->GetResultType()->IsInt() && Op->GetRight()->GetResultType()->IsInt())) {
+			throw CException("operands of " + CScanner::TokenTypesNames[Op->GetType()] + " must have integer types", Op->GetPosition());
+		}
+
 		Expr = Op;
 	}
 
@@ -1204,6 +1199,16 @@ CExpression* CParser::ParseMultiplicativeExpression()
 
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseCastExpression());
+
+		if (Op->GetType() == TOKEN_TYPE_OPERATION_PERCENT) {
+			if (!(Op->GetLeft()->GetResultType()->IsInt() && Op->GetRight()->GetResultType()->IsInt())) {
+				throw CException("operands of " + CScanner::TokenTypesNames[Op->GetType()] + " must have integer types", Op->GetPosition());
+			}
+		} else {
+			if (!(Op->GetLeft()->GetResultType()->IsArithmetic() && Op->GetRight()->GetResultType()->IsArithmetic())) {
+				throw CException("operands of " + CScanner::TokenTypesNames[Op->GetType()] + " must have arithmetic types", Op->GetPosition());
+			}
+		}
 
 		Expr = Op;
 	}
@@ -1358,6 +1363,10 @@ CExpression* CParser::ParsePostfixExpression()
 					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
 						+ " after function arguments list, got " + Token->GetStringifiedType(), Token->GetPosition());
 				}
+
+				if (FuncCall->GetArgumentsCount() != FuncCall->GetFunction()->GetArgumentsSymbolTable()->GetSize()) {
+					throw CException("number of actual and formal parameters don't match", Token->GetPosition());
+				}
 			}
 			break;
 		}
@@ -1381,18 +1390,26 @@ CExpression* CParser::ParsePrimaryExpression()
 				+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_INTEGER) {
-		Expr = new CIntegerConst(*dynamic_cast<const CIntegerConstToken *>(Token));
+		Expr = new CIntegerConst(*dynamic_cast<const CIntegerConstToken *>(Token), SymbolTableStack.Lookup<CTypeSymbol>("int"));
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_FLOAT) {
-		Expr = new CFloatConst(*dynamic_cast<const CFloatConstToken *>(Token));
+		Expr = new CFloatConst(*dynamic_cast<const CFloatConstToken *>(Token), SymbolTableStack.Lookup<CTypeSymbol>("float"));
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_SYMBOL) {
-		Expr = new CSymbolConst(*dynamic_cast<const CSymbolConstToken *>(Token));
+		Expr = new CSymbolConst(*dynamic_cast<const CSymbolConstToken *>(Token), SymbolTableStack.Lookup<CTypeSymbol>("int"));
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_STRING) {
-		Expr = new CStringConst(*Token);
+		Expr = new CStringConst(*Token, NULL);	// TODO: replace NULL by something meaningful..
 	} else if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
-		// TODO: add check for symbol type.. output "declaration is not allowed here" if it's type symbol
 		CSymbol *Sym = SymbolTableStack.Lookup<CSymbol>(Token->GetText());
+
 		if (!Sym) {
-			throw CException("undeclared identifier `" + Token->GetText() + "`", Token->GetPosition());
+			if (true /* Mode == PARSER_MODE_EXPRESSION */) {
+				Sym = new CVariableSymbol(Token->GetText(), SymbolTableStack.Lookup<CTypeSymbol>("int"));
+			} else {
+				throw CException("undeclared identifier `" + Token->GetText() + "`", Token->GetPosition());
+			}
+		}
+
+		if (dynamic_cast<CTypeSymbol *>(Sym)) {
+			throw CException("declaration is not allowed here", Token->GetPosition());
 		}
 
 		Expr = new CVariable(*Token, Sym);

@@ -18,7 +18,7 @@ using namespace std;
 
 #define COMPILER_NAME "ncc"
 #define COMPILER_TITLE "Nartov C Compiler"
-#define COMPILER_VERSION "0.2.4"
+#define COMPILER_VERSION "0.3.0"
 
 enum EExitCode
 {
@@ -45,6 +45,12 @@ enum EParserOutputMode
 {
 	PARSER_OUTPUT_MODE_TREE,
 	PARSER_OUTPUT_MODE_LINEAR,
+};
+
+enum EParserMode
+{
+	PARSER_MODE_NORMAL,
+	PARSER_MODE_EXPRESSION,
 };
 
 struct CPosition
@@ -83,6 +89,15 @@ private:
 
 };
 
+template<typename T>
+string ToString(const T &t)
+{
+	stringstream ss;
+	ss << t;
+	return ss.str();
+}
+
+class CStatement;
 class CUnaryOp;
 class CBinaryOp;
 class CConditionalOp;
@@ -116,33 +131,36 @@ class CStatementVisitor
 public:
 	virtual ~CStatementVisitor();
 
-	virtual void Visit(CUnaryOp &AExpr) = 0;
-	virtual void Visit(CBinaryOp &AExpr) = 0;
-	virtual void Visit(CConditionalOp &AExpr) = 0;
-	virtual void Visit(CIntegerConst &AExpr) = 0;
-	virtual void Visit(CFloatConst &AExpr) = 0;
-	virtual void Visit(CSymbolConst &AExpr) = 0;
-	virtual void Visit(CStringConst &AExpr) = 0;
-	virtual void Visit(CVariable &AExpr) = 0;
-	virtual void Visit(CPostfixOp &AExpr) = 0;
-	virtual void Visit(CFunctionCall &AExpr) = 0;
-	virtual void Visit(CStructAccess &AExpr) = 0;
-	virtual void Visit(CIndirectAccess &AExpr) = 0;
-	virtual void Visit(CArrayAccess &AExpr) = 0;
-	virtual void Visit(CNullStatement &AExpr) = 0;
-	virtual void Visit(CBlockStatement &AExpr) = 0;
-	virtual void Visit(CIfStatement &AExpr) = 0;
-	virtual void Visit(CForStatement &AExpr) = 0;
-	virtual void Visit(CWhileStatement &AExpr) = 0;
-	virtual void Visit(CDoStatement &AExpr) = 0;
-	virtual void Visit(CLabel &AExpr) = 0;
-	virtual void Visit(CCaseLabel &AExpr) = 0;
-	virtual void Visit(CDefaultCaseLabel &AExpr) = 0;
-	virtual void Visit(CGotoStatement &AExpr) = 0;
-	virtual void Visit(CBreakStatement &AExpr) = 0;
-	virtual void Visit(CContinueStatement &AExpr) = 0;
-	virtual void Visit(CReturnStatement &AExpr) = 0;
-	virtual void Visit(CSwitchStatement &AExpr) = 0;
+	virtual void Visit(CUnaryOp &AStmt) = 0;
+	virtual void Visit(CBinaryOp &AStmt) = 0;
+	virtual void Visit(CConditionalOp &AStmt) = 0;
+	virtual void Visit(CIntegerConst &AStmt) = 0;
+	virtual void Visit(CFloatConst &AStmt) = 0;
+	virtual void Visit(CSymbolConst &AStmt) = 0;
+	virtual void Visit(CStringConst &AStmt) = 0;
+	virtual void Visit(CVariable &AStmt) = 0;
+	virtual void Visit(CPostfixOp &AStmt) = 0;
+	virtual void Visit(CFunctionCall &AStmt) = 0;
+	virtual void Visit(CStructAccess &AStmt) = 0;
+	virtual void Visit(CIndirectAccess &AStmt) = 0;
+	virtual void Visit(CArrayAccess &AStmt) = 0;
+	virtual void Visit(CNullStatement &AStmt) = 0;
+	virtual void Visit(CBlockStatement &AStmt) = 0;
+	virtual void Visit(CIfStatement &AStmt) = 0;
+	virtual void Visit(CForStatement &AStmt) = 0;
+	virtual void Visit(CWhileStatement &AStmt) = 0;
+	virtual void Visit(CDoStatement &AStmt) = 0;
+	virtual void Visit(CLabel &AStmt) = 0;
+	virtual void Visit(CCaseLabel &AStmt) = 0;
+	virtual void Visit(CDefaultCaseLabel &AStmt) = 0;
+	virtual void Visit(CGotoStatement &AStmt) = 0;
+	virtual void Visit(CBreakStatement &AStmt) = 0;
+	virtual void Visit(CContinueStatement &AStmt) = 0;
+	virtual void Visit(CReturnStatement &AStmt) = 0;
+	virtual void Visit(CSwitchStatement &AStmt) = 0;
+
+protected:
+	void TryVisit(CStatement *AStmt);
 };
 
 #endif // _COMMON_H_

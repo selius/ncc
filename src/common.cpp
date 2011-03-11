@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include "statements.h"
+
 /******************************************************************************
  * CPosition
  ******************************************************************************/
@@ -55,4 +57,11 @@ string CFatalException::GetMessage() const
 
 CStatementVisitor::~CStatementVisitor()
 {
+}
+
+void CStatementVisitor::TryVisit(CStatement *AStmt)
+{
+	if (AStmt) {
+		AStmt->Accept(*this);
+	}
 }

@@ -12,6 +12,7 @@ CExpression::CExpression(const CToken &AToken)
 {
 	Type = AToken.GetType();
 	Name = AToken.GetText();
+	Position = AToken.GetPosition();
 }
 
 CExpression::~CExpression()
@@ -26,6 +27,11 @@ ETokenType CExpression::GetType() const
 bool CExpression::IsLValue() const
 {
 	return false;
+}
+
+CPosition CExpression::GetPosition() const
+{
+	return Position;
 }
 
 /******************************************************************************
@@ -54,6 +60,12 @@ CExpression* CUnaryOp::GetArgument() const
 void CUnaryOp::SetArgument(CExpression *AArgument)
 {
 	Argument = AArgument;
+}
+
+CTypeSymbol* CUnaryOp::GetResultType() const
+{
+	// TODO: what about address-getting?..
+	return Argument->GetResultType();
 }
 
 bool CUnaryOp::IsLValue() const
@@ -102,6 +114,16 @@ void CBinaryOp::SetLeft(CExpression *ALeft)
 void CBinaryOp::SetRight(CExpression *ARight)
 {
 	Right = ARight;
+}
+
+CTypeSymbol* CBinaryOp::GetResultType() const
+{
+	if (Type == TOKEN_TYPE_OPERATION_PERCENT || Type == TOKEN_TYPE_OPERATION_SHIFT_LEFT || Type == TOKEN_TYPE_OPERATION_SHIFT_RIGHT) {
+		return Left->GetResultType();
+	}
+
+	// TODO: deal with this..
+	return Left->GetResultType();
 }
 
 /******************************************************************************
@@ -160,19 +182,29 @@ bool CConditionalOp::IsLValue() const
 	return true;
 }
 
+CTypeSymbol* CConditionalOp::GetResultType() const
+{
+	return TrueExpr->GetResultType();	// types of TrueExpr and FalseExpr must match..
+}
+
 /******************************************************************************
  * CConst
  ******************************************************************************/
 
-CConst::CConst(const CToken &AToken) : CExpression(AToken)
+CConst::CConst(const CToken &AToken, CTypeSymbol *AType) : CExpression(AToken), Type(AType)
 {
+}
+
+CTypeSymbol* CConst::GetResultType() const
+{
+	return Type;
 }
 
 /******************************************************************************
  * CIntegerConst
  ******************************************************************************/
 
-CIntegerConst::CIntegerConst(const CIntegerConstToken &AToken) : CConst(AToken)
+CIntegerConst::CIntegerConst(const CIntegerConstToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
 {
 	Value = AToken.GetIntegerValue();
 }
@@ -191,7 +223,7 @@ int CIntegerConst::GetValue() const
  * CFloatConst
  ******************************************************************************/
 
-CFloatConst::CFloatConst(const CFloatConstToken &AToken) : CConst(AToken)
+CFloatConst::CFloatConst(const CFloatConstToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
 {
 	Value = AToken.GetFloatValue();
 }
@@ -210,7 +242,7 @@ double CFloatConst::GetValue() const
  * CSymbolConst
  ******************************************************************************/
 
-CSymbolConst::CSymbolConst(const CSymbolConstToken &AToken) : CConst(AToken)
+CSymbolConst::CSymbolConst(const CSymbolConstToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
 {
 	Value = AToken.GetSymbolValue();
 }
@@ -229,7 +261,7 @@ char CSymbolConst::GetValue() const
  * CStringConst
  ******************************************************************************/
 
-CStringConst::CStringConst(const CToken &AToken) : CConst(AToken)
+CStringConst::CStringConst(const CToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
 {
 	Value = AToken.GetText();
 }
@@ -260,13 +292,27 @@ void CVariable::Accept(CStatementVisitor &AVisitor)
 
 bool CVariable::IsLValue() const
 {
-	// TODO: add check for constness using info from symbol object
-	return true;
+	CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
+	if (!VarSym) {
+		return false;
+	}
+
+	return !VarSym->GetType()->GetConst();
 }
 
 CSymbol* CVariable::GetSymbol() const
 {
 	return Symbol;
+}
+
+CTypeSymbol* CVariable::GetResultType() const
+{
+	CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
+	if (!VarSym) {
+		return NULL;
+	}
+
+	return VarSym->GetType();
 }
 
 /******************************************************************************
@@ -311,6 +357,16 @@ void CFunctionCall::Accept(CStatementVisitor &AVisitor)
 	AVisitor.Visit(*this);
 }
 
+CFunctionSymbol* CFunctionCall::GetFunction() const
+{
+	return Function;
+}
+
+void CFunctionCall::SetFunction(CFunctionSymbol *AFunction)
+{
+	Function = AFunction;
+}
+
 CFunctionCall::ArgumentsIterator CFunctionCall::Begin()
 {
 	return Arguments.begin();
@@ -321,9 +377,29 @@ CFunctionCall::ArgumentsIterator CFunctionCall::End()
 	return Arguments.end();
 }
 
+CFunctionCall::ArgumentsReverseIterator CFunctionCall::RBegin()
+{
+	return Arguments.rbegin();
+}
+
+CFunctionCall::ArgumentsReverseIterator CFunctionCall::REnd()
+{
+	return Arguments.rend();
+}
+
+unsigned int CFunctionCall::GetArgumentsCount() const
+{
+	return Arguments.size();
+}
+
 void CFunctionCall::AddArgument(CExpression *AArgument)
 {
 	Arguments.push_back(AArgument);
+}
+
+CTypeSymbol* CFunctionCall::GetResultType() const
+{
+	return (Function ? Function->GetReturnType() : NULL);
 }
 
 /******************************************************************************
@@ -364,6 +440,16 @@ void CStructAccess::SetField(CVariable *AField)
 	Field = AField;
 }
 
+CTypeSymbol* CStructAccess::GetResultType() const
+{
+	CStructSymbol *StructSym = dynamic_cast<CStructSymbol *>(Struct->GetResultType());
+	if (!StructSym || !Field) {
+		return NULL;
+	}
+
+	return StructSym->GetField(Field->GetName())->GetType();
+}
+
 /******************************************************************************
  * CIndirectAccess
  ******************************************************************************/
@@ -402,6 +488,21 @@ void CIndirectAccess::SetField(CVariable *AField)
 	Field = AField;
 }
 
+CTypeSymbol* CIndirectAccess::GetResultType() const
+{
+	CPointerSymbol *PointerSym = dynamic_cast<CPointerSymbol *>(Pointer->GetResultType());
+	if (!PointerSym) {
+		return NULL;
+	}
+
+	CStructSymbol *StructSym = dynamic_cast<CStructSymbol *>(PointerSym->GetRefType());
+	if (!StructSym || !Field) {
+		return NULL;
+	}
+
+	return StructSym->GetField(Field->GetName())->GetType();
+}
+
 /******************************************************************************
  * CArrayAccess
  ******************************************************************************/
@@ -423,3 +524,11 @@ void CArrayAccess::Accept(CStatementVisitor &AVisitor)
 	AVisitor.Visit(*this);
 }
 
+CTypeSymbol* CArrayAccess::GetResultType() const
+{
+	if (Left->GetResultType()->IsInt()) {
+		return Right->GetResultType();
+	} else {
+		return Left->GetResultType();
+	}
+}

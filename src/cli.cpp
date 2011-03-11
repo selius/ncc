@@ -4,7 +4,7 @@
  * CCompilerParameters
  ******************************************************************************/
 
-CCompilerParameters::CCompilerParameters() : CompilerMode(COMPILER_MODE_UNDEFINED), ParserOutputMode(PARSER_OUTPUT_MODE_TREE)
+CCompilerParameters::CCompilerParameters() : CompilerMode(COMPILER_MODE_UNDEFINED), ParserOutputMode(PARSER_OUTPUT_MODE_TREE), ParserMode(PARSER_MODE_NORMAL)
 {
 }
 
@@ -33,7 +33,7 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 	string CurOpt;
 	bool OptionsEnd = false;
 
-	for (vector<string>::iterator it = ++Args.begin(); it != Args.end(); ++it) {
+	for (ArgumentsIterator it = ++Args.begin(); it != Args.end(); ++it) {
 		CurArg = *it;
 		if (!OptionsEnd && CurArg[0] == '-') {
 			if (CurArg == "-v" || CurArg == "--version") {
@@ -43,9 +43,7 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 				PrintHelp(true);
 				throw CFatalException(EXIT_CODE_SUCCESS);
 			} else if (CurArg == "-o") {
-				if (it == --Args.end()) {
-					throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, CurArg + " option requires an argument");
-				}
+				RequireArgument(it);
 
 				if (!Parameters.OutputFilename.empty()) {
 					throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "only one output file could be specified");
@@ -67,15 +65,24 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 					Parameters.CompilerMode = COMPILER_MODE_OPTIMIZE;
 				}
 			} else if (CurArg == "--parser-output-mode") {
-				if (it == --Args.end()) {
-					throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, CurArg + " option requires an argument");
-				}
+				RequireArgument(it);
 
 				string OptValue = *(++it);
 				if (OptValue == "linear") {
 					Parameters.ParserOutputMode = PARSER_OUTPUT_MODE_LINEAR;
 				} else if (OptValue == "tree") {
 					Parameters.ParserOutputMode = PARSER_OUTPUT_MODE_TREE;
+				} else {
+					throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "invalid value for " + CurArg + " option");
+				}
+			} else if (CurArg == "--parser-mode") {
+				RequireArgument(it);
+
+				string OptValue = *(++it);
+				if (OptValue == "normal") {
+					Parameters.ParserMode = PARSER_MODE_NORMAL;
+				} else if (OptValue == "expression") {
+					Parameters.ParserMode = PARSER_MODE_EXPRESSION;
 				} else {
 					throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "invalid value for " + CurArg + " option");
 				}
@@ -98,6 +105,10 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 
 	if (Parameters.CompilerMode == COMPILER_MODE_UNDEFINED) {
 		Parameters.CompilerMode = COMPILER_MODE_PARSE;	// default mode
+	}
+
+	if (Parameters.ParserMode == PARSER_MODE_EXPRESSION && Parameters.CompilerMode != COMPILER_MODE_PARSE) {
+		throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "expressions-only parser mode can only be selected when compiler mode is parsing");
 	}
 
 	return Parameters;
@@ -167,4 +178,11 @@ void CCommandLineInterface::PopulateHelp()
 	Help.Add("-O", "--optimize", "Run optimizer");
 
 	Help.Add("", "--parser-output-mode linear|tree", "Set parser output mode to linear or tree-like");
+}
+
+void CCommandLineInterface::RequireArgument(ArgumentsIterator &AOption)
+{
+	if (AOption == --Args.end()) {
+		throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, *AOption + " option requires an argument");
+	}
 }

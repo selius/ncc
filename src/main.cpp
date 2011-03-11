@@ -2,6 +2,7 @@
 #include "cli.h"
 #include "scanner.h"
 #include "parser.h"
+#include "codegen.h"
 #include "prettyprinting.h"
 #include "statements.h"
 
@@ -59,42 +60,71 @@ int main(int argc, char *argv[])
 
 			CStatementVisitor *vis;
 
-			//CExpression *expr = parser.ParseExpression();
-			//CStatement *SynNode = parser.ParseBlock();	// replace by something like ParseModule or ParseBody or ParseProgram..
-
-			CSymbolTable *SymTable = parser.ParseTranslationUnit();
-
-			if (scanner.GetToken()->GetType() != TOKEN_TYPE_EOF) {
-				throw CException("trailing characters", scanner.GetToken()->GetPosition());
-			}
-
 			if (Parameters.ParserOutputMode == PARSER_OUTPUT_MODE_TREE) {
 				vis = new CStatementTreePrintVisitor(*out);
 			} else {
 				vis = new CStatementLinearPrintVisitor(*out);
 			}
 
-			CFunctionSymbol *FuncSym = NULL;
+			if (Parameters.ParserMode == PARSER_MODE_EXPRESSION) {
+				CExpression *expr = parser.ParseExpression();
 
-			for (CSymbolTable::SymbolsIterator it = SymTable->Begin(); it != SymTable->End(); ++it) {
-				FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
-				if (FuncSym) {
-					*out << FuncSym->GetName() << ":" << endl;
-					if (FuncSym->GetBody()) {
-						FuncSym->GetBody()->Accept(*vis);
-					} else {
-						*out << "\t(declared, but not defined)" << endl;
+				if (scanner.GetToken()->GetType() != TOKEN_TYPE_EOF) {
+					throw CException("trailing characters", scanner.GetToken()->GetPosition());
+				}
+
+				expr->Accept(*vis);
+			} else {
+				CSymbolTable *SymTable = parser.ParseTranslationUnit();
+
+				CFunctionSymbol *FuncSym = NULL;
+
+				for (CSymbolTable::SymbolsIterator it = SymTable->Begin(); it != SymTable->End(); ++it) {
+					FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
+					if (FuncSym) {
+						*out << FuncSym->GetName() << ":" << endl;
+						if (FuncSym->GetBody()) {
+							FuncSym->GetBody()->Accept(*vis);
+						} else {
+							*out << "\t(declared, but not defined)" << endl;
+						}
 					}
 				}
 			}
-			//SynNode->Accept(*vis);
 
 			delete vis;
-			//delete SynNode;
 
 		} catch (CException e) {
 			e.Output(cerr);
 			ExitCode = EXIT_CODE_PARSER_ERROR;
+		}
+	} else if (Parameters.CompilerMode == COMPILER_MODE_GENERATE) {
+		try {
+			CScanner scanner(in);
+			CParser parser(scanner);
+			CAsmCode code;
+			//CCodeGenerationVisitor vis(code);
+
+			CSymbolTable *SymTable = parser.ParseTranslationUnit();
+
+			CFunctionSymbol *FuncSym = NULL;
+
+			for (CSymbolTable::SymbolsIterator it = SymTable->Begin(); it != SymTable->End(); ++it) {
+				FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
+				if (FuncSym && FuncSym->GetBody()) {
+					CCodeGenerationVisitor vis(code, FuncSym);
+
+					code.Add(new CAsmDirective("globl", FuncSym->GetName()));
+					code.Add(new CAsmLabel(FuncSym->GetName()));
+					FuncSym->GetBody()->Accept(vis);
+					code.Add(RET);
+				}
+			}
+
+			code.Output(*out);
+		} catch (CException e) {
+			e.Output(cerr);
+			//ExitCode = EXIT_CODE_GENERATOR_ERROR;
 		}
 	} else {
 		ExitCode = CLI.Error("mode is not implemented yet", EXIT_CODE_NOT_IMPLEMENTED);

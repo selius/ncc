@@ -43,6 +43,8 @@ public:
 	StatementsIterator Begin();
 	StatementsIterator End();
 
+	unsigned int GetStatementsCount() const;
+
 	void Add(CStatement *AStatement);
 
 	CSymbolTable* GetSymbolTable() const;
@@ -217,7 +219,7 @@ private:
 class CSwitchStatement : public CBlockStatement
 {
 public:
-	typedef map<CExpression *, CCaseLabel *> CasesContainer;
+	typedef map<CExpression *, CCaseLabel *> CasesContainer;	// TODO: replace by list of pairs.. or something like this..
 	typedef CasesContainer::iterator CasesIterator;
 
 	CSwitchStatement(CExpression *ATestExpression = NULL, CStatement *ABody = NULL);

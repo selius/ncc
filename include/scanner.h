@@ -158,6 +158,8 @@ public:
 	static bool IsValidIdentifierSymbol(char c, bool first = false);
 	static bool IsOperationSymbol(char c);
 	static bool IsKeyword(const string &s);
+	static bool IsComparisonOperation(const string &s);
+	static bool IsTrivialOperation(const string &s);
 };
 
 class CScanner

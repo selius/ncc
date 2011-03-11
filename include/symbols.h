@@ -6,7 +6,7 @@
 class CSymbol
 {
 public:
-	CSymbol();
+	CSymbol(const string &AName = "");
 	virtual ~CSymbol();
 
 	string GetName() const;
@@ -25,6 +25,7 @@ public:
 
 	// TODO: make symbol table the owner of contained symbols, i. e. destroy 'em in destructor
 
+	CSymbolTable();
 	~CSymbolTable();
 
 	void Add(CSymbol *ASymbol);
@@ -36,8 +37,12 @@ public:
 
 	unsigned int GetSize() const;
 
+	unsigned int GetElementsSize() const;
+
 private:
 	SymbolsContainer Symbols;
+
+	size_t CurrentOffset;
 
 };
 
@@ -74,12 +79,18 @@ private:
 class CTypeSymbol : public CSymbol
 {
 public:
-	CTypeSymbol();
+	CTypeSymbol(const string &AName = "");
 
 	virtual size_t GetSize() const = 0;
 
 	bool GetConst() const;
 	void SetConst(bool AConst);
+
+	virtual bool IsInt() const;
+	virtual bool IsFloat() const;
+	bool IsArithmetic() const;
+	virtual bool IsVoid() const;
+	virtual bool IsType(const string &AType) const;
 
 private:
 	bool Const;
@@ -97,6 +108,8 @@ public:
 
 	size_t GetSize() const;
 
+	bool IsInt() const;
+
 private:
 	
 
@@ -109,6 +122,8 @@ public:
 
 	size_t GetSize() const;
 
+	bool IsFloat() const;
+
 private:
 
 };
@@ -119,6 +134,8 @@ public:
 	CVoidSymbol();
 
 	size_t GetSize() const;
+
+	bool IsVoid() const;
 
 private:
 
@@ -141,6 +158,8 @@ private:
 
 };
 
+class CVariableSymbol;
+
 class CStructSymbol : public CTypeSymbol
 {
 public:
@@ -150,6 +169,8 @@ public:
 	size_t GetSize() const;
 
 	void AddField(CSymbol *AField);
+
+	CVariableSymbol* GetField(const string &AName);
 
 	CSymbolTable* GetSymbolTable();
 	void SetSymbolTable(CSymbolTable *ASymbolTable);
@@ -177,10 +198,17 @@ private:
 class CTypedefSymbol : public CTypeSymbol
 {
 public:
+	CTypedefSymbol(const string &AName = "", CTypeSymbol *ARefType = NULL);
+
 	size_t GetSize() const;
 
 	CTypeSymbol* GetRefType() const;
 	void SetRefType(CTypeSymbol *ARefType);
+
+	bool IsInt() const;
+	bool IsFloat() const;
+	bool IsVoid() const;
+	bool IsType(const string &AType) const;
 
 private:
 	CTypeSymbol *RefType;
@@ -190,17 +218,23 @@ private:
 class CVariableSymbol : public CSymbol
 {
 public:
+	CVariableSymbol(const string &AName = "", CTypeSymbol *AType = NULL);
+
 	CTypeSymbol* GetType() const;
 	void SetType(CTypeSymbol *AType);
 
+	size_t GetOffset() const;
+	void SetOffset(size_t AOffset);
+
 private:
 	CTypeSymbol *Type;
+	size_t Offset;
 };
 
 class CFunctionSymbol : public CSymbol
 {
 public:
-	CFunctionSymbol();
+	CFunctionSymbol(const string &AName = "", CTypeSymbol *AReturnType = NULL);
 	~CFunctionSymbol();
 
 	CTypeSymbol* GetReturnType() const;
@@ -218,7 +252,7 @@ private:
 	CTypeSymbol *ReturnType;
 
 	CSymbolTable *Arguments;
-	CSymbolTable *Locals;
+	//CSymbolTable *Locals;
 
 	CBlockStatement *Body;
 };

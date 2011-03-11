@@ -48,11 +48,6 @@ CBlockStatement::~CBlockStatement()
 	delete SymbolTable;
 }
 
-void CBlockStatement::Add(CStatement *AStatement)
-{
-	Statements.push_back(AStatement);
-}
-
 void CBlockStatement::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
@@ -66,6 +61,16 @@ CBlockStatement::StatementsIterator CBlockStatement::Begin()
 CBlockStatement::StatementsIterator CBlockStatement::End()
 {
 	return Statements.end();
+}
+
+unsigned int CBlockStatement::GetStatementsCount() const
+{
+	return Statements.size();
+}
+
+void CBlockStatement::Add(CStatement *AStatement)
+{
+	Statements.push_back(AStatement);
 }
 
 CSymbolTable* CBlockStatement::GetSymbolTable() const

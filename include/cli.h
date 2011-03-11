@@ -11,7 +11,7 @@ struct CCompilerParameters
 	string OutputFilename;
 	ECompilerMode CompilerMode;
 	EParserOutputMode ParserOutputMode;
-
+	EParserMode ParserMode;
 };
 
 class CCommandLineInterface
@@ -51,9 +51,14 @@ private:
 		size_t LongWidth;
 	};
 
+	typedef vector<string> ArgumentsContainer;
+	typedef ArgumentsContainer::iterator ArgumentsIterator;
+
 	void PopulateHelp();
 
-	vector<string> Args;
+	void RequireArgument(ArgumentsIterator &AOption);
+
+	ArgumentsContainer Args;
 	CCompilerParameters Parameters;
 	CHelpContainer Help;
 };

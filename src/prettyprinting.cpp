@@ -101,15 +101,6 @@ void CStatementLinearPrintVisitor::Visit(CIndirectAccess &AStmt)
 void CStatementLinearPrintVisitor::Visit(CArrayAccess &AStmt)
 {
 	Visit(static_cast<CBinaryOp &>(AStmt));
-	/*Stream << AStmt.GetName() << LEFT_ENCLOSING;
-	if (AStmt.GetLeft()) {
-		AStmt.GetLeft()->Accept(*this);
-	}
-	Stream << DELIMITER;
-	if (AStmt.GetRight()) {
-		AStmt.GetRight()->Accept(*this);
-	}
-	Stream << RIGHT_ENCLOSING;*/
 }
 
 void CStatementLinearPrintVisitor::Visit(CNullStatement &AStmt)
@@ -242,8 +233,7 @@ CStatementTreePrintVisitor::CStatementTreePrintVisitor(ostream &AStream) : Strea
 void CStatementTreePrintVisitor::Visit(CUnaryOp &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	LastChild[Nesting] = true;
@@ -254,8 +244,7 @@ void CStatementTreePrintVisitor::Visit(CUnaryOp &AStmt)
 void CStatementTreePrintVisitor::Visit(CBinaryOp &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	TryVisit(AStmt.GetLeft());
@@ -267,8 +256,7 @@ void CStatementTreePrintVisitor::Visit(CBinaryOp &AStmt)
 void CStatementTreePrintVisitor::Visit(CConditionalOp &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	TryVisit(AStmt.GetCondition());
@@ -305,7 +293,7 @@ void CStatementTreePrintVisitor::Visit(CStringConst &AStmt)
 void CStatementTreePrintVisitor::Visit(CVariable &AStmt)
 {
 	PrintTreeDecoration();
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 }
 
 void CStatementTreePrintVisitor::Visit(CPostfixOp &AStmt)
@@ -323,8 +311,7 @@ void CStatementTreePrintVisitor::Visit(CPostfixOp &AStmt)
 void CStatementTreePrintVisitor::Visit(CFunctionCall &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	for (CFunctionCall::ArgumentsIterator it = AStmt.Begin(); it != AStmt.End(); ++it) {
@@ -340,8 +327,7 @@ void CStatementTreePrintVisitor::Visit(CFunctionCall &AStmt)
 void CStatementTreePrintVisitor::Visit(CStructAccess &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	TryVisit(AStmt.GetStruct());
@@ -353,8 +339,7 @@ void CStatementTreePrintVisitor::Visit(CStructAccess &AStmt)
 void CStatementTreePrintVisitor::Visit(CIndirectAccess &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	TryVisit(AStmt.GetPointer());
@@ -371,14 +356,13 @@ void CStatementTreePrintVisitor::Visit(CArrayAccess &AStmt)
 void CStatementTreePrintVisitor::Visit(CNullStatement &AStmt)
 {
 	PrintTreeDecoration();
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 }
 
 void CStatementTreePrintVisitor::Visit(CBlockStatement &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	for (CBlockStatement::StatementsIterator it = AStmt.Begin(); it != AStmt.End(); ++it) {
@@ -394,8 +378,7 @@ void CStatementTreePrintVisitor::Visit(CBlockStatement &AStmt)
 void CStatementTreePrintVisitor::Visit(CIfStatement &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	TryVisit(AStmt.GetCondition());
@@ -411,8 +394,7 @@ void CStatementTreePrintVisitor::Visit(CIfStatement &AStmt)
 void CStatementTreePrintVisitor::Visit(CForStatement &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	TryVisit(AStmt.GetInit());
@@ -426,8 +408,7 @@ void CStatementTreePrintVisitor::Visit(CForStatement &AStmt)
 void CStatementTreePrintVisitor::Visit(CWhileStatement &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	TryVisit(AStmt.GetCondition());
@@ -439,8 +420,7 @@ void CStatementTreePrintVisitor::Visit(CWhileStatement &AStmt)
 void CStatementTreePrintVisitor::Visit(CDoStatement &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	TryVisit(AStmt.GetBody());
@@ -452,7 +432,6 @@ void CStatementTreePrintVisitor::Visit(CDoStatement &AStmt)
 void CStatementTreePrintVisitor::Visit(CLabel &AStmt)
 {
 	PrintTreeDecoration();
-
 	Stream << AStmt.GetName() << ":" << endl;
 
 	Nesting++;
@@ -464,8 +443,7 @@ void CStatementTreePrintVisitor::Visit(CLabel &AStmt)
 void CStatementTreePrintVisitor::Visit(CCaseLabel &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	TryVisit(AStmt.GetCaseExpression());
@@ -482,8 +460,7 @@ void CStatementTreePrintVisitor::Visit(CDefaultCaseLabel &AStmt)
 void CStatementTreePrintVisitor::Visit(CGotoStatement &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	LastChild[Nesting] = true;
@@ -495,20 +472,19 @@ void CStatementTreePrintVisitor::Visit(CGotoStatement &AStmt)
 void CStatementTreePrintVisitor::Visit(CBreakStatement &AStmt)
 {
 	PrintTreeDecoration();
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 }
 
 void CStatementTreePrintVisitor::Visit(CContinueStatement &AStmt)
 {
 	PrintTreeDecoration();
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 }
 
 void CStatementTreePrintVisitor::Visit(CReturnStatement &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	LastChild[Nesting] = true;
@@ -519,8 +495,7 @@ void CStatementTreePrintVisitor::Visit(CReturnStatement &AStmt)
 void CStatementTreePrintVisitor::Visit(CSwitchStatement &AStmt)
 {
 	PrintTreeDecoration();
-
-	Stream << AStmt.GetName() << endl;
+	PrintName(AStmt);
 
 	Nesting++;
 	TryVisit(AStmt.GetTestExpression());
@@ -548,5 +523,10 @@ void CStatementTreePrintVisitor::PrintTreeDecoration()
 			Stream << "|- ";
 		}
 	}
+}
+
+void CStatementTreePrintVisitor::PrintName(CStatement &AStmt)
+{
+	Stream << AStmt.GetName() << endl;
 }
 

@@ -83,6 +83,7 @@ public:
 
 private:
 	void PrintTreeDecoration();
+	void PrintName(CStatement &AStmt);
 
 	ostream &Stream;
 	int Nesting;

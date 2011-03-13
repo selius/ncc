@@ -31,6 +31,8 @@ TestMode()
 
 	echo -e "\nSuccessful: $SUCCESSFUL"
 	echo -e "Failed: $FAILED\n"
+	((TOTAL_SUCCESSFUL += $SUCCESSFUL))
+	((TOTAL_FAILED += $FAILED))
 }
 
 if [[ ! -x $NCC ]]
@@ -39,6 +41,12 @@ then
 	exit
 fi
 
+TOTAL_SUCCESSFUL=0
+TOTAL_FAILED=0
+
 TestMode scanner -S
 TestMode parser-simple-expressions "-P --parser-mode expression"
 TestMode parser-arbitrary-expressions "-P --parser-mode expression"
+
+echo -e "\nTotal successful: $TOTAL_SUCCESSFUL"
+echo -e "Total failed: $TOTAL_FAILED"

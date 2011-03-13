@@ -40,4 +40,5 @@ then
 fi
 
 TestMode scanner -S
-TestMode parser-expressions "-P --parser-mode expression"
+TestMode parser-simple-expressions "-P --parser-mode expression"
+TestMode parser-arbitrary-expressions "-P --parser-mode expression"

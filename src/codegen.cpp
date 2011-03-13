@@ -197,6 +197,8 @@ CAsmCode::CAsmCode() : LabelsCount(0)
 	MnemonicsText[IMUL] = "imul";
 	MnemonicsText[DIV] = "div";
 	MnemonicsText[IDIV] = "idiv";
+	MnemonicsText[INC] = "inc";
+	MnemonicsText[DEC] = "dec";
 	MnemonicsText[CMP] = "cmp";
 	MnemonicsText[CDQ] = "cdq";
 	MnemonicsText[AND] = "and";
@@ -301,8 +303,18 @@ void CCodeGenerationVisitor::Visit(CUnaryOp &AStmt)
 
 	string OpName = AStmt.GetName();
 
-	// TODO: unary ops code gen..
+	if (OpName == "--") {
+		Asm.Add(DEC, EAX);
+	} else if (OpName == "++") {
+		Asm.Add(INC, EAX);
+	}
 
+	int off = dynamic_cast<CVariableSymbol *>(dynamic_cast<CVariable *>(AStmt.GetArgument())->GetSymbol())->GetOffset();
+
+	Asm.Add(MOV, EAX, mem(-off, EBP));
+	Asm.Add(PUSH, EAX);
+
+	// TODO: unary ops code gen..
 }
 
 void CCodeGenerationVisitor::Visit(CBinaryOp &AStmt)
@@ -428,6 +440,24 @@ void CCodeGenerationVisitor::Visit(CVariable &AStmt)
 
 void CCodeGenerationVisitor::Visit(CPostfixOp &AStmt)
 {
+	AStmt.GetArgument()->Accept(*this);
+	Asm.Add(POP, EAX);
+	Asm.Add(MOV, EAX, EBX);
+
+	string OpName = AStmt.GetName();
+
+	if (OpName == "--") {
+		Asm.Add(DEC, EAX);
+	} else if (OpName == "++") {
+		Asm.Add(INC, EAX);
+	}
+
+	int off = dynamic_cast<CVariableSymbol *>(dynamic_cast<CVariable *>(AStmt.GetArgument())->GetSymbol())->GetOffset();
+	Asm.Add(MOV, EAX, mem(-off, EBP));
+
+	Asm.Add(PUSH, EBX);
+
+	// TODO: postfix ops code gen..
 }
 
 void CCodeGenerationVisitor::Visit(CFunctionCall &AStmt)
@@ -476,6 +506,7 @@ void CCodeGenerationVisitor::Visit(CBlockStatement &AStmt)
 
 	for (CBlockStatement::StatementsIterator it = AStmt.Begin(); it != AStmt.End(); ++it) {
 		(*it)->Accept(*this);
+		// TODO: if an expression yields a value, we should pop it from the stack..
 	}
 
 	BlockNesting--;

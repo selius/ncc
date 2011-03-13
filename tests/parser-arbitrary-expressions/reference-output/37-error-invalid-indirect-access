@@ -1,0 +1,1 @@
+1, 6: error: expected IDENTIFIER as right operand of OPERATION_INDIRECT_ACCESS, got CONSTANT_INTEGER

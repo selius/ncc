@@ -1,0 +1,1 @@
+1, 5: error: expected IDENTIFIER as right operand of OPERATION_DOT, got LEFT_PARENTHESIS

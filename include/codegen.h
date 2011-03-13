@@ -37,6 +37,8 @@ enum EMnemonic
 	IMUL,
 	DIV,
 	IDIV,
+	INC,
+	DEC,
 	CMP,
 	CDQ,
 	AND,

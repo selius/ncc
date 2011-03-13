@@ -50,6 +50,14 @@ const CToken* CTokenStream::Previous()
 }
 
 /******************************************************************************
+ * CParser::CLabelInfo
+ ******************************************************************************/
+
+CParser::CLabelInfo::CLabelInfo(CLabel *ALabel /*= NULL*/, CPosition APosition /*= CPosition()*/) : Label(ALabel), Position(APosition)
+{
+}
+
+/******************************************************************************
  * CParser::CDeclarationSpecifier
  ******************************************************************************/
 
@@ -61,7 +69,7 @@ CParser::CDeclarationSpecifier::CDeclarationSpecifier() : Type(NULL), Typedef(fa
  * CParser
  ******************************************************************************/
 
-CParser::CParser(CScanner &AScanner) : TokenStream(AScanner)
+CParser::CParser(CScanner &AScanner, EParserMode AMode /*= PARSER_MODE_NORMAL*/) : TokenStream(AScanner), Mode(AMode)
 {
 	NextToken();
 
@@ -125,6 +133,13 @@ CSymbolTable* CParser::ParseTranslationUnit()
 
 			SymbolTableStack.Pop();
 			ScopeType.pop();
+
+			for (map<string, CLabelInfo>::iterator it = LabelTable.begin(); it != LabelTable.end(); ++it) {
+				if (!it->second.Label) {
+					throw CException("label `" + it->first + "` used but not defined", it->second.Position);
+				}
+			}
+
 			LabelTable.clear();
 		} else {
 			throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_START]
@@ -453,9 +468,8 @@ CStatement* CParser::ParseStatement()
 		NextToken();
 		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_COLON) {
 			NextToken();
-			CLabel *Label = new CLabel(LabelName);
-			LabelTable[LabelName] = Label;
-			Label->SetNext(ParseStatement());
+			CLabel *Label = new CLabel(LabelName, ParseStatement());
+			LabelTable[LabelName] = CLabelInfo(Label);
 			return Label;
 		}
 		PreviousToken();
@@ -740,7 +754,7 @@ CStatement* CParser::ParseGoto()
 	string LabelName = Token->GetText();
 
 	if (!LabelTable.count(LabelName)) {
-		throw CException("label `" + LabelName + "` used but not defined", Token->GetPosition());
+		LabelTable[LabelName] = CLabelInfo(NULL, Token->GetPosition());
 	}
 
 	NextToken();
@@ -1333,9 +1347,7 @@ CExpression* CParser::ParsePostfixExpression()
 					throw CException("lvalue required as operand of postfix increment or decrement", Token->GetPosition());
 				}
 
-				CPostfixOp *PostfixOp = new CPostfixOp(*Token);
-				Op = PostfixOp; 
-				PostfixOp->SetArgument(Expr);
+				Op = new CPostfixOp(*Token, Expr);
 			}
 			break;
 		case TOKEN_TYPE_LEFT_PARENTHESIS:
@@ -1343,7 +1355,7 @@ CExpression* CParser::ParsePostfixExpression()
 				CVariable *VarExpr = dynamic_cast<CVariable *>(Expr);
 				if (!VarExpr) {
 					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
-						+ " before function call operator, got " + CScanner::TokenTypesNames[Expr->GetType()], Token->GetPosition());
+						+ " before function call operator", Token->GetPosition());
 				}
 
 				CFunctionCall *FuncCall = new CFunctionCall(VarExpr->GetSymbol());
@@ -1364,7 +1376,7 @@ CExpression* CParser::ParsePostfixExpression()
 						+ " after function arguments list, got " + Token->GetStringifiedType(), Token->GetPosition());
 				}
 
-				if (FuncCall->GetArgumentsCount() != FuncCall->GetFunction()->GetArgumentsSymbolTable()->GetSize()) {
+				if (Mode != PARSER_MODE_EXPRESSION && FuncCall->GetArgumentsCount() != FuncCall->GetFunction()->GetArgumentsSymbolTable()->GetSize()) {
 					throw CException("number of actual and formal parameters don't match", Token->GetPosition());
 				}
 			}
@@ -1401,8 +1413,9 @@ CExpression* CParser::ParsePrimaryExpression()
 		CSymbol *Sym = SymbolTableStack.Lookup<CSymbol>(Token->GetText());
 
 		if (!Sym) {
-			if (true /* Mode == PARSER_MODE_EXPRESSION */) {
+			if (Mode == PARSER_MODE_EXPRESSION) {
 				Sym = new CVariableSymbol(Token->GetText(), SymbolTableStack.Lookup<CTypeSymbol>("int"));
+				SymbolTableStack.GetTop()->Add(Sym);
 			} else {
 				throw CException("undeclared identifier `" + Token->GetText() + "`", Token->GetPosition());
 			}

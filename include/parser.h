@@ -26,7 +26,7 @@ private:
 class CParser
 {
 public:
-	CParser(CScanner &AScanner);
+	CParser(CScanner &AScanner, EParserMode AMode = PARSER_MODE_NORMAL);
 	~CParser();
 
 	CSymbolTable* ParseTranslationUnit();
@@ -60,6 +60,15 @@ private:
 
 		CTypeSymbol *Type;
 		bool Typedef;
+	};
+
+	struct CLabelInfo
+	{
+		CLabelInfo(CLabel *ALabel = NULL, CPosition APosition = CPosition());
+
+		CLabel *Label;
+		CPosition Position;
+
 	};
 
 	CDeclarationSpecifier ParseDeclarationSpecifier();
@@ -117,10 +126,12 @@ private:
 	const CToken *Token;
 
 	CSymbolTableStack SymbolTableStack;
-	map<string, CLabel *> LabelTable;
+	map<string, CLabelInfo> LabelTable;
 	stack<EBlockType> BlockType;
 	stack<EScopeType> ScopeType;
 	stack<CSwitchStatement *> SwitchesStack;
+
+	EParserMode Mode;
 };
 
 #endif // _PARSER_H_

@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 	} else if (Parameters.CompilerMode == COMPILER_MODE_PARSE) {
 		try {
 			CScanner scanner(in);
-			CParser parser(scanner);
+			CParser parser(scanner, Parameters.ParserMode);
 
 			CStatementVisitor *vis;
 

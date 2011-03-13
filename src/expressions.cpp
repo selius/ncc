@@ -335,11 +335,9 @@ void CPostfixOp::Accept(CStatementVisitor &AVisitor)
 CFunctionCall::CFunctionCall(CSymbol *AFunction)
 {
 	Type = TOKEN_TYPE_RIGHT_PARENTHESIS;	// well, that's not really clear, but looks good in error messages at least..
+	Name = AFunction->GetName() + "()";
 
 	Function = dynamic_cast<CFunctionSymbol *>(AFunction);
-	if (Function) {
-		Name = Function->GetName() + "()";
-	}
 }
 
 CFunctionCall::~CFunctionCall()

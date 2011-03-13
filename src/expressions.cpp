@@ -204,9 +204,9 @@ CTypeSymbol* CConst::GetResultType() const
  * CIntegerConst
  ******************************************************************************/
 
-CIntegerConst::CIntegerConst(const CIntegerConstToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
+CIntegerConst::CIntegerConst(const CToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
 {
-	Value = AToken.GetIntegerValue();
+	Value = dynamic_cast<const CIntegerConstToken &>(AToken).GetIntegerValue();
 }
 
 void CIntegerConst::Accept(CStatementVisitor &AVisitor)
@@ -223,9 +223,9 @@ int CIntegerConst::GetValue() const
  * CFloatConst
  ******************************************************************************/
 
-CFloatConst::CFloatConst(const CFloatConstToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
+CFloatConst::CFloatConst(const CToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
 {
-	Value = AToken.GetFloatValue();
+	Value = dynamic_cast<const CFloatConstToken &>(AToken).GetFloatValue();
 }
 
 void CFloatConst::Accept(CStatementVisitor &AVisitor)
@@ -242,9 +242,9 @@ double CFloatConst::GetValue() const
  * CSymbolConst
  ******************************************************************************/
 
-CSymbolConst::CSymbolConst(const CSymbolConstToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
+CSymbolConst::CSymbolConst(const CToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
 {
-	Value = AToken.GetSymbolValue();
+	Value = dynamic_cast<const CSymbolConstToken &>(AToken).GetSymbolValue();
 }
 
 void CSymbolConst::Accept(CStatementVisitor &AVisitor)

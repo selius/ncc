@@ -695,14 +695,19 @@ CStatement* CParser::ParseCase()
 	}
 
 	NextToken();
+	CPosition ExprPos = Token->GetPosition();
 
-	CCaseLabel *CaseLabel = new CCaseLabel;
+	CCaseLabel *CaseLabel = new CCaseLabel(ParseExpression());
 
-	CaseLabel->SetCaseExpression(ParseExpression());	// TODO: check type: integer constant
+	CTypeSymbol *CaseExprType = CaseLabel->GetCaseExpression()->GetResultType();
 
-	// FIXME: check _values_, not pointers to expressions...
+	if (!(CaseExprType->IsInt() && CaseExprType->GetConst())) {
+		throw CException("expected constant integer expression after `case`", ExprPos);
+	}
+
+	// FIXME: check _values_, not pointers to expressions... OMG OMG, compute expressions at compile-time?!.. CCompileTimeComputerVisitor comes to imagination, LOL..
 	if (SwitchesStack.top()->Exists(CaseLabel)) {
-		throw CException("duplicate case-expression", Token->GetPosition());	// FIXME: possibly fix this position, make it point to the beginning of the expression
+		throw CException("duplicate case-expression", ExprPos);
 	}
 
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_COLON) {
@@ -833,8 +838,7 @@ CStatement* CParser::ParseSwitch()
 	}
 	NextToken();
 
-	CSwitchStatement *Stmt = new CSwitchStatement;
-	Stmt->SetTestExpression(ParseExpression());
+	CSwitchStatement *Stmt = new CSwitchStatement(ParseExpression());
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
@@ -1402,11 +1406,11 @@ CExpression* CParser::ParsePrimaryExpression()
 				+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_INTEGER) {
-		Expr = new CIntegerConst(*dynamic_cast<const CIntegerConstToken *>(Token), SymbolTableStack.Lookup<CTypeSymbol>("int"));
+		Expr = new CIntegerConst(*Token, SymbolTableStack.Lookup<CTypeSymbol>("int"));
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_FLOAT) {
-		Expr = new CFloatConst(*dynamic_cast<const CFloatConstToken *>(Token), SymbolTableStack.Lookup<CTypeSymbol>("float"));
+		Expr = new CFloatConst(*Token, SymbolTableStack.Lookup<CTypeSymbol>("float"));
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_SYMBOL) {
-		Expr = new CSymbolConst(*dynamic_cast<const CSymbolConstToken *>(Token), SymbolTableStack.Lookup<CTypeSymbol>("int"));
+		Expr = new CSymbolConst(*Token, SymbolTableStack.Lookup<CTypeSymbol>("int"));
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_STRING) {
 		Expr = new CStringConst(*Token, NULL);	// TODO: replace NULL by something meaningful..
 	} else if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {

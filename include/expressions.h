@@ -111,7 +111,7 @@ private:
 class CIntegerConst : public CConst
 {
 public:
-	CIntegerConst(const CIntegerConstToken &AToken, CTypeSymbol *AType);
+	CIntegerConst(const CToken &AToken, CTypeSymbol *AType);
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -125,7 +125,7 @@ private:
 class CFloatConst : public CConst
 {
 public:
-	CFloatConst(const CFloatConstToken &AToken, CTypeSymbol *AType);
+	CFloatConst(const CToken &AToken, CTypeSymbol *AType);
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -139,7 +139,7 @@ private:
 class CSymbolConst : public CConst
 {
 public:
-	CSymbolConst(const CSymbolConstToken &AToken, CTypeSymbol *AType);
+	CSymbolConst(const CToken &AToken, CTypeSymbol *AType);
 
 	void Accept(CStatementVisitor &AVisitor);
 

@@ -1,1 +1,1 @@
-1, 5: error: operands of OPERATION_PERCENT must have integer types
+1, 5: error: operands of OPERATION_PERCENT should have integer types

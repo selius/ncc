@@ -23,7 +23,7 @@ public:
 	virtual bool IsLValue() const;
 	virtual bool IsConst() const;
 
-	virtual void CheckTypes() const = 0;
+	virtual void CheckTypes() const;
 
 protected:
 	ETokenType Type;
@@ -232,6 +232,8 @@ public:
 
 	CTypeSymbol* GetResultType() const;
 
+	void CheckTypes() const;
+
 private:
 	CFunctionSymbol *Function;
 	ArgumentsContainer Arguments;
@@ -287,7 +289,7 @@ private:
 class CArrayAccess : public CBinaryOp
 {
 public:
-	CArrayAccess(CExpression *ALeft = NULL, CExpression *ARight = NULL);
+	CArrayAccess(const CToken &AToken, CExpression *ALeft = NULL, CExpression *ARight = NULL);
 	~CArrayAccess();
 
 	void Accept(CStatementVisitor &AVisitor);

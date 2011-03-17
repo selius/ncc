@@ -89,6 +89,10 @@ bool CExpression::IsConst() const
 	return false;
 }
 
+void CExpression::CheckTypes() const
+{
+}
+
 /******************************************************************************
  * CUnaryOp
  ******************************************************************************/
@@ -582,6 +586,14 @@ CTypeSymbol* CFunctionCall::GetResultType() const
 	return (Function ? Function->GetReturnType() : NULL);
 }
 
+void CFunctionCall::CheckTypes() const
+{
+	assert(Function != NULL);
+
+	// TODO: function call type checking..
+
+}
+
 /******************************************************************************
  * CStructAccess
  ******************************************************************************/
@@ -679,7 +691,7 @@ void CIndirectAccess::SetPointer(CExpression *APointer)
 	StructSymbol = NULL;
 
 	CPointerSymbol *PointerSym = NULL;
-	if (Pointer && (PointerSym = dynamic_cast<CStructSymbol *>(Pointer->GetResultType()))) {
+	if (Pointer && (PointerSym = dynamic_cast<CPointerSymbol *>(Pointer->GetResultType()))) {
 		StructSymbol = dynamic_cast<CStructSymbol *>(PointerSym->GetRefType());
 	}
 }
@@ -715,12 +727,9 @@ void CIndirectAccess::CheckTypes() const
  * CArrayAccess
  ******************************************************************************/
 
-CArrayAccess::CArrayAccess(CExpression *ALeft /*= NULL*/, CExpression *ARight /*= NULL*/)
+CArrayAccess::CArrayAccess(const CToken &AToken, CExpression *ALeft /*= NULL*/, CExpression *ARight /*= NULL*/) : CBinaryOp(AToken, ALeft, ARight)
 {
-	Type = TOKEN_TYPE_LEFT_SQUARE_BRACKET;
 	Name = "[]";
-	Left = ALeft;
-	Right = ARight;
 }
 
 CArrayAccess::~CArrayAccess()
@@ -749,6 +758,6 @@ void CArrayAccess::CheckTypes() const
 	CTypeSymbol *R = Right->GetResultType();
 
 	if (!(L->IsPointer() && R->IsInt() || L->IsInt() && R->IsPointer())) {
-		throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
+		throw CException("invalid operands to array-acces operation", Position);
 	}
 }

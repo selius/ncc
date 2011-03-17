@@ -1212,7 +1212,9 @@ CExpression* CParser::ParseAdditiveExpression()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseMultiplicativeExpression());
 	
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
 
 		Expr = Op;
 	}
@@ -1317,7 +1319,9 @@ CExpression* CParser::ParsePostfixExpression()
 
 				StructAccess->SetField(new CVariable(*Token));
 
-				Op->CheckTypes();
+				if (Mode != PARSER_MODE_EXPRESSION) {
+					Op->CheckTypes();
+				}
 			}
 			break;
 		case TOKEN_TYPE_OPERATION_INDIRECT_ACCESS:
@@ -1338,7 +1342,7 @@ CExpression* CParser::ParsePostfixExpression()
 			break;
 		case TOKEN_TYPE_LEFT_SQUARE_BRACKET:
 			{
-				CArrayAccess *ArrayAccess = new CArrayAccess;
+				CArrayAccess *ArrayAccess = new CArrayAccess(*Token);
 				Op = ArrayAccess;
 
 				ArrayAccess->SetLeft(Expr);
@@ -1347,7 +1351,9 @@ CExpression* CParser::ParsePostfixExpression()
 
 				ArrayAccess->SetRight(ParseExpression());
 
-				Op->CheckTypes();
+				if (Mode != PARSER_MODE_EXPRESSION) {
+					Op->CheckTypes();
+				}
 
 				if (Token->GetType() != TOKEN_TYPE_RIGHT_SQUARE_BRACKET) {
 					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET]

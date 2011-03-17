@@ -155,7 +155,7 @@ bool CTypeSymbol::IsFloat() const
 
 bool CTypeSymbol::IsArithmetic() const
 {
-	return (IsInt() || IsFloat());
+	return IsInt() || IsFloat();
 }
 
 bool CTypeSymbol::IsVoid() const
@@ -166,6 +166,17 @@ bool CTypeSymbol::IsVoid() const
 bool CTypeSymbol::IsType(const string &AType) const
 {
 	return (Name == AType);
+}
+
+bool CTypeSymbol::IsPointer() const
+{
+	return false;
+}
+
+bool CTypeSymbol::IsScalar() const
+{
+	return IsArithmetic() || IsPointer();
+
 }
 
 /******************************************************************************
@@ -318,6 +329,15 @@ unsigned int CStructSymbol::GetFieldsCount() const
  * CPointerSymbol
  ******************************************************************************/
 
+CPointerSymbol::CPointerSymbol() : RefType(NULL)
+{
+}
+
+string CPointerSymbol::GetName() const
+{
+	return RefType ? RefType->GetName() + "*" : "";
+}
+
 size_t CPointerSymbol::GetSize() const
 {
 	return 4; // FIXME: magic number
@@ -331,6 +351,11 @@ CTypeSymbol* CPointerSymbol::GetRefType() const
 void CPointerSymbol::SetRefType(CTypeSymbol *ARefType)
 {
 	RefType = ARefType;
+}
+
+bool CPointerSymbol::IsPointer() const
+{
+	return true;
 }
 
 /******************************************************************************

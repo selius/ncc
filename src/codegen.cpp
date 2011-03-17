@@ -206,6 +206,7 @@ CAsmCode::CAsmCode() : LabelsCount(0)
 	MnemonicsText[XOR] = "xor";
 	MnemonicsText[SAL] = "sal";
 	MnemonicsText[SAR] = "sar";
+	MnemonicsText[LEA] = "lea";
 }
 
 void CAsmCode::Add(CAsmCmd *ACmd)
@@ -251,6 +252,11 @@ void CAsmCode::Add(EMnemonic ACmd, CAsmMem *AOp)
 void CAsmCode::Add(EMnemonic ACmd, ERegister AOp1, CAsmMem *AOp2)
 {
 	Code.push_back(new CAsmCmd2(MnemonicsText[ACmd], new CAsmReg(RegistersText[AOp1]), AOp2));
+}
+
+void CAsmCode::Add(EMnemonic ACmd, CAsmMem *AOp1, ERegister AOp2)
+{
+	Code.push_back(new CAsmCmd2(MnemonicsText[ACmd], AOp1, new CAsmReg(RegistersText[AOp2])));
 }
 
 void CAsmCode::Output(ostream &Stream)
@@ -303,15 +309,23 @@ void CCodeGenerationVisitor::Visit(CUnaryOp &AStmt)
 
 	string OpName = AStmt.GetName();
 
-	if (OpName == "--") {
-		Asm.Add(DEC, EAX);
-	} else if (OpName == "++") {
-		Asm.Add(INC, EAX);
+	if (OpName == "++" || OpName == "--") {
+		if (OpName == "--") {
+			Asm.Add(DEC, EAX);
+		} else if (OpName == "++") {
+			Asm.Add(INC, EAX);
+		}
+
+		int off = dynamic_cast<CVariableSymbol *>(dynamic_cast<CVariable *>(AStmt.GetArgument())->GetSymbol())->GetOffset();
+		Asm.Add(MOV, EAX, mem(-off, EBP));
+
+	} else if (OpName == "*") {
+		Asm.Add(MOV, mem(0, EAX), EAX);
+	} else if (OpName == "&") {
+		int off = dynamic_cast<CVariableSymbol *>(dynamic_cast<CVariable *>(AStmt.GetArgument())->GetSymbol())->GetOffset();
+		Asm.Add(LEA, mem(-off, EBP), EAX);
 	}
 
-	int off = dynamic_cast<CVariableSymbol *>(dynamic_cast<CVariable *>(AStmt.GetArgument())->GetSymbol())->GetOffset();
-
-	Asm.Add(MOV, EAX, mem(-off, EBP));
 	Asm.Add(PUSH, EAX);
 
 	// TODO: unary ops code gen..

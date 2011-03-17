@@ -94,14 +94,16 @@ CSymbolTable* CParser::ParseTranslationUnit()
 	CSymbol *Sym = NULL;
 
 	while (Token->GetType() != TOKEN_TYPE_EOF) {
+		CPosition DeclPos = Token->GetPosition();
+
 		Sym = ParseDeclarator(ParseDeclarationSpecifier(), false);
 		if (!Sym) {
-			throw CException("expected declaration or function definition, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			throw CException("expected declaration or function definition, got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
 
 		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 			if (SymbolTableStack.GetTop()->Exists(Sym->GetName())) {
-				throw CException("identifier redeclared: `" + Sym->GetName() + "`", Token->GetPosition()); // FIXME: position
+				throw CException("identifier redeclared: `" + Sym->GetName() + "`", DeclPos);
 			}
 
 			SymbolTableStack.GetTop()->Add(Sym);
@@ -110,13 +112,13 @@ CSymbolTable* CParser::ParseTranslationUnit()
 			CFunctionSymbol *FuncSym = dynamic_cast<CFunctionSymbol *>(Sym);
 			if (!FuncSym) {
 				throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-					+ ", got " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_START], Token->GetPosition());
+					+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
 			}
 
 			if (SymbolTableStack.GetTop()->Exists(FuncSym->GetName())) {
 				FuncSym = dynamic_cast<CFunctionSymbol *>(SymbolTableStack.GetTop()->Get(Sym->GetName()));
 				if (!FuncSym) {
-					throw CException("identifier redeclared as different kind of symbol: `" + Sym->GetName() + "`", Token->GetPosition()); // FIXME: position
+					throw CException("identifier redeclared as different kind of symbol: `" + Sym->GetName() + "`", DeclPos);
 				}
 
 				// TODO: check declaration and definition types equality
@@ -143,7 +145,7 @@ CSymbolTable* CParser::ParseTranslationUnit()
 			LabelTable.clear();
 		} else {
 			throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_START]
-				+ ", got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+				+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
 
 	}
@@ -288,6 +290,7 @@ CSymbol* CParser::ParseDeclarator(CParser::CDeclarationSpecifier DeclSpec, bool 
 
 		} else if (Token->GetType() == TOKEN_TYPE_OPERATION_ASTERISK) {
 			DeclSpec.Type = ParsePointer(DeclSpec.Type);
+			// TODO: add this pointer type to global symbol table with name like "type***"...
 		}
 
 		NextToken();
@@ -371,7 +374,7 @@ CPointerSymbol* CParser::ParsePointer(CTypeSymbol *ARefType)
 	}
 
 	throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_ASTERISK] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
-		+ ", got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());*/
+		+ ", got " + Token->GetStringifiedType(), Token->GetPosition());*/
 }
 
 CArraySymbol* CParser::ParseArray(CTypeSymbol *AElemType)
@@ -380,15 +383,15 @@ CArraySymbol* CParser::ParseArray(CTypeSymbol *AElemType)
 
 	CArraySymbol *Sym = new CArraySymbol;
 
-	if (Token->GetType() != TOKEN_TYPE_CONSTANT_INTEGER) {
-		throw CException("expected array length integer constant, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+	if (Token->GetType() != TOKEN_TYPE_CONSTANT_INTEGER) { // FIXME: const expression, probably, eh?..
+		throw CException("expected array length integer constant, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	Sym->SetLength(Token->GetIntegerValue());
 
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_SQUARE_BRACKET) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET]
-			+ "after array length, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ "after array length, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -428,7 +431,7 @@ CStructSymbol* CParser::ParseStruct()
 
 	} else  if (Token->GetType() != TOKEN_TYPE_BLOCK_START) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_START] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
-			+ " after `struct`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after `struct`, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	Sym = new CStructSymbol;
@@ -452,7 +455,7 @@ CStructSymbol* CParser::ParseStruct()
 
 	if (Token->GetType() != TOKEN_TYPE_BLOCK_END) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_END]
-			+ " after struct-declaration-list, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after struct-declaration-list, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	//NextToken();
@@ -513,7 +516,7 @@ CStatement* CParser::ParseStatement()
 		CStatement *Expr = ParseExpression();
 		if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 			throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-				+ " after expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+				+ " after expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
 		NextToken();
 		return Expr;
@@ -551,7 +554,7 @@ CStatement* CParser::ParseIf()
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_LEFT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_LEFT_PARENTHESIS]
-			+ " after `if`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after `if`, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	CIfStatement *Stmt = new CIfStatement;
@@ -561,7 +564,7 @@ CStatement* CParser::ParseIf()
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
-			+ " after if-condition expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after if-condition expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	NextToken();
@@ -580,7 +583,7 @@ CStatement* CParser::ParseFor()
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_LEFT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_LEFT_PARENTHESIS]
-			+ " after `for`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after `for`, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	CForStatement *Stmt = new CForStatement;
@@ -592,7 +595,7 @@ CStatement* CParser::ParseFor()
 
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-			+ " after for-init expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after for-init expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	NextToken();
@@ -602,7 +605,7 @@ CStatement* CParser::ParseFor()
 
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-			+ " after for-condition expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after for-condition expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	NextToken();
@@ -612,7 +615,7 @@ CStatement* CParser::ParseFor()
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
-			+ " after for-update expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after for-update expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	NextToken();
@@ -629,7 +632,7 @@ CStatement* CParser::ParseWhile()
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_LEFT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_LEFT_PARENTHESIS]
-			+ " after `while`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after `while`, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	CWhileStatement *Stmt = new CWhileStatement;
@@ -639,7 +642,7 @@ CStatement* CParser::ParseWhile()
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
-			+ " after while-condition expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after while-condition expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	NextToken();
@@ -661,13 +664,13 @@ CStatement* CParser::ParseDo()
 	BlockType.pop();
 
 	if (Token->GetType() != TOKEN_TYPE_KEYWORD || Token->GetText() != "while") {
-		throw CException("expected `while` after do loop body, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+		throw CException("expected `while` after do loop body, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_LEFT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_LEFT_PARENTHESIS]
-			+ " after `while`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after `while`, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	NextToken();
@@ -675,13 +678,13 @@ CStatement* CParser::ParseDo()
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
-			+ " after while-condition expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after while-condition expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-			+ " after " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS] + ", got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS] + ", got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -699,9 +702,7 @@ CStatement* CParser::ParseCase()
 
 	CCaseLabel *CaseLabel = new CCaseLabel(ParseExpression());
 
-	CTypeSymbol *CaseExprType = CaseLabel->GetCaseExpression()->GetResultType();
-
-	if (!(CaseExprType->IsInt() && CaseExprType->GetConst())) {
+	if (!(CaseLabel->GetCaseExpression()->GetResultType()->IsInt() && CaseLabel->GetCaseExpression()->IsConst())) {
 		throw CException("expected constant integer expression after `case`", ExprPos);
 	}
 
@@ -712,7 +713,7 @@ CStatement* CParser::ParseCase()
 
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_COLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_COLON]
-			+ " after case-expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after case-expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -736,7 +737,7 @@ CStatement* CParser::ParseDefault()
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_COLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_COLON]
-			+ " after `default`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after `default`, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -753,7 +754,7 @@ CStatement* CParser::ParseGoto()
 
 	if (Token->GetType() != TOKEN_TYPE_IDENTIFIER) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
-			+ " as goto-label, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " as goto-label, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	string LabelName = Token->GetText();
@@ -765,7 +766,7 @@ CStatement* CParser::ParseGoto()
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-			+ " after goto-label, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after goto-label, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -781,7 +782,7 @@ CStatement* CParser::ParseBreak()
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-			+ " after `break`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after `break`, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -797,7 +798,7 @@ CStatement* CParser::ParseContinue()
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-			+ " after `break`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after `break`, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -822,7 +823,7 @@ CStatement* CParser::ParseReturn()
 
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-			+ " after return expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after return expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -834,7 +835,7 @@ CStatement* CParser::ParseSwitch()
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_LEFT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_LEFT_PARENTHESIS]
-			+ " after `switch`, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after `switch`, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -842,7 +843,7 @@ CStatement* CParser::ParseSwitch()
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
-			+ " after switch-test-expression, got " + CScanner::TokenTypesNames[Token->GetType()], Token->GetPosition());
+			+ " after switch-test-expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -925,15 +926,18 @@ bool IsRelational(const CToken &Token)
 	return false;
 }
 
+// TODO: possibly rename to IsTrivialUnaryOp, lol..
 bool IsUnaryOp(const CToken &Token)
 {
 	static const ETokenType UnaryOps[] = {
-		TOKEN_TYPE_OPERATION_AMPERSAND,
-		TOKEN_TYPE_OPERATION_ASTERISK,
 		TOKEN_TYPE_OPERATION_PLUS,
 		TOKEN_TYPE_OPERATION_MINUS,
 		TOKEN_TYPE_OPERATION_BITWISE_NOT,
 		TOKEN_TYPE_OPERATION_LOGIC_NOT,
+		TOKEN_TYPE_OPERATION_AMPERSAND,
+		TOKEN_TYPE_OPERATION_ASTERISK,
+		TOKEN_TYPE_OPERATION_INCREMENT,
+		TOKEN_TYPE_OPERATION_DECREMENT,
 		TOKEN_TYPE_INVALID
 		};
 
@@ -998,7 +1002,6 @@ CExpression* CParser::ParseConditional()
 	CExpression *Expr = ParseLogicalOr();
 
 	if (Token->GetType() == TOKEN_TYPE_OPERATION_CONDITIONAL) {
-
 		CConditionalOp *Op = new CConditionalOp(*Token);
 
 		NextToken();
@@ -1007,12 +1010,15 @@ CExpression* CParser::ParseConditional()
 		Op->SetTrueExpr(ParseExpression());
 
 		if (Token->GetType() != TOKEN_TYPE_SEPARATOR_COLON) {
-			throw CException("expected SEPARATOR_COLON, got " + Token->GetStringifiedType(), Token->GetPosition());
+			throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_COLON]
+				+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
 
 		NextToken();
 
 		Op->SetFalseExpr(ParseConditional());
+
+		Op->CheckTypes();
 
 		Expr = Op;
 	}
@@ -1034,6 +1040,8 @@ CExpression* CParser::ParseLogicalOr()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseLogicalAnd());
 
+		Op->CheckTypes();
+
 		Expr = Op;
 	}
 
@@ -1053,6 +1061,8 @@ CExpression* CParser::ParseLogicalAnd()
 
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseBitwiseOr());
+
+		Op->CheckTypes();
 
 		Expr = Op;
 	}
@@ -1074,6 +1084,8 @@ CExpression* CParser::ParseBitwiseOr()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseBitwiseXor());
 
+		Op->CheckTypes();
+
 		Expr = Op;
 	}
 
@@ -1094,6 +1106,8 @@ CExpression* CParser::ParseBitwiseXor()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseBitwiseAnd());
 
+		Op->CheckTypes();
+
 		Expr = Op;
 	}
 
@@ -1113,6 +1127,8 @@ CExpression* CParser::ParseBitwiseAnd()
 
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseEqualityExpression());
+
+		Op->CheckTypes();
 
 		Expr = Op;
 	}
@@ -1174,9 +1190,7 @@ CExpression* CParser::ParseShiftExpression()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseAdditiveExpression());
 
-		if (!(Op->GetLeft()->GetResultType()->IsInt() && Op->GetRight()->GetResultType()->IsInt())) {
-			throw CException("operands of " + CScanner::TokenTypesNames[Op->GetType()] + " must have integer types", Op->GetPosition());
-		}
+		Op->CheckTypes();
 
 		Expr = Op;
 	}
@@ -1197,6 +1211,8 @@ CExpression* CParser::ParseAdditiveExpression()
 
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseMultiplicativeExpression());
+	
+		Op->CheckTypes();
 
 		Expr = Op;
 	}
@@ -1218,15 +1234,7 @@ CExpression* CParser::ParseMultiplicativeExpression()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseCastExpression());
 
-		if (Op->GetType() == TOKEN_TYPE_OPERATION_PERCENT) {
-			if (!(Op->GetLeft()->GetResultType()->IsInt() && Op->GetRight()->GetResultType()->IsInt())) {
-				throw CException("operands of " + CScanner::TokenTypesNames[Op->GetType()] + " must have integer types", Op->GetPosition());
-			}
-		} else {
-			if (!(Op->GetLeft()->GetResultType()->IsArithmetic() && Op->GetRight()->GetResultType()->IsArithmetic())) {
-				throw CException("operands of " + CScanner::TokenTypesNames[Op->GetType()] + " must have arithmetic types", Op->GetPosition());
-			}
-		}
+		Op->CheckTypes();
 
 		Expr = Op;
 	}
@@ -1261,29 +1269,30 @@ CExpression* CParser::ParseCastExpression()
 
 CExpression* CParser::ParseUnaryExpression()
 {
-	if (IsUnaryOp(*Token)) {
-		CUnaryOp *Op = new CUnaryOp(*Token);
-		NextToken();
-		Op->SetArgument(ParseCastExpression());
-		return Op;
+	if (!IsUnaryOp(*Token) && Token->GetText() != "sizeof") {
+		return ParsePostfixExpression();
 	}
 
-	if (Token->GetType() == TOKEN_TYPE_OPERATION_INCREMENT || Token->GetType() == TOKEN_TYPE_OPERATION_DECREMENT) {
-		CUnaryOp *Op = new CUnaryOp(*Token);
-		NextToken();
-		CPosition ArgPos = Token->GetPosition();
+	ETokenType type = Token->GetType();
+
+	CUnaryOp *Op = new CUnaryOp(*Token);
+	NextToken();
+
+	CPosition ArgPos = Token->GetPosition();
+
+	if (type == TOKEN_TYPE_OPERATION_INCREMENT || type == TOKEN_TYPE_OPERATION_DECREMENT) {
 		Op->SetArgument(ParseUnaryExpression());
-		if (!Op->GetArgument()->IsLValue()) {
-			throw CException("lvalue required as operand of prefix increment or decrement", ArgPos);
-		}
-		return Op;
+	} else  if (type == TOKEN_TYPE_KEYWORD && Token->GetText() == "sizeof") {
+		// TODO: handle sizeof somehow..
+	} else {
+		Op->SetArgument(ParseCastExpression());
 	}
 
-	if (Token->GetType() == TOKEN_TYPE_KEYWORD && Token->GetText() == "sizeof") {
-		// handle sizeof somehow..
+	if (type != TOKEN_TYPE_OPERATION_ASTERISK || Mode != PARSER_MODE_EXPRESSION) { // ohlol, that's looking bad..
+		Op->CheckTypes();
 	}
 
-	return ParsePostfixExpression();
+	return Op;
 }
 
 CExpression* CParser::ParsePostfixExpression()
@@ -1307,6 +1316,8 @@ CExpression* CParser::ParsePostfixExpression()
 				}
 
 				StructAccess->SetField(new CVariable(*Token));
+
+				Op->CheckTypes();
 			}
 			break;
 		case TOKEN_TYPE_OPERATION_INDIRECT_ACCESS:
@@ -1336,7 +1347,7 @@ CExpression* CParser::ParsePostfixExpression()
 
 				ArrayAccess->SetRight(ParseExpression());
 
-				// TODO: check types..
+				Op->CheckTypes();
 
 				if (Token->GetType() != TOKEN_TYPE_RIGHT_SQUARE_BRACKET) {
 					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET]
@@ -1347,11 +1358,8 @@ CExpression* CParser::ParsePostfixExpression()
 		case TOKEN_TYPE_OPERATION_INCREMENT:
 		case TOKEN_TYPE_OPERATION_DECREMENT:
 			{
-				if (!Expr->IsLValue()) {
-					throw CException("lvalue required as operand of postfix increment or decrement", Token->GetPosition());
-				}
-
 				Op = new CPostfixOp(*Token, Expr);
+				Op->CheckTypes();
 			}
 			break;
 		case TOKEN_TYPE_LEFT_PARENTHESIS:

@@ -46,6 +46,7 @@ enum EMnemonic
 	XOR,
 	SAL,
 	SAR,
+	LEA,
 	// to be continued
 };
 
@@ -196,6 +197,7 @@ public:
 	void Add(EMnemonic ACmd, const string &AOp);
 	void Add(EMnemonic ACmd, CAsmMem *AOp);
 	void Add(EMnemonic ACmd, ERegister AOp1, CAsmMem *AOp2);
+	void Add(EMnemonic ACmd, CAsmMem *AOp1, ERegister AOp2);
 
 	// TODO: add more "good" versions of Add
 

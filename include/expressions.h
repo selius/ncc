@@ -16,12 +16,14 @@ public:
 	//virtual void Accept(CStatementVisitor &AVisitor) = 0;
 
 	ETokenType GetType() const;
+	CPosition GetPosition() const;
 
 	virtual CTypeSymbol* GetResultType() const = 0;
 
 	virtual bool IsLValue() const;
+	virtual bool IsConst() const;
 
-	CPosition GetPosition() const;
+	virtual void CheckTypes() const = 0;
 
 protected:
 	ETokenType Type;
@@ -42,8 +44,11 @@ public:
 	CTypeSymbol* GetResultType() const;
 
 	bool IsLValue() const;
+	bool IsConst() const;
 
-private:
+	void CheckTypes() const;
+
+protected:
 	CExpression *Argument;
 
 };
@@ -63,6 +68,10 @@ public:
 	void SetRight(CExpression *ARight);
 
 	CTypeSymbol* GetResultType() const;
+
+	bool IsConst() const;
+
+	void CheckTypes() const;
 
 protected:
 	CExpression *Left;
@@ -84,9 +93,11 @@ public:
 	void SetTrueExpr(CExpression *ATrueExpr);
 	void SetFalseExpr(CExpression *AFalseExpr);
 
-	bool IsLValue() const;
-
 	CTypeSymbol* GetResultType() const;
+
+	bool IsConst() const;
+
+	void CheckTypes() const;
 
 private:
 	CExpression *Condition;
@@ -101,6 +112,8 @@ public:
 	CConst(const CToken &AToken, CTypeSymbol *AType);
 
 	CTypeSymbol* GetResultType() const;
+
+	bool IsConst() const;
 
 private:
 	CTypeSymbol *Type;
@@ -171,11 +184,11 @@ public:
 
 	void Accept(CStatementVisitor &AVisitor);
 
-	bool IsLValue() const;
-
 	CSymbol* GetSymbol() const;
 
 	CTypeSymbol* GetResultType() const;
+
+	bool IsLValue() const;
 
 private:
 	CSymbol *Symbol;
@@ -188,6 +201,9 @@ public:
 	CPostfixOp(const CToken &AToken, CExpression *AArgument = NULL);
 
 	void Accept(CStatementVisitor &AVisitor);
+
+	void CheckTypes() const;
+
 };
 
 class CFunctionCall : public CExpression
@@ -237,9 +253,12 @@ public:
 
 	CTypeSymbol* GetResultType() const;
 
+	void CheckTypes() const;
+
 private:
 	CExpression *Struct;
 	CVariable *Field;
+	CStructSymbol *StructSymbol;
 };
 
 class CIndirectAccess : public CExpression
@@ -257,9 +276,12 @@ public:
 
 	CTypeSymbol* GetResultType() const;
 
+	void CheckTypes() const;
+
 private:
 	CExpression *Pointer;
 	CVariable *Field;
+	CStructSymbol *StructSymbol;
 };
 
 class CArrayAccess : public CBinaryOp
@@ -271,6 +293,8 @@ public:
 	void Accept(CStatementVisitor &AVisitor);
 
 	CTypeSymbol* GetResultType() const;
+
+	void CheckTypes() const;
 };
 
 #endif // _EXPRESSIONS_H_

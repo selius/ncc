@@ -1,6 +1,56 @@
 #include "expressions.h"
 
 /******************************************************************************
+ * CheckTypes
+ ******************************************************************************/
+
+namespace CheckTypes
+{
+	void Integer(const CBinaryOp *Op)
+	{
+		if (!(Op->GetLeft()->GetResultType()->IsInt() && Op->GetRight()->GetResultType()->IsInt())) {
+			throw CException("operands of " + CScanner::TokenTypesNames[Op->GetType()] + " should have integer types", Op->GetPosition());
+		}
+	}
+
+	void Integer(const CUnaryOp *Op)
+	{
+		if (!Op->GetArgument()->GetResultType()->IsInt()) {
+			throw CException("operand of unary " + CScanner::TokenTypesNames[Op->GetType()] + " should has integer type", Op->GetPosition());
+		}
+	}
+
+	void Scalar(const CBinaryOp *Op)
+	{
+		if (!(Op->GetLeft()->GetResultType()->IsScalar() && Op->GetRight()->GetResultType()->IsScalar())) {
+			throw CException("operands of " + CScanner::TokenTypesNames[Op->GetType()] + " should have scalar types", Op->GetPosition());
+		}
+	}
+
+	void Scalar(const CUnaryOp *Op)
+	{
+		if (!Op->GetArgument()->GetResultType()->IsScalar()) {
+			throw CException("operand of unary " + CScanner::TokenTypesNames[Op->GetType()] + " should has scalar type", Op->GetPosition());
+		}
+	}
+
+	void Arithmetic(const CBinaryOp *Op)
+	{
+		if (!(Op->GetLeft()->GetResultType()->IsArithmetic() && Op->GetRight()->GetResultType()->IsArithmetic())) {
+			throw CException("operands of " + CScanner::TokenTypesNames[Op->GetType()] + " should have arithmetic types", Op->GetPosition());
+		}
+	}
+
+	void Arithmetic(const CUnaryOp *Op)
+	{
+		if (!Op->GetArgument()->GetResultType()->IsArithmetic()) {
+			throw CException("operand of unary " + CScanner::TokenTypesNames[Op->GetType()] + " should has arithmetic type", Op->GetPosition());
+		}
+	}
+
+};
+
+/******************************************************************************
  * CExpression
  ******************************************************************************/
 
@@ -24,14 +74,19 @@ ETokenType CExpression::GetType() const
 	return Type;
 }
 
+CPosition CExpression::GetPosition() const
+{
+	return Position;
+}
+
 bool CExpression::IsLValue() const
 {
 	return false;
 }
 
-CPosition CExpression::GetPosition() const
+bool CExpression::IsConst() const
 {
-	return Position;
+	return false;
 }
 
 /******************************************************************************
@@ -64,13 +119,55 @@ void CUnaryOp::SetArgument(CExpression *AArgument)
 
 CTypeSymbol* CUnaryOp::GetResultType() const
 {
-	// TODO: what about address-getting?..
+	// TODO: what about address-getting?.. -- generate pointer to argument type, obviously.. like this:
+	/*if (Type == TOKEN_TYPE_OPERATION_AMPERSAND) {
+		return GeneratePointer(Argument->GetResultType());
+	}*/
 	return Argument->GetResultType();
 }
 
 bool CUnaryOp::IsLValue() const
 {
 	return (Type == TOKEN_TYPE_OPERATION_ASTERISK);
+}
+
+bool CUnaryOp::IsConst() const
+{
+	return Argument->IsConst();
+}
+
+void CUnaryOp::CheckTypes() const
+{
+	assert(Argument != NULL);
+
+	switch (Type) {
+	case TOKEN_TYPE_OPERATION_PLUS:
+	case TOKEN_TYPE_OPERATION_MINUS:
+		CheckTypes::Arithmetic(this);
+		break;
+	case TOKEN_TYPE_OPERATION_BITWISE_NOT:
+		CheckTypes::Integer(this);
+		break;
+	case TOKEN_TYPE_OPERATION_LOGIC_NOT:
+		CheckTypes::Scalar(this);
+		break;
+	case TOKEN_TYPE_OPERATION_INCREMENT:
+	case TOKEN_TYPE_OPERATION_DECREMENT:
+		if (!Argument->IsLValue()) {
+			throw CException("lvalue required as operand of prefix "  + CScanner::TokenTypesNames[Type], Position);
+		}
+		break;
+	case TOKEN_TYPE_OPERATION_AMPERSAND:
+		if (!Argument->IsLValue() && Argument->GetType() != TOKEN_TYPE_LEFT_SQUARE_BRACKET && (typeid(*Argument) != typeid(CUnaryOp) || Argument->GetName() != "*")) { // FIXME
+			throw CException("operand of address-of operation should be lvalue or result of dereferencing or array-accessing", Position);
+		}
+		break;
+	case TOKEN_TYPE_OPERATION_ASTERISK:
+		if (!Argument->GetResultType()->IsPointer()) {
+			throw CException("operand of dereference operation should have pointer type", Position);
+		}
+		break;
+	}
 }
 
 /******************************************************************************
@@ -126,6 +223,63 @@ CTypeSymbol* CBinaryOp::GetResultType() const
 	return Left->GetResultType();
 }
 
+bool CBinaryOp::IsConst() const
+{
+	return Left->IsConst() && Right->IsConst();
+}
+
+void CBinaryOp::CheckTypes() const
+{
+	assert(Left != NULL && Right != NULL);
+
+	CTypeSymbol *L = Left->GetResultType();
+	CTypeSymbol *R = Right->GetResultType();
+
+	switch (Type) {
+	case TOKEN_TYPE_OPERATION_PLUS:
+		if (!(L->IsArithmetic() && R->IsArithmetic() || L->IsPointer() && R->IsInt() || L->IsInt() && R->IsPointer())) {
+			throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
+		}
+		break;
+	case TOKEN_TYPE_OPERATION_MINUS:
+		if (!(L->IsArithmetic() && R->IsArithmetic() || L->IsPointer() && R->IsPointer() || L->IsPointer() && R->IsInt())) {	// TODO: add check for type compatibility
+			throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
+		}
+		break;
+	case TOKEN_TYPE_OPERATION_ASTERISK:
+	case TOKEN_TYPE_OPERATION_SLASH:
+		CheckTypes::Arithmetic(this);
+		break;
+	case TOKEN_TYPE_OPERATION_PERCENT:
+		CheckTypes::Integer(this);
+		break;
+	case TOKEN_TYPE_OPERATION_SHIFT_LEFT:
+	case TOKEN_TYPE_OPERATION_SHIFT_RIGHT:
+		CheckTypes::Integer(this);
+		break;
+	case TOKEN_TYPE_OPERATION_LESS_THAN:
+	case TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL:
+	case TOKEN_TYPE_OPERATION_GREATER_THAN:
+	case TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL:
+		// TODO: both real (arithmetic maybe?..), or pointers to compatible types
+		break;
+	case TOKEN_TYPE_OPERATION_EQUAL:
+	case TOKEN_TYPE_OPERATION_NOT_EQUAL:
+		// TODO: both arithmetic, or pointers to compatible types, or one operand is pointer and the other is pointer to void, or one operand is pointer and the oher is null pointer constant
+		break;
+	case TOKEN_TYPE_OPERATION_AMPERSAND:
+	case TOKEN_TYPE_OPERATION_BITWISE_XOR:
+	case TOKEN_TYPE_OPERATION_BITWISE_OR:
+		CheckTypes::Integer(this);
+		break;
+	case TOKEN_TYPE_OPERATION_LOGIC_AND:
+	case TOKEN_TYPE_OPERATION_LOGIC_OR:
+		CheckTypes::Scalar(this);
+		break;
+	}
+
+}
+
 /******************************************************************************
  * CConditionalOp
  ******************************************************************************/
@@ -177,14 +331,25 @@ void CConditionalOp::SetFalseExpr(CExpression *AFalseExpr)
 	FalseExpr = AFalseExpr;
 }
 
-bool CConditionalOp::IsLValue() const
-{
-	return true;
-}
-
 CTypeSymbol* CConditionalOp::GetResultType() const
 {
 	return TrueExpr->GetResultType();	// types of TrueExpr and FalseExpr must match..
+}
+
+bool CConditionalOp::IsConst() const
+{
+	return Condition->IsConst() && TrueExpr->IsConst() && FalseExpr->IsConst();
+}
+
+void CConditionalOp::CheckTypes() const
+{
+	assert(Condition != NULL && TrueExpr != NULL && FalseExpr != NULL);
+
+	if (!Condition->GetResultType()->IsScalar()) {
+		throw CException("first operand of conditional operator should have scalar type", Position);
+	}
+
+	// TODO: add second and third operands type check
 }
 
 /******************************************************************************
@@ -198,6 +363,11 @@ CConst::CConst(const CToken &AToken, CTypeSymbol *AType) : CExpression(AToken), 
 CTypeSymbol* CConst::GetResultType() const
 {
 	return Type;
+}
+
+bool CConst::IsConst() const
+{
+	return true;
 }
 
 /******************************************************************************
@@ -290,16 +460,6 @@ void CVariable::Accept(CStatementVisitor &AVisitor)
 	AVisitor.Visit(*this);
 }
 
-bool CVariable::IsLValue() const
-{
-	CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
-	if (!VarSym) {
-		return false;
-	}
-
-	return !VarSym->GetType()->GetConst();
-}
-
 CSymbol* CVariable::GetSymbol() const
 {
 	return Symbol;
@@ -315,6 +475,17 @@ CTypeSymbol* CVariable::GetResultType() const
 	return VarSym->GetType();
 }
 
+bool CVariable::IsLValue() const
+{
+	// this is check for modifiable lvalue, not regular lvalue..
+	CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
+	if (!VarSym) {
+		return false;
+	}
+
+	return !VarSym->GetType()->GetConst();
+}
+
 /******************************************************************************
  * CPostfixOp
  ******************************************************************************/
@@ -326,6 +497,17 @@ CPostfixOp::CPostfixOp(const CToken &AToken, CExpression *AArgument /*= NULL*/) 
 void CPostfixOp::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
+}
+
+void CPostfixOp::CheckTypes() const
+{
+	assert(Argument != NULL);
+
+	if (Type == TOKEN_TYPE_OPERATION_INCREMENT || Type == TOKEN_TYPE_OPERATION_DECREMENT) {
+		if (!Argument->IsLValue()) {
+			throw CException("lvalue required as operand of postfix " + CScanner::TokenTypesNames[Type], Position);
+		}
+	}
 }
 
 /******************************************************************************
@@ -404,8 +586,9 @@ CTypeSymbol* CFunctionCall::GetResultType() const
  * CStructAccess
  ******************************************************************************/
 
-CStructAccess::CStructAccess(const CToken &AToken, CExpression *AStruct /*= NULL*/, CVariable *AField /*= NULL*/) : CExpression(AToken), Struct(AStruct), Field(AField)
+CStructAccess::CStructAccess(const CToken &AToken, CExpression *AStruct /*= NULL*/, CVariable *AField /*= NULL*/) : CExpression(AToken), Field(AField)
 {
+	SetStruct(AStruct);
 }
 
 CStructAccess::~CStructAccess()
@@ -431,6 +614,7 @@ CVariable* CStructAccess::GetField() const
 void CStructAccess::SetStruct(CExpression *AStruct)
 {
 	Struct = AStruct;
+	StructSymbol = Struct ? dynamic_cast<CStructSymbol *>(Struct->GetResultType()) : NULL;
 }
 
 void CStructAccess::SetField(CVariable *AField)
@@ -440,20 +624,33 @@ void CStructAccess::SetField(CVariable *AField)
 
 CTypeSymbol* CStructAccess::GetResultType() const
 {
-	CStructSymbol *StructSym = dynamic_cast<CStructSymbol *>(Struct->GetResultType());
-	if (!StructSym || !Field) {
+	if (!StructSymbol || !Field) {
 		return NULL;
 	}
 
-	return StructSym->GetField(Field->GetName())->GetType();
+	return StructSymbol->GetField(Field->GetName())->GetType();
+}
+
+void CStructAccess::CheckTypes() const
+{
+	assert(Struct != NULL && Field != NULL);
+
+	if (!StructSymbol) {
+		throw CException("first operand of " + CScanner::TokenTypesNames[Type] + " should have struct type", Position);
+	}
+
+	if (!StructSymbol->GetField(Field->GetName())) {
+		throw CException("second operand of " + CScanner::TokenTypesNames[Type] + " should be identifier of member of struct", Position);
+	}
 }
 
 /******************************************************************************
  * CIndirectAccess
  ******************************************************************************/
 
-CIndirectAccess::CIndirectAccess(const CToken &AToken, CExpression *APointer /*= NULL*/, CVariable *AField /*= NULL*/) : CExpression(AToken), Pointer(APointer), Field(AField)
+CIndirectAccess::CIndirectAccess(const CToken &AToken, CExpression *APointer /*= NULL*/, CVariable *AField /*= NULL*/) : CExpression(AToken), Field(AField)
 {
+	SetPointer(APointer);
 }
 
 CIndirectAccess::~CIndirectAccess()
@@ -479,6 +676,12 @@ CVariable* CIndirectAccess::GetField() const
 void CIndirectAccess::SetPointer(CExpression *APointer)
 {
 	Pointer = APointer;
+	StructSymbol = NULL;
+
+	CPointerSymbol *PointerSym = NULL;
+	if (Pointer && (PointerSym = dynamic_cast<CStructSymbol *>(Pointer->GetResultType()))) {
+		StructSymbol = dynamic_cast<CStructSymbol *>(PointerSym->GetRefType());
+	}
 }
 
 void CIndirectAccess::SetField(CVariable *AField)
@@ -488,17 +691,24 @@ void CIndirectAccess::SetField(CVariable *AField)
 
 CTypeSymbol* CIndirectAccess::GetResultType() const
 {
-	CPointerSymbol *PointerSym = dynamic_cast<CPointerSymbol *>(Pointer->GetResultType());
-	if (!PointerSym) {
+	if (!StructSymbol || !Field) {
 		return NULL;
 	}
 
-	CStructSymbol *StructSym = dynamic_cast<CStructSymbol *>(PointerSym->GetRefType());
-	if (!StructSym || !Field) {
-		return NULL;
+	return StructSymbol->GetField(Field->GetName())->GetType();
+}
+
+void CIndirectAccess::CheckTypes() const
+{
+	assert(Pointer != NULL && Field != NULL);
+
+	if (!StructSymbol) {
+		throw CException("first operand of " + CScanner::TokenTypesNames[Type] + " should have struct type", Position);
 	}
 
-	return StructSym->GetField(Field->GetName())->GetType();
+	if (!StructSymbol->GetField(Field->GetName())) {
+		throw CException("second operand of " + CScanner::TokenTypesNames[Type] + " should be identifier of member of struct", Position);
+	}
 }
 
 /******************************************************************************
@@ -528,5 +738,17 @@ CTypeSymbol* CArrayAccess::GetResultType() const
 		return Right->GetResultType();
 	} else {
 		return Left->GetResultType();
+	}
+}
+
+void CArrayAccess::CheckTypes() const
+{
+	assert(Left != NULL && Right != NULL);
+
+	CTypeSymbol *L = Left->GetResultType();
+	CTypeSymbol *R = Right->GetResultType();
+
+	if (!(L->IsPointer() && R->IsInt() || L->IsInt() && R->IsPointer())) {
+		throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
 	}
 }

@@ -9,7 +9,7 @@ public:
 	CSymbol(const string &AName = "");
 	virtual ~CSymbol();
 
-	string GetName() const;
+	virtual string GetName() const;
 	void SetName(const string &AName);
 
 protected:
@@ -91,6 +91,8 @@ public:
 	bool IsArithmetic() const;
 	virtual bool IsVoid() const;
 	virtual bool IsType(const string &AType) const;
+	virtual bool IsPointer() const;
+	bool IsScalar() const;
 
 private:
 	bool Const;
@@ -185,10 +187,16 @@ private:
 class CPointerSymbol : public CTypeSymbol
 {
 public:
+	CPointerSymbol();
+
+	string GetName() const;
+
 	size_t GetSize() const;
 
 	CTypeSymbol* GetRefType() const;
 	void SetRefType(CTypeSymbol *ARefType);
+
+	bool IsPointer() const;
 
 private:
 	CTypeSymbol *RefType;

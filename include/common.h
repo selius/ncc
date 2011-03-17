@@ -2,6 +2,7 @@
 #define _COMMON_H_
 
 #include <algorithm>
+#include <cassert>
 #include <deque>
 #include <fstream>
 #include <istream>
@@ -12,6 +13,7 @@
 #include <stack>
 #include <stdexcept>
 #include <string>
+#include <typeinfo>
 #include <vector>
 
 using namespace std;

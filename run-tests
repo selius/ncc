@@ -47,6 +47,7 @@ TOTAL_FAILED=0
 TestMode scanner -S
 TestMode parser-simple-expressions "-P --parser-mode expression"
 TestMode parser-arbitrary-expressions "-P --parser-mode expression"
+TestMode parser-statements -P
 
 echo -e "\nTotal successful: $TOTAL_SUCCESSFUL"
 echo -e "Total failed: $TOTAL_FAILED"

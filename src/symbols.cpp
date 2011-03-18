@@ -173,10 +173,37 @@ bool CTypeSymbol::IsPointer() const
 	return false;
 }
 
+bool CTypeSymbol::IsStruct() const
+{
+	return false;
+}
+
+bool CTypeSymbol::IsArray() const
+{
+	return false;
+}
+
+bool CTypeSymbol::IsFunction() const
+{
+	return false;
+}
+
 bool CTypeSymbol::IsScalar() const
 {
 	return IsArithmetic() || IsPointer();
+}
 
+bool CTypeSymbol::CompatibleWith(CTypeSymbol *ASymbol)
+{
+	if (ASymbol->IsArray() || ASymbol->IsStruct() || ASymbol->IsPointer() || ASymbol->IsFunction()) {
+		return false;
+	} else if (CTypedefSymbol *TypedefSym = dynamic_cast<CTypedefSymbol *>(ASymbol)) {
+		return CompatibleWith(TypedefSym->GetRefType());
+	} else {
+		// FIXME: well, i don't know.. it seems that any plain type are compatible with any other plain type..
+		return true;
+		//return (Name == ASymbol->GetName());
+	}
 }
 
 /******************************************************************************
@@ -190,7 +217,7 @@ CIntegerSymbol::CIntegerSymbol()
 
 size_t CIntegerSymbol::GetSize() const
 {
-	return 4; // FIXME: magic number, add header with sizes of data types
+	return TypeSize::Integer;
 }
 
 bool CIntegerSymbol::IsInt() const
@@ -209,7 +236,7 @@ CFloatSymbol::CFloatSymbol()
 
 size_t CFloatSymbol::GetSize() const
 {
-	return 4; // FIXME: magic number
+	return TypeSize::Float;
 }
 
 bool CFloatSymbol::IsFloat() const
@@ -263,6 +290,29 @@ unsigned int CArraySymbol::GetLength() const
 void CArraySymbol::SetLength(unsigned int ALength)
 {
 	Length = ALength;
+}
+
+bool CArraySymbol::IsPointer() const
+{
+	return true;
+}
+
+bool CArraySymbol::IsArray() const
+{
+	return true;
+}
+
+bool CArraySymbol::CompatibleWith(CTypeSymbol *ASymbol)
+{
+	if (CArraySymbol *ArraySym = dynamic_cast<CArraySymbol *>(ASymbol)) {
+		return ElementsType->CompatibleWith(ArraySym->GetElementsType()) && (Length == ArraySym->GetLength());
+	} else if (CPointerSymbol *PointerSym = dynamic_cast<CPointerSymbol *>(ASymbol)) {
+		return ElementsType->CompatibleWith(PointerSym->GetRefType());
+	} else if (CTypedefSymbol *TypedefSym = dynamic_cast<CTypedefSymbol *>(ASymbol)) {
+		return CompatibleWith(TypedefSym->GetRefType());
+	} else {
+		return false;
+	}
 }
 
 /******************************************************************************
@@ -325,11 +375,27 @@ unsigned int CStructSymbol::GetFieldsCount() const
 	return (Fields ? Fields->GetSize() : 0);
 }
 
+bool CStructSymbol::IsStruct() const
+{
+	return true;
+}
+
+bool CStructSymbol::CompatibleWith(CTypeSymbol *ASymbol)
+{
+	if (ASymbol->IsStruct()) {
+		return (Name == ASymbol->GetName()); // TODO: verify that it's true..
+	} else if (CTypedefSymbol *TypedefSym = dynamic_cast<CTypedefSymbol *>(ASymbol)) {
+		return CompatibleWith(TypedefSym->GetRefType());
+	} else {
+		return false;
+	}
+}
+
 /******************************************************************************
  * CPointerSymbol
  ******************************************************************************/
 
-CPointerSymbol::CPointerSymbol() : RefType(NULL)
+CPointerSymbol::CPointerSymbol(CTypeSymbol *ARefType /*= NULL*/) : RefType(ARefType)
 {
 }
 
@@ -340,7 +406,7 @@ string CPointerSymbol::GetName() const
 
 size_t CPointerSymbol::GetSize() const
 {
-	return 4; // FIXME: magic number
+	return TypeSize::Pointer;
 }
 
 CTypeSymbol* CPointerSymbol::GetRefType() const
@@ -356,6 +422,19 @@ void CPointerSymbol::SetRefType(CTypeSymbol *ARefType)
 bool CPointerSymbol::IsPointer() const
 {
 	return true;
+}
+
+bool CPointerSymbol::CompatibleWith(CTypeSymbol *ASymbol)
+{
+	if (CPointerSymbol *PointerSym = dynamic_cast<CPointerSymbol *>(ASymbol)) {
+		return RefType->CompatibleWith(PointerSym->GetRefType());
+	} else if (CArraySymbol *ArraySym = dynamic_cast<CArraySymbol *>(ASymbol)) {
+		return RefType->CompatibleWith(ArraySym->GetElementsType());
+	} else if (CTypedefSymbol *TypedefSym = dynamic_cast<CTypedefSymbol *>(ASymbol)) {
+		return CompatibleWith(TypedefSym->GetRefType());
+	} else {
+		return false;
+	}
 }
 
 /******************************************************************************
@@ -401,6 +480,29 @@ bool CTypedefSymbol::IsType(const string &AType) const
 	return RefType->IsType(AType);
 }
 
+bool CTypedefSymbol::CompatibleWith(CTypeSymbol *ASymbol)
+{
+	if (CTypedefSymbol *TypedefSym = dynamic_cast<CTypedefSymbol *>(ASymbol)) {
+		return RefType->CompatibleWith(TypedefSym->GetRefType());
+	} else {
+		return RefType->CompatibleWith(ASymbol);
+	}
+}
+
+/******************************************************************************
+ * CFunctionTypeSymbol
+ ******************************************************************************/
+
+size_t CFunctionTypeSymbol::GetSize() const
+{
+	return 0;
+}
+
+bool CFunctionTypeSymbol::IsFunction() const
+{
+	return true;
+}
+
 /******************************************************************************
  * CVariableSymbol
  ******************************************************************************/
@@ -433,13 +535,14 @@ void CVariableSymbol::SetOffset(size_t AOffset)
  * CFunctionSymbol
  ******************************************************************************/
 
-CFunctionSymbol::CFunctionSymbol(const string &AName /*= ""*/, CTypeSymbol *AReturnType /*= NULL*/) : CSymbol(AName), ReturnType(AReturnType), Arguments(NULL) //, Locals(NULL)
+CFunctionSymbol::CFunctionSymbol(const string &AName /*= ""*/, CTypeSymbol *AReturnType /*= NULL*/) : CSymbol(AName), ReturnType(AReturnType), Arguments(NULL), Body(NULL), Type(new CFunctionTypeSymbol) //, Locals(NULL)
 {
 }
 
 CFunctionSymbol::~CFunctionSymbol()
 {
 	delete Arguments;
+	delete Type;
 	//delete Locals;
 }
 
@@ -478,4 +581,9 @@ CBlockStatement* CFunctionSymbol::GetBody() const
 void CFunctionSymbol::SetBody(CBlockStatement *ABody)
 {
 	Body = ABody;
+}
+
+CTypeSymbol* CFunctionSymbol::GetType() const
+{
+	return Type;
 }

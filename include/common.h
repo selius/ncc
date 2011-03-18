@@ -165,4 +165,11 @@ protected:
 	void TryVisit(CStatement *AStmt);
 };
 
+namespace TypeSize
+{
+	const size_t Integer = 4;
+	const size_t Float = 4;
+	const size_t Pointer = 4;
+};
+
 #endif // _COMMON_H_

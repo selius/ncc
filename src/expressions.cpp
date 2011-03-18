@@ -48,6 +48,13 @@ namespace CheckTypes
 		}
 	}
 
+	void LValue(const CBinaryOp *Op)
+	{
+		if (!Op->GetLeft()->IsLValue()) {
+			throw CException("lvalue required as left operand of " + CScanner::TokenTypesNames[Op->GetType()], Op->GetPosition());
+		}
+	}
+
 };
 
 /******************************************************************************
@@ -123,10 +130,10 @@ void CUnaryOp::SetArgument(CExpression *AArgument)
 
 CTypeSymbol* CUnaryOp::GetResultType() const
 {
-	// TODO: what about address-getting?.. -- generate pointer to argument type, obviously.. like this:
-	/*if (Type == TOKEN_TYPE_OPERATION_AMPERSAND) {
-		return GeneratePointer(Argument->GetResultType());
-	}*/
+	if (Type == TOKEN_TYPE_OPERATION_ASTERISK) {
+		return dynamic_cast<CPointerSymbol *>(Argument->GetResultType())->GetRefType();
+	}
+
 	return Argument->GetResultType();
 }
 
@@ -161,14 +168,14 @@ void CUnaryOp::CheckTypes() const
 			throw CException("lvalue required as operand of prefix "  + CScanner::TokenTypesNames[Type], Position);
 		}
 		break;
-	case TOKEN_TYPE_OPERATION_AMPERSAND:
-		if (!Argument->IsLValue() && Argument->GetType() != TOKEN_TYPE_LEFT_SQUARE_BRACKET && (typeid(*Argument) != typeid(CUnaryOp) || Argument->GetName() != "*")) { // FIXME
-			throw CException("operand of address-of operation should be lvalue or result of dereferencing or array-accessing", Position);
-		}
-		break;
 	case TOKEN_TYPE_OPERATION_ASTERISK:
 		if (!Argument->GetResultType()->IsPointer()) {
 			throw CException("operand of dereference operation should have pointer type", Position);
+		}
+		break;
+	case TOKEN_TYPE_KEYWORD:
+		if (Argument->GetResultType()->IsFunction()) {
+			throw CException("invalid operand to sizeof operator", Position);
 		}
 		break;
 	}
@@ -246,31 +253,33 @@ void CBinaryOp::CheckTypes() const
 		}
 		break;
 	case TOKEN_TYPE_OPERATION_MINUS:
-		if (!(L->IsArithmetic() && R->IsArithmetic() || L->IsPointer() && R->IsPointer() || L->IsPointer() && R->IsInt())) {	// TODO: add check for type compatibility
+		if (!(L->IsArithmetic() && R->IsArithmetic() || L->IsPointer() && R->IsPointer() && L->CompatibleWith(R) || L->IsPointer() && R->IsInt())) {
 			throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
 		}
+		break;
+	case TOKEN_TYPE_OPERATION_LESS_THAN:
+	case TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL:
+	case TOKEN_TYPE_OPERATION_GREATER_THAN:
+	case TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL:
+		if (!(L->IsArithmetic() && R->IsArithmetic() || L->IsPointer() && R->IsPointer() && L->CompatibleWith(R))) {
+			throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
+		}
+		break;
+	case TOKEN_TYPE_OPERATION_EQUAL:
+	case TOKEN_TYPE_OPERATION_NOT_EQUAL:
+		if (!(L->IsArithmetic() && R->IsArithmetic() || L->IsPointer() && R->IsPointer() && (L->CompatibleWith(R)
+			|| dynamic_cast<CPointerSymbol *>(L)->GetRefType()->IsVoid() || dynamic_cast<CPointerSymbol *>(R)->GetRefType()->IsVoid()))) {
+			throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
+		}
+		// TODO: add support for null pointer constant, maybe?..
 		break;
 	case TOKEN_TYPE_OPERATION_ASTERISK:
 	case TOKEN_TYPE_OPERATION_SLASH:
 		CheckTypes::Arithmetic(this);
 		break;
 	case TOKEN_TYPE_OPERATION_PERCENT:
-		CheckTypes::Integer(this);
-		break;
 	case TOKEN_TYPE_OPERATION_SHIFT_LEFT:
 	case TOKEN_TYPE_OPERATION_SHIFT_RIGHT:
-		CheckTypes::Integer(this);
-		break;
-	case TOKEN_TYPE_OPERATION_LESS_THAN:
-	case TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL:
-	case TOKEN_TYPE_OPERATION_GREATER_THAN:
-	case TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL:
-		// TODO: both real (arithmetic maybe?..), or pointers to compatible types
-		break;
-	case TOKEN_TYPE_OPERATION_EQUAL:
-	case TOKEN_TYPE_OPERATION_NOT_EQUAL:
-		// TODO: both arithmetic, or pointers to compatible types, or one operand is pointer and the other is pointer to void, or one operand is pointer and the oher is null pointer constant
-		break;
 	case TOKEN_TYPE_OPERATION_AMPERSAND:
 	case TOKEN_TYPE_OPERATION_BITWISE_XOR:
 	case TOKEN_TYPE_OPERATION_BITWISE_OR:
@@ -279,6 +288,38 @@ void CBinaryOp::CheckTypes() const
 	case TOKEN_TYPE_OPERATION_LOGIC_AND:
 	case TOKEN_TYPE_OPERATION_LOGIC_OR:
 		CheckTypes::Scalar(this);
+		break;
+	case TOKEN_TYPE_OPERATION_ASSIGN:
+		CheckTypes::LValue(this);
+
+		if (!(L->IsArithmetic() && R->IsArithmetic() || L->IsStruct() && R->IsStruct() && L->CompatibleWith(R) || L->IsPointer() && R->IsPointer() && (L->CompatibleWith(R)
+			|| dynamic_cast<CPointerSymbol *>(L)->GetRefType()->IsVoid() || dynamic_cast<CPointerSymbol *>(R)->GetRefType()->IsVoid()))) {
+			throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
+		}
+		// TODO: add support for null pointer constant, maybe?..
+		break;
+	case TOKEN_TYPE_OPERATION_PLUS_ASSIGN:
+	case TOKEN_TYPE_OPERATION_MINUS_ASSIGN:
+		CheckTypes::LValue(this);
+
+		if (!(L->IsPointer() && R->IsInt() || L->IsArithmetic() && R->IsArithmetic())) {
+			throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
+		}
+		break;
+	case TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN:
+	case TOKEN_TYPE_OPERATION_SLASH_ASSIGN:
+		CheckTypes::LValue(this);
+		CheckTypes::Arithmetic(this);
+		break;
+	case TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN:
+	case TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN:
+	case TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN:
+	case TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN:
+	case TOKEN_TYPE_OPERATION_PERCENT_ASSIGN:
+	case TOKEN_TYPE_OPERATION_SHIFT_LEFT_ASSIGN:
+	case TOKEN_TYPE_OPERATION_SHIFT_RIGHT_ASSIGN:
+		CheckTypes::LValue(this);
+		CheckTypes::Integer(this);
 		break;
 	}
 
@@ -353,7 +394,13 @@ void CConditionalOp::CheckTypes() const
 		throw CException("first operand of conditional operator should have scalar type", Position);
 	}
 
-	// TODO: add second and third operands type check
+	CTypeSymbol *TE = TrueExpr->GetResultType();
+	CTypeSymbol *FE = FalseExpr->GetResultType();
+
+	if (!(TE->IsArithmetic() && FE->IsArithmetic() || TE->IsStruct() && FE->IsStruct() && TE->CompatibleWith(FE) || TE->IsVoid() && FE->IsVoid() || TE->IsPointer() && FE->IsPointer() && (TE->CompatibleWith(FE)
+			|| dynamic_cast<CPointerSymbol *>(TE)->GetRefType()->IsVoid() || dynamic_cast<CPointerSymbol *>(FE)->GetRefType()->IsVoid()))) {
+		throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
+	}
 }
 
 /******************************************************************************
@@ -473,7 +520,12 @@ CTypeSymbol* CVariable::GetResultType() const
 {
 	CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
 	if (!VarSym) {
-		return NULL;
+		CFunctionSymbol *FuncSym = dynamic_cast<CFunctionSymbol *>(Symbol);
+		if (!FuncSym) {
+			return NULL;
+		}
+
+		return FuncSym->GetType();
 	}
 
 	return VarSym->GetType();
@@ -518,7 +570,7 @@ void CPostfixOp::CheckTypes() const
  * CFunctionCall
  ******************************************************************************/
 
-CFunctionCall::CFunctionCall(CSymbol *AFunction)
+CFunctionCall::CFunctionCall(const CToken &AToken, CSymbol *AFunction) : CExpression(AToken)
 {
 	Type = TOKEN_TYPE_RIGHT_PARENTHESIS;	// well, that's not really clear, but looks good in error messages at least..
 	Name = AFunction->GetName() + "()";
@@ -551,12 +603,12 @@ void CFunctionCall::SetFunction(CFunctionSymbol *AFunction)
 	Function = AFunction;
 }
 
-CFunctionCall::ArgumentsIterator CFunctionCall::Begin()
+CFunctionCall::ArgumentsIterator CFunctionCall::Begin() const
 {
 	return Arguments.begin();
 }
 
-CFunctionCall::ArgumentsIterator CFunctionCall::End()
+CFunctionCall::ArgumentsIterator CFunctionCall::End() const
 {
 	return Arguments.end();
 }
@@ -590,8 +642,20 @@ void CFunctionCall::CheckTypes() const
 {
 	assert(Function != NULL);
 
-	// TODO: function call type checking..
+	CSymbolTable *ST = Function->GetArgumentsSymbolTable();
 
+	ArgumentsIterator ait;
+	CSymbolTable::SymbolsIterator stit;
+
+	if (Arguments.size() != ST->GetSize()) {
+		throw CException("number of actual and formal parameters don't match", Position);
+	}
+
+	for (ait = Begin(), stit = ST->Begin(); ait != End() && stit != ST->End(); ++ait, ++stit) {
+		if (!(*ait)->GetResultType()->CompatibleWith(dynamic_cast<CVariableSymbol *>(stit->second)->GetType())) {
+			throw CException("function actual parameters don't match its formal parameters", Position);
+		}
+	}
 }
 
 /******************************************************************************
@@ -715,7 +779,7 @@ void CIndirectAccess::CheckTypes() const
 	assert(Pointer != NULL && Field != NULL);
 
 	if (!StructSymbol) {
-		throw CException("first operand of " + CScanner::TokenTypesNames[Type] + " should have struct type", Position);
+		throw CException("first operand of " + CScanner::TokenTypesNames[Type] + " should have pointer to struct type", Position);
 	}
 
 	if (!StructSymbol->GetField(Field->GetName())) {
@@ -758,6 +822,39 @@ void CArrayAccess::CheckTypes() const
 	CTypeSymbol *R = Right->GetResultType();
 
 	if (!(L->IsPointer() && R->IsInt() || L->IsInt() && R->IsPointer())) {
-		throw CException("invalid operands to array-acces operation", Position);
+		throw CException("invalid operands to array-access operation", Position);
+	}
+}
+
+/******************************************************************************
+ * CAddressOfOp
+ ******************************************************************************/
+
+CAddressOfOp::CAddressOfOp(const CToken &AToken, CExpression *AArgument /*= NULL*/) : CUnaryOp(AToken, AArgument), ResultType(NULL)
+{
+	SetArgument(AArgument);
+}
+
+CAddressOfOp::~CAddressOfOp()
+{
+	delete ResultType;
+}
+
+void CAddressOfOp::SetArgument(CExpression *AArgument)
+{
+	delete ResultType;
+	CUnaryOp::SetArgument(AArgument);
+	ResultType = Argument ? new CPointerSymbol(Argument->GetResultType()) : NULL;
+}
+
+CTypeSymbol* CAddressOfOp::GetResultType() const
+{
+	return ResultType;
+}
+
+void CAddressOfOp::CheckTypes() const
+{
+	if (!Argument->IsLValue() && Argument->GetType() != TOKEN_TYPE_LEFT_SQUARE_BRACKET && (typeid(*Argument) != typeid(CUnaryOp) || Argument->GetName() != "*")) {
+		throw CException("operand of address-of operation should be lvalue or result of dereferencing or array-accessing", Position);
 	}
 }

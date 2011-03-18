@@ -130,6 +130,7 @@ private:
 	stack<EBlockType> BlockType;
 	stack<EScopeType> ScopeType;
 	stack<CSwitchStatement *> SwitchesStack;
+	CFunctionSymbol *CurrentFunction;
 
 	EParserMode Mode;
 };

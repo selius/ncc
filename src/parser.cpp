@@ -69,7 +69,7 @@ CParser::CDeclarationSpecifier::CDeclarationSpecifier() : Type(NULL), Typedef(fa
  * CParser
  ******************************************************************************/
 
-CParser::CParser(CScanner &AScanner, EParserMode AMode /*= PARSER_MODE_NORMAL*/) : TokenStream(AScanner), Mode(AMode)
+CParser::CParser(CScanner &AScanner, EParserMode AMode /*= PARSER_MODE_NORMAL*/) : TokenStream(AScanner), CurrentFunction(NULL), Mode(AMode)
 {
 	NextToken();
 
@@ -130,6 +130,8 @@ CSymbolTable* CParser::ParseTranslationUnit()
 
 			ScopeType.push(SCOPE_TYPE_FUNCTION);
 			SymbolTableStack.Push(FuncSym->GetArgumentsSymbolTable());
+
+			CurrentFunction = FuncSym;
 
 			FuncSym->SetBody(ParseBlock());
 
@@ -338,6 +340,10 @@ void CParser::ParseParameterList(CFunctionSymbol *Func)
 
 	while (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		SymbolTableStack.GetTop()->Add(ParseDeclarator(ParseDeclarationSpecifier()));
+
+		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA) {
+			NextToken();
+		}
 	}
 
 	ScopeType.pop();
@@ -479,7 +485,7 @@ CStatement* CParser::ParseStatement()
 	}
 
 	ETokenType type = Token->GetType();
-	if (type == TOKEN_TYPE_KEYWORD) {
+	if (type == TOKEN_TYPE_KEYWORD && Token->GetText() != "sizeof") {
 		// possibly remove this temp 'result' var..
 		CStatement *result = NULL;
 		string text = Token->GetText();
@@ -560,7 +566,12 @@ CStatement* CParser::ParseIf()
 	CIfStatement *Stmt = new CIfStatement;
 
 	NextToken();
+	CPosition CondPos = Token->GetPosition();
 	Stmt->SetCondition(ParseExpression());
+
+	if (!Stmt->GetCondition()->GetResultType()->IsScalar()) {
+		throw CException("if-condition expression should have scalar type", CondPos);
+	}
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
@@ -600,7 +611,12 @@ CStatement* CParser::ParseFor()
 
 	NextToken();
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+		CPosition CondPos = Token->GetPosition();
 		Stmt->SetCondition(ParseExpression());
+
+		if (!Stmt->GetCondition()->GetResultType()->IsScalar()) {
+			throw CException("for-condition expression should have scalar type", CondPos);
+		}
 	}
 
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
@@ -638,7 +654,12 @@ CStatement* CParser::ParseWhile()
 	CWhileStatement *Stmt = new CWhileStatement;
 
 	NextToken();
+	CPosition CondPos = Token->GetPosition();
 	Stmt->SetCondition(ParseExpression());
+
+	if (!Stmt->GetCondition()->GetResultType()->IsScalar()) {
+		throw CException("while-condition expression should have scalar type", CondPos);
+	}
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
@@ -674,11 +695,16 @@ CStatement* CParser::ParseDo()
 	}
 
 	NextToken();
+	CPosition CondPos = Token->GetPosition();
 	Stmt->SetCondition(ParseExpression());
+
+	if (!Stmt->GetCondition()->GetResultType()->IsScalar()) {
+		throw CException("do-while-condition expression should have scalar type", CondPos);
+	}
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
-			+ " after while-condition expression, got " + Token->GetStringifiedType(), Token->GetPosition());
+			+ " after do-while-condition expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
 	NextToken();
@@ -814,12 +840,22 @@ CStatement* CParser::ParseReturn()
 	NextToken();
 	CReturnStatement *Stmt = new CReturnStatement;
 
+	CPosition ExprPos = Token->GetPosition();
+
 	if (Token->GetType() == TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+		if (!CurrentFunction->GetReturnType()->IsVoid()) {
+			throw CException("return with no expression in function returning non-void", ExprPos);
+		}
+
 		NextToken();
 		return Stmt;
 	}
 
 	Stmt->SetReturnExpression(ParseExpression());
+
+	if (!CurrentFunction->GetReturnType()->CompatibleWith(Stmt->GetReturnExpression()->GetResultType())) {
+		throw CException("return expression type is incompatible with function return type", ExprPos);
+	}
 
 	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
@@ -839,7 +875,13 @@ CStatement* CParser::ParseSwitch()
 	}
 	NextToken();
 
+	CPosition TestExprPos = Token->GetPosition();
+
 	CSwitchStatement *Stmt = new CSwitchStatement(ParseExpression());
+
+	if (!Stmt->GetTestExpression()->GetResultType()->IsInt()) {
+		throw CException("switch-test-expression should have integer type", TestExprPos);
+	}
 
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
@@ -926,7 +968,6 @@ bool IsRelational(const CToken &Token)
 	return false;
 }
 
-// TODO: possibly rename to IsTrivialUnaryOp, lol..
 bool IsUnaryOp(const CToken &Token)
 {
 	static const ETokenType UnaryOps[] = {
@@ -980,16 +1021,14 @@ CExpression* CParser::ParseAssignment()
 	CExpression *Expr = ParseConditional();
 
 	if (IsAssignment(*Token)) {
-		if (!Expr->IsLValue()) {
-			throw CException("lvalue required as left operand of assignment", Token->GetPosition());
-		}
-
 		CBinaryOp *Op = new CBinaryOp(*Token);
 
 		NextToken();
 
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseAssignment());
+
+		Op->CheckTypes();
 
 		Expr = Op;
 	}
@@ -1150,6 +1189,8 @@ CExpression* CParser::ParseEqualityExpression()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseRelationalExpression());
 
+		Op->CheckTypes();
+
 		Expr = Op;
 	}
 
@@ -1169,6 +1210,8 @@ CExpression* CParser::ParseRelationalExpression()
 
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseShiftExpression());
+
+		Op->CheckTypes();
 
 		Expr = Op;
 	}
@@ -1277,15 +1320,26 @@ CExpression* CParser::ParseUnaryExpression()
 
 	ETokenType type = Token->GetType();
 
-	CUnaryOp *Op = new CUnaryOp(*Token);
+	CUnaryOp *Op;
+
+	if (type == TOKEN_TYPE_OPERATION_AMPERSAND) {
+		Op = new CAddressOfOp(*Token);
+	} else {
+		Op = new CUnaryOp(*Token);
+	}
+
 	NextToken();
 
 	CPosition ArgPos = Token->GetPosition();
 
 	if (type == TOKEN_TYPE_OPERATION_INCREMENT || type == TOKEN_TYPE_OPERATION_DECREMENT) {
 		Op->SetArgument(ParseUnaryExpression());
-	} else  if (type == TOKEN_TYPE_KEYWORD && Token->GetText() == "sizeof") {
+	} else  if (type == TOKEN_TYPE_KEYWORD) {
 		// TODO: handle sizeof somehow..
+		/*if (Token->GetType() == TOKEN_TYPE_LEFT_PARENTHESIS) {
+			//ParseTypeName();
+		}*/
+		Op->SetArgument(ParseUnaryExpression());
 	} else {
 		Op->SetArgument(ParseCastExpression());
 	}
@@ -1318,10 +1372,6 @@ CExpression* CParser::ParsePostfixExpression()
 				}
 
 				StructAccess->SetField(new CVariable(*Token));
-
-				if (Mode != PARSER_MODE_EXPRESSION) {
-					Op->CheckTypes();
-				}
 			}
 			break;
 		case TOKEN_TYPE_OPERATION_INDIRECT_ACCESS:
@@ -1351,10 +1401,6 @@ CExpression* CParser::ParsePostfixExpression()
 
 				ArrayAccess->SetRight(ParseExpression());
 
-				if (Mode != PARSER_MODE_EXPRESSION) {
-					Op->CheckTypes();
-				}
-
 				if (Token->GetType() != TOKEN_TYPE_RIGHT_SQUARE_BRACKET) {
 					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET]
 						+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
@@ -1365,7 +1411,6 @@ CExpression* CParser::ParsePostfixExpression()
 		case TOKEN_TYPE_OPERATION_DECREMENT:
 			{
 				Op = new CPostfixOp(*Token, Expr);
-				Op->CheckTypes();
 			}
 			break;
 		case TOKEN_TYPE_LEFT_PARENTHESIS:
@@ -1376,7 +1421,7 @@ CExpression* CParser::ParsePostfixExpression()
 						+ " before function call operator", Token->GetPosition());
 				}
 
-				CFunctionCall *FuncCall = new CFunctionCall(VarExpr->GetSymbol());
+				CFunctionCall *FuncCall = new CFunctionCall(*Token, VarExpr->GetSymbol());
 				Op = FuncCall;
 
 				NextToken();
@@ -1393,12 +1438,12 @@ CExpression* CParser::ParsePostfixExpression()
 					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
 						+ " after function arguments list, got " + Token->GetStringifiedType(), Token->GetPosition());
 				}
-
-				if (Mode != PARSER_MODE_EXPRESSION && FuncCall->GetArgumentsCount() != FuncCall->GetFunction()->GetArgumentsSymbolTable()->GetSize()) {
-					throw CException("number of actual and formal parameters don't match", Token->GetPosition());
-				}
 			}
 			break;
+		}
+
+		if (Token->GetType() == TOKEN_TYPE_OPERATION_INCREMENT || Token->GetType() == TOKEN_TYPE_OPERATION_DECREMENT || Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
 		}
 
 		NextToken();

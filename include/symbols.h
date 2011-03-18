@@ -92,7 +92,12 @@ public:
 	virtual bool IsVoid() const;
 	virtual bool IsType(const string &AType) const;
 	virtual bool IsPointer() const;
+	virtual bool IsStruct() const;
+	virtual bool IsArray() const;
+	virtual bool IsFunction() const;
 	bool IsScalar() const;
+
+	virtual bool CompatibleWith(CTypeSymbol *ASymbol);
 
 private:
 	bool Const;
@@ -154,6 +159,11 @@ public:
 	unsigned int GetLength() const;
 	void SetLength(unsigned int ALength);
 
+	bool IsPointer() const;
+	bool IsArray() const;
+
+	bool CompatibleWith(CTypeSymbol *ASymbol);
+
 private:
 	CTypeSymbol *ElementsType;
 	unsigned int Length;
@@ -179,6 +189,10 @@ public:
 
 	unsigned int GetFieldsCount() const;
 
+	bool IsStruct() const;
+
+	bool CompatibleWith(CTypeSymbol *ASymbol);
+
 private:
 	CSymbolTable *Fields;
 
@@ -187,7 +201,7 @@ private:
 class CPointerSymbol : public CTypeSymbol
 {
 public:
-	CPointerSymbol();
+	CPointerSymbol(CTypeSymbol *ARefType = NULL);
 
 	string GetName() const;
 
@@ -197,6 +211,8 @@ public:
 	void SetRefType(CTypeSymbol *ARefType);
 
 	bool IsPointer() const;
+
+	bool CompatibleWith(CTypeSymbol *ASymbol);
 
 private:
 	CTypeSymbol *RefType;
@@ -218,9 +234,19 @@ public:
 	bool IsVoid() const;
 	bool IsType(const string &AType) const;
 
+	bool CompatibleWith(CTypeSymbol *ASymbol);
+
 private:
 	CTypeSymbol *RefType;
 
+};
+
+class CFunctionTypeSymbol : public CTypeSymbol
+{
+public:
+	size_t GetSize() const;
+
+	bool IsFunction() const;
 };
 
 class CVariableSymbol : public CSymbol
@@ -256,6 +282,8 @@ public:
 	CBlockStatement* GetBody() const;
 	void SetBody(CBlockStatement *ABody);
 
+	CTypeSymbol* GetType() const;
+
 private:
 	CTypeSymbol *ReturnType;
 
@@ -263,6 +291,8 @@ private:
 	//CSymbolTable *Locals;
 
 	CBlockStatement *Body;
+
+	CTypeSymbol *Type;
 };
 
 #endif // _SYMBOLS_H_

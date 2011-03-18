@@ -39,7 +39,7 @@ public:
 	void Accept(CStatementVisitor &AVisitor);
 
 	CExpression* GetArgument() const;
-	void SetArgument(CExpression *AArgument);
+	virtual void SetArgument(CExpression *AArgument);
 
 	CTypeSymbol* GetResultType() const;
 
@@ -210,10 +210,10 @@ class CFunctionCall : public CExpression
 {
 public:
 	typedef vector<CExpression *> ArgumentsContainer;
-	typedef ArgumentsContainer::iterator ArgumentsIterator;
+	typedef ArgumentsContainer::const_iterator ArgumentsIterator;
 	typedef ArgumentsContainer::reverse_iterator ArgumentsReverseIterator;
 
-	CFunctionCall(CSymbol *AFunction);
+	CFunctionCall(const CToken &AToken, CSymbol *AFunction);
 	~CFunctionCall();
 
 	void Accept(CStatementVisitor &AVisitor);
@@ -221,8 +221,8 @@ public:
 	CFunctionSymbol* GetFunction() const;
 	void SetFunction(CFunctionSymbol *AFunction);
 
-	ArgumentsIterator Begin();
-	ArgumentsIterator End();
+	ArgumentsIterator Begin() const;
+	ArgumentsIterator End() const;
 	ArgumentsReverseIterator RBegin();
 	ArgumentsReverseIterator REnd();
 
@@ -297,6 +297,22 @@ public:
 	CTypeSymbol* GetResultType() const;
 
 	void CheckTypes() const;
+};
+
+class CAddressOfOp : public CUnaryOp
+{
+public:
+	CAddressOfOp(const CToken &AToken, CExpression *AArgument = NULL);
+	~CAddressOfOp();
+
+	void SetArgument(CExpression *AArgument);
+
+	CTypeSymbol* GetResultType() const;
+
+	void CheckTypes() const;
+
+private:
+	CTypeSymbol *ResultType;
 };
 
 #endif // _EXPRESSIONS_H_

@@ -1438,6 +1438,8 @@ CExpression* CParser::ParsePostfixExpression()
 					throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_PARENTHESIS]
 						+ " after function arguments list, got " + Token->GetStringifiedType(), Token->GetPosition());
 				}
+
+				delete VarExpr;
 			}
 			break;
 		}

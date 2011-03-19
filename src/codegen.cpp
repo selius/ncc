@@ -6,6 +6,10 @@
  * CAsmCmd
  ******************************************************************************/
 
+CAsmCmd::~CAsmCmd()
+{
+}
+
 string CAsmCmd::GetName() const
 {
 	return Name;
@@ -117,6 +121,11 @@ CAsmCmd1::CAsmCmd1(const string &AName, CAsmOp *AOp) : Op(AOp)
 	Name = AName;
 }
 
+CAsmCmd1::~CAsmCmd1()
+{
+	delete Op;
+}
+
 string CAsmCmd1::GetText() const
 {
 	return "\t" + Name + "\t" + Op->GetText();
@@ -129,6 +138,12 @@ string CAsmCmd1::GetText() const
 CAsmCmd2::CAsmCmd2(const string &AName, CAsmOp *AOp1, CAsmOp *AOp2) : Op1(AOp1), Op2(AOp2)
 {
 	Name = AName;
+}
+
+CAsmCmd2::~CAsmCmd2()
+{
+	delete Op1;
+	delete Op2;
 }
 
 string CAsmCmd2::GetText() const
@@ -170,15 +185,6 @@ string CAsmDirective::GetText() const
 
 CAsmCode::CAsmCode() : LabelsCount(0)
 {
-	RegistersText[EAX] = "eax";
-	RegistersText[EBX] = "ebx";
-	RegistersText[ECX] = "ecx";
-	RegistersText[EDX] = "edx";
-	RegistersText[ESI] = "esi";
-	RegistersText[EDI] = "edi";
-	RegistersText[ESP] = "esp";
-	RegistersText[EBP] = "ebp";
-
 	MnemonicsText[MOV] = "mov";
 	MnemonicsText[PUSH] = "push";
 	MnemonicsText[POP] = "pop";
@@ -207,6 +213,25 @@ CAsmCode::CAsmCode() : LabelsCount(0)
 	MnemonicsText[SAL] = "sal";
 	MnemonicsText[SAR] = "sar";
 	MnemonicsText[LEA] = "lea";
+
+	RegistersText[EAX] = "eax";
+	RegistersText[EBX] = "ebx";
+	RegistersText[ECX] = "ecx";
+	RegistersText[EDX] = "edx";
+	RegistersText[ESI] = "esi";
+	RegistersText[EDI] = "edi";
+	RegistersText[ESP] = "esp";
+	RegistersText[EBP] = "ebp";
+}
+
+CAsmCode::~CAsmCode()
+{
+	for (CodeIterator it = Code.begin(); it != Code.end(); ++it) {
+		delete *it;
+	}
+
+	RegistersText.clear();
+	MnemonicsText.clear();
 }
 
 void CAsmCode::Add(CAsmCmd *ACmd)
@@ -694,3 +719,6 @@ void CCodeGenerationVisitor::Visit(CSwitchStatement &AStmt)
 {
 }
 
+CAddressGenerationVisitor::CAddressGenerationVisitor(CAsmCode &AAsm) : Asm(AAsm)
+{
+}

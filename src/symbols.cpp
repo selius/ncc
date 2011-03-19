@@ -1,5 +1,7 @@
 #include "symbols.h"
 
+#include "statements.h"
+
 /******************************************************************************
  * CSymbol
  ******************************************************************************/
@@ -35,8 +37,6 @@ CSymbolTable::~CSymbolTable()
 	for (SymbolsIterator it = Begin(); it != End(); ++it) {
 		delete it->second;
 	}
-
-	Symbols.clear();
 }
 
 void CSymbolTable::Add(CSymbol *ASymbol)
@@ -542,6 +542,7 @@ CFunctionSymbol::CFunctionSymbol(const string &AName /*= ""*/, CTypeSymbol *ARet
 CFunctionSymbol::~CFunctionSymbol()
 {
 	delete Arguments;
+	delete Body;
 	delete Type;
 	//delete Locals;
 }

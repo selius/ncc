@@ -23,8 +23,6 @@ public:
 	typedef map<string, CSymbol *> SymbolsContainer;
 	typedef SymbolsContainer::const_iterator SymbolsIterator;
 
-	// TODO: make symbol table the owner of contained symbols, i. e. destroy 'em in destructor
-
 	CSymbolTable();
 	~CSymbolTable();
 

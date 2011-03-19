@@ -83,6 +83,12 @@ int main(int argc, char *argv[])
 					FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
 					if (FuncSym) {
 						*out << FuncSym->GetName() << ":" << endl;
+
+						/*CSymbolTable *FSST = FuncSym->GetArgumentsSymbolTable();
+						for (CSymbolTable::SymbolsIterator it = FSST->Begin(); it != FSST->End(); ++it) {
+							*out << it->second->GetName() <<": " << dynamic_cast<CVariableSymbol *>(it->second)->GetType()->GetName() << endl;
+						}*/
+
 						if (FuncSym->GetBody()) {
 							FuncSym->GetBody()->Accept(*vis);
 						} else {

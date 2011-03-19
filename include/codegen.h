@@ -56,6 +56,8 @@ static map<ERegister, string> RegistersText;
 class CAsmCmd
 {
 public:
+	virtual ~CAsmCmd();
+
 	string GetName() const;
 	void SetName(const string &AName);
 
@@ -140,6 +142,7 @@ class CAsmCmd1 : public CAsmCmd
 {
 public:
 	CAsmCmd1(const string &AName, CAsmOp *AOp);
+	~CAsmCmd1();
 
 	string GetText() const;
 
@@ -152,6 +155,7 @@ class CAsmCmd2 : public CAsmCmd
 {
 public:
 	CAsmCmd2(const string &AName, CAsmOp *AOp1, CAsmOp *AOp2);
+	~CAsmCmd2();
 
 	string GetText() const;
 
@@ -184,9 +188,12 @@ private:
 class CAsmCode
 {
 public:
-	CAsmCode();
+	typedef vector<CAsmCmd *> CodeContainer;
+	typedef CodeContainer::iterator CodeIterator;
 
-	// TODO: add a destructor, that frees memory
+	CAsmCode();
+	~CAsmCode();
+
 	void Add(CAsmCmd *ACmd);
 
 	void Add(EMnemonic ACmd);
@@ -206,7 +213,7 @@ public:
 	string GenerateLabel();
 
 private:
-	vector<CAsmCmd *> Code;
+	CodeContainer Code;
 
 	int LabelsCount;
 
@@ -255,6 +262,28 @@ private:
 	stack<string> ContinueLabels;
 
 	map<string, EMnemonic> OperationCmd;
+};
+
+class CAddressGenerationVisitor : public CStatementVisitor
+{
+public:
+	CAddressGenerationVisitor(CAsmCode &AAsm);
+
+	//void Visit(CUnaryOp &AStmt);
+	//void Visit(CBinaryOp &AStmt);
+	//void Visit(CIntegerConst &AStmt);
+	//void Visit(CFloatConst &AStmt);
+	//void Visit(CSymbolConst &AStmt);
+	//void Visit(CStringConst &AStmt);
+	//void Visit(CVariable &AStmt);
+	//void Visit(CPostfixOp &AStmt);
+	//void Visit(CStructAccess &AStmt);
+	//void Visit(CIndirectAccess &AStmt);
+	//void Visit(CArrayAccess &AStmt);
+
+private:
+	CAsmCode &Asm;
+
 };
 
 #endif // _CODEGEN_H_

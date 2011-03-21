@@ -17,6 +17,8 @@ protected:
 
 };
 
+class CVariableSymbol;
+
 class CSymbolTable
 {
 public:
@@ -24,7 +26,7 @@ public:
 	typedef SymbolsContainer::const_iterator SymbolsIterator;
 
 	CSymbolTable();
-	~CSymbolTable();
+	virtual ~CSymbolTable();
 
 	void Add(CSymbol *ASymbol);
 	CSymbol* Get(const string &AName) const;
@@ -37,11 +39,24 @@ public:
 
 	unsigned int GetElementsSize() const;
 
-private:
+protected:
+	virtual void InitOffset(CVariableSymbol *ASymbol);
 	SymbolsContainer Symbols;
 
 	size_t CurrentOffset;
 
+};
+
+class CArgumentsSymbolTable : public CSymbolTable
+{
+protected:
+	void InitOffset(CVariableSymbol *ASymbol);
+};
+
+class CStructSymbolTable : public CSymbolTable
+{
+protected:
+	void InitOffset(CVariableSymbol *ASymbol);
 };
 
 class CSymbolTableStack
@@ -182,8 +197,8 @@ public:
 
 	CVariableSymbol* GetField(const string &AName);
 
-	CSymbolTable* GetSymbolTable();
-	void SetSymbolTable(CSymbolTable *ASymbolTable);
+	CStructSymbolTable* GetSymbolTable();
+	void SetSymbolTable(CStructSymbolTable *ASymbolTable);
 
 	unsigned int GetFieldsCount() const;
 
@@ -192,7 +207,7 @@ public:
 	bool CompatibleWith(CTypeSymbol *ASymbol);
 
 private:
-	CSymbolTable *Fields;
+	CStructSymbolTable *Fields;
 
 };
 
@@ -255,12 +270,12 @@ public:
 	CTypeSymbol* GetType() const;
 	void SetType(CTypeSymbol *AType);
 
-	size_t GetOffset() const;
-	void SetOffset(size_t AOffset);
+	int GetOffset() const;
+	void SetOffset(int AOffset);
 
 private:
 	CTypeSymbol *Type;
-	size_t Offset;
+	int Offset;
 };
 
 class CFunctionSymbol : public CSymbol
@@ -274,8 +289,8 @@ public:
 
 	void AddArgument(CSymbol *AArgument);
 
-	CSymbolTable* GetArgumentsSymbolTable();
-	void SetArgumentsSymbolTable(CSymbolTable *ASymbolTable);
+	CArgumentsSymbolTable* GetArgumentsSymbolTable();
+	void SetArgumentsSymbolTable(CArgumentsSymbolTable *ASymbolTable);
 
 	CBlockStatement* GetBody() const;
 	void SetBody(CBlockStatement *ABody);
@@ -285,7 +300,7 @@ public:
 private:
 	CTypeSymbol *ReturnType;
 
-	CSymbolTable *Arguments;
+	CArgumentsSymbolTable *Arguments;
 	//CSymbolTable *Locals;
 
 	CBlockStatement *Body;

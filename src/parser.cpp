@@ -169,19 +169,23 @@ bool CParser::ParseDeclaration()
 
 	CSymbol *Sym;
 
-	ETokenType type;
+	ETokenType type = Token->GetType();
 	CPosition pos;
 
-	do {
-		Sym = ParseDeclarator(DeclSpec);
-		SymbolTableStack.GetTop()->Add(Sym);
+	if (type != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+		do {
+			Sym = ParseDeclarator(DeclSpec);
+			SymbolTableStack.GetTop()->Add(Sym);
 
-		// TODO: add initialization support - add a pointer to the corresponding block somewhere and add assignment statements to it..
+			// TODO: add initialization support - add a pointer to the corresponding block somewhere and add assignment statements to it..
 
-		type = Token->GetType();
-		pos = Token->GetPosition();
+			type = Token->GetType();
+			pos = Token->GetPosition();
+			NextToken();
+		} while (type == TOKEN_TYPE_SEPARATOR_COMMA);
+	} else {
 		NextToken();
-	} while (type == TOKEN_TYPE_SEPARATOR_COMMA);
+	}
 
 	if (type != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
@@ -263,6 +267,10 @@ CParser::CDeclarationSpecifier CParser::ParseDeclarationSpecifier()
 			Result.Type->SetConst(Const);
 			return Result;
 		} else {
+			if (type == TOKEN_TYPE_SEPARATOR_SEMICOLON && Result.Type && Result.Type->IsStruct()) {
+				return Result;
+			}
+
 			throw CException("unexpected " + CScanner::TokenTypesNames[type] + " in declaration", pos);
 		}
 
@@ -333,13 +341,14 @@ void CParser::ParseParameterList(CFunctionSymbol *Func)
 {
 	NextToken();
 
-	SymbolTableStack.Push(new CSymbolTable);
-	Func->SetArgumentsSymbolTable(SymbolTableStack.GetTop());
+	CArgumentsSymbolTable *FuncArgs = new CArgumentsSymbolTable;
+	SymbolTableStack.Push(FuncArgs);
+	Func->SetArgumentsSymbolTable(FuncArgs);
 
 	ScopeType.push(SCOPE_TYPE_PARAMETERS);
 
 	while (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
-		SymbolTableStack.GetTop()->Add(ParseDeclarator(ParseDeclarationSpecifier()));
+		FuncArgs->Add(ParseDeclarator(ParseDeclarationSpecifier()));
 
 		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA) {
 			NextToken();
@@ -428,6 +437,8 @@ CStructSymbol* CParser::ParseStruct()
 				throw CException("undeclared identifier `" + StructName + "`", Token->GetPosition());
 			}
 
+			PreviousToken();
+
 			return Sym;
 		}
 
@@ -449,7 +460,9 @@ CStructSymbol* CParser::ParseStruct()
 
 	NextToken();
 
-	SymbolTableStack.Push(new CSymbolTable);
+	CStructSymbolTable *StructSymTable = new CStructSymbolTable;
+
+	SymbolTableStack.Push(StructSymTable);
 
 	ScopeType.push(SCOPE_TYPE_STRUCT);
 
@@ -457,7 +470,9 @@ CStructSymbol* CParser::ParseStruct()
 
 	ScopeType.pop();
 
-	Sym->SetSymbolTable(SymbolTableStack.Pop());
+	SymbolTableStack.Pop();
+
+	Sym->SetSymbolTable(StructSymTable);
 
 	if (Token->GetType() != TOKEN_TYPE_BLOCK_END) {
 		throw CException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_END]

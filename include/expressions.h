@@ -22,6 +22,7 @@ public:
 
 	virtual bool IsLValue() const;
 	virtual bool IsConst() const;
+	bool IsExpression() const;
 
 	virtual void CheckTypes() const;
 
@@ -142,10 +143,10 @@ public:
 
 	void Accept(CStatementVisitor &AVisitor);
 
-	double GetValue() const;
+	float GetValue() const;
 
 private:
-	double Value;
+	float Value;
 
 };
 
@@ -184,7 +185,8 @@ public:
 
 	void Accept(CStatementVisitor &AVisitor);
 
-	CSymbol* GetSymbol() const;
+	CVariableSymbol* GetSymbol() const;
+	void SetSymbol(CVariableSymbol *ASymbol);
 
 	CTypeSymbol* GetResultType() const;
 
@@ -232,6 +234,8 @@ public:
 
 	CTypeSymbol* GetResultType() const;
 
+	bool IsExpression() const;
+
 	void CheckTypes() const;
 
 private:
@@ -254,6 +258,8 @@ public:
 	void SetField(CVariable *AField);
 
 	CTypeSymbol* GetResultType() const;
+
+	bool IsLValue() const;
 
 	void CheckTypes() const;
 
@@ -278,6 +284,8 @@ public:
 
 	CTypeSymbol* GetResultType() const;
 
+	bool IsLValue() const;
+
 	void CheckTypes() const;
 
 private:
@@ -295,6 +303,8 @@ public:
 	void Accept(CStatementVisitor &AVisitor);
 
 	CTypeSymbol* GetResultType() const;
+
+	bool IsLValue() const;
 
 	void CheckTypes() const;
 };

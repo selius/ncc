@@ -94,7 +94,7 @@ public:
 	CPosition GetPosition() const;
 
 	virtual int GetIntegerValue() const;
-	virtual double GetFloatValue() const;
+	virtual float GetFloatValue() const;
 	virtual char GetSymbolValue() const;
 
 protected:
@@ -126,10 +126,10 @@ public:
 
 	CFloatConstToken* Clone() const;
 
-	double GetFloatValue() const;
+	float GetFloatValue() const;
 
 protected:
-	double Value;
+	float Value;
 
 };
 
@@ -158,8 +158,9 @@ public:
 	static bool IsValidIdentifierSymbol(char c, bool first = false);
 	static bool IsOperationSymbol(char c);
 	static bool IsKeyword(const string &s);
-	static bool IsComparisonOperation(const string &s);
-	static bool IsTrivialOperation(const string &s);
+	static bool IsComparisonOperation(ETokenType t);
+	static bool IsTrivialOperation(ETokenType t);
+	static bool IsCompoundAssignment(ETokenType t);
 };
 
 class CScanner

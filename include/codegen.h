@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "symbols.h"
+#include "scanner.h"
 
 enum ERegister
 {
@@ -14,6 +15,7 @@ enum ERegister
 	EDI,
 	ESP,
 	EBP,
+	INVALID_REGISTER,
 	// possibly add FPU registers
 };
 
@@ -39,8 +41,10 @@ enum EMnemonic
 	IDIV,
 	INC,
 	DEC,
+	NEG,
 	CMP,
 	CDQ,
+	NOT,
 	AND,
 	OR,
 	XOR,
@@ -106,13 +110,15 @@ private:
 class CAsmMem : public CAsmOp
 {
 public:
-	CAsmMem(int ADisplacement, ERegister ABase);
+	CAsmMem(int ADisplacement, ERegister ABase, ERegister AOffset, int AMultiplier);
 
 	string GetText() const;
 
 private:
 	int Displacement;
 	ERegister Base;
+	ERegister Offset;
+	int Multiplier;
 };
 
 class CAsmLabelOp : public CAsmOp
@@ -205,6 +211,7 @@ public:
 	void Add(EMnemonic ACmd, CAsmMem *AOp);
 	void Add(EMnemonic ACmd, ERegister AOp1, CAsmMem *AOp2);
 	void Add(EMnemonic ACmd, CAsmMem *AOp1, ERegister AOp2);
+	void Add(const string &ALabel);
 
 	// TODO: add more "good" versions of Add
 
@@ -216,6 +223,47 @@ private:
 	CodeContainer Code;
 
 	int LabelsCount;
+
+};
+
+class CCodeGenerationVisitor;
+
+class CAddressGenerationVisitor : public CStatementVisitor
+{
+public:
+	CAddressGenerationVisitor(CAsmCode &AAsm, CCodeGenerationVisitor &ACode);
+
+	void Visit(CUnaryOp &AStmt);
+	void Visit(CBinaryOp &AStmt);
+	void Visit(CConditionalOp &AStmt);
+	void Visit(CIntegerConst &AStmt);
+	void Visit(CFloatConst &AStmt);
+	void Visit(CSymbolConst &AStmt);
+	void Visit(CStringConst &AStmt);
+	void Visit(CVariable &AStmt);
+	void Visit(CPostfixOp &AStmt);
+	void Visit(CFunctionCall &AStmt);
+	void Visit(CStructAccess &AStmt);
+	void Visit(CIndirectAccess &AStmt);
+	void Visit(CArrayAccess &AStmt);
+	void Visit(CNullStatement &AStmt);
+	void Visit(CBlockStatement &AStmt);
+	void Visit(CIfStatement &AStmt);
+	void Visit(CForStatement &AStmt);
+	void Visit(CWhileStatement &AStmt);
+	void Visit(CDoStatement &AStmt);
+	void Visit(CLabel &AStmt);
+	void Visit(CCaseLabel &AStmt);
+	void Visit(CDefaultCaseLabel &AStmt);
+	void Visit(CGotoStatement &AStmt);
+	void Visit(CBreakStatement &AStmt);
+	void Visit(CContinueStatement &AStmt);
+	void Visit(CReturnStatement &AStmt);
+	void Visit(CSwitchStatement &AStmt);
+
+private:
+	CAsmCode &Asm;
+	CCodeGenerationVisitor &Code;
 
 };
 
@@ -261,29 +309,10 @@ private:
 	stack<string> BreakLabels;
 	stack<string> ContinueLabels;
 
-	map<string, EMnemonic> OperationCmd;
-};
+	map<ETokenType, EMnemonic> OperationCmd;
+	map<ETokenType, ETokenType> CompoundAssignmentOp;
 
-class CAddressGenerationVisitor : public CStatementVisitor
-{
-public:
-	CAddressGenerationVisitor(CAsmCode &AAsm);
-
-	//void Visit(CUnaryOp &AStmt);
-	//void Visit(CBinaryOp &AStmt);
-	//void Visit(CIntegerConst &AStmt);
-	//void Visit(CFloatConst &AStmt);
-	//void Visit(CSymbolConst &AStmt);
-	//void Visit(CStringConst &AStmt);
-	//void Visit(CVariable &AStmt);
-	//void Visit(CPostfixOp &AStmt);
-	//void Visit(CStructAccess &AStmt);
-	//void Visit(CIndirectAccess &AStmt);
-	//void Visit(CArrayAccess &AStmt);
-
-private:
-	CAsmCode &Asm;
-
+	CAddressGenerationVisitor Addr;
 };
 
 #endif // _CODEGEN_H_

@@ -96,6 +96,11 @@ bool CExpression::IsConst() const
 	return false;
 }
 
+bool CExpression::IsExpression() const
+{
+	return true;
+}
+
 void CExpression::CheckTypes() const
 {
 }
@@ -167,6 +172,7 @@ void CUnaryOp::CheckTypes() const
 		if (!Argument->IsLValue()) {
 			throw CException("lvalue required as operand of prefix "  + CScanner::TokenTypesNames[Type], Position);
 		}
+		CheckTypes::Scalar(this);
 		break;
 	case TOKEN_TYPE_OPERATION_ASTERISK:
 		if (!Argument->GetResultType()->IsPointer()) {
@@ -454,7 +460,7 @@ void CFloatConst::Accept(CStatementVisitor &AVisitor)
 	AVisitor.Visit(*this);
 }
 
-double CFloatConst::GetValue() const
+float CFloatConst::GetValue() const
 {
 	return Value;
 }
@@ -511,9 +517,14 @@ void CVariable::Accept(CStatementVisitor &AVisitor)
 	AVisitor.Visit(*this);
 }
 
-CSymbol* CVariable::GetSymbol() const
+CVariableSymbol* CVariable::GetSymbol() const
 {
-	return Symbol;
+	return static_cast<CVariableSymbol *>(Symbol);
+}
+
+void CVariable::SetSymbol(CVariableSymbol *ASymbol)
+{
+	Symbol = ASymbol;
 }
 
 CTypeSymbol* CVariable::GetResultType() const
@@ -562,6 +573,10 @@ void CPostfixOp::CheckTypes() const
 	if (Type == TOKEN_TYPE_OPERATION_INCREMENT || Type == TOKEN_TYPE_OPERATION_DECREMENT) {
 		if (!Argument->IsLValue()) {
 			throw CException("lvalue required as operand of postfix " + CScanner::TokenTypesNames[Type], Position);
+		}
+
+		if (!Argument->GetResultType()->IsScalar()) {
+			throw CException("operand of postfix " + CScanner::TokenTypesNames[Type] + " should has scalar type", Position);
 		}
 	}
 }
@@ -638,6 +653,15 @@ CTypeSymbol* CFunctionCall::GetResultType() const
 	return (Function ? Function->GetReturnType() : NULL);
 }
 
+bool CFunctionCall::IsExpression() const
+{
+	if (!Function || !Function->GetReturnType()) {
+		return false;
+	}
+
+	return !Function->GetReturnType()->IsVoid();
+}
+
 void CFunctionCall::CheckTypes() const
 {
 	assert(Function != NULL);
@@ -691,11 +715,19 @@ void CStructAccess::SetStruct(CExpression *AStruct)
 {
 	Struct = AStruct;
 	StructSymbol = Struct ? dynamic_cast<CStructSymbol *>(Struct->GetResultType()) : NULL;
+
+	if (Field && StructSymbol) {
+		Field->SetSymbol(StructSymbol->GetField(Field->GetName()));
+	}
 }
 
 void CStructAccess::SetField(CVariable *AField)
 {
 	Field = AField;
+
+	if (Field && StructSymbol) {
+		Field->SetSymbol(StructSymbol->GetField(Field->GetName()));
+	}
 }
 
 CTypeSymbol* CStructAccess::GetResultType() const
@@ -704,7 +736,12 @@ CTypeSymbol* CStructAccess::GetResultType() const
 		return NULL;
 	}
 
-	return StructSymbol->GetField(Field->GetName())->GetType();
+	return Field->GetSymbol()->GetType();
+}
+
+bool CStructAccess::IsLValue() const
+{
+	return !StructSymbol->GetConst() && !Field->GetSymbol()->GetType()->GetConst();
 }
 
 void CStructAccess::CheckTypes() const
@@ -758,11 +795,19 @@ void CIndirectAccess::SetPointer(CExpression *APointer)
 	if (Pointer && (PointerSym = dynamic_cast<CPointerSymbol *>(Pointer->GetResultType()))) {
 		StructSymbol = dynamic_cast<CStructSymbol *>(PointerSym->GetRefType());
 	}
+
+	if (Field && StructSymbol) {
+		Field->SetSymbol(StructSymbol->GetField(Field->GetName()));
+	}
 }
 
 void CIndirectAccess::SetField(CVariable *AField)
 {
 	Field = AField;
+
+	if (Field && StructSymbol) {
+		Field->SetSymbol(StructSymbol->GetField(Field->GetName()));
+	}
 }
 
 CTypeSymbol* CIndirectAccess::GetResultType() const
@@ -771,7 +816,12 @@ CTypeSymbol* CIndirectAccess::GetResultType() const
 		return NULL;
 	}
 
-	return StructSymbol->GetField(Field->GetName())->GetType();
+	return Field->GetSymbol()->GetType();
+}
+
+bool CIndirectAccess::IsLValue() const
+{
+	return !StructSymbol->GetConst() && !Field->GetSymbol()->GetType()->GetConst();
 }
 
 void CIndirectAccess::CheckTypes() const
@@ -807,11 +857,16 @@ void CArrayAccess::Accept(CStatementVisitor &AVisitor)
 
 CTypeSymbol* CArrayAccess::GetResultType() const
 {
-	if (Left->GetResultType()->IsInt()) {
-		return Right->GetResultType();
+	if (Left->GetResultType()->IsArray()) {
+		return dynamic_cast<CArraySymbol *>(Left->GetResultType())->GetElementsType();
 	} else {
-		return Left->GetResultType();
+		return dynamic_cast<CArraySymbol *>(Right->GetResultType())->GetElementsType();
 	}
+}
+
+bool CArrayAccess::IsLValue() const
+{
+	return true;
 }
 
 void CArrayAccess::CheckTypes() const

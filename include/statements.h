@@ -16,6 +16,8 @@ public:
 
 	string GetName() const;
 
+	virtual bool IsExpression() const;
+
 protected:
 	string Name;
 
@@ -143,6 +145,8 @@ public:
 	~CLabel();
 
 	void Accept(CStatementVisitor &AVisitor);
+
+	void SetName(const string &AName);
 
 	CStatement* GetNext() const;
 	void SetNext(CStatement *ANext);

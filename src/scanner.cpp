@@ -42,7 +42,7 @@ int CToken::GetIntegerValue() const
 	throw logic_error("CToken can't have integer value");
 }
 
-double CToken::GetFloatValue() const
+float CToken::GetFloatValue() const
 {
 	throw logic_error("CToken can't have float value");
 }
@@ -89,7 +89,7 @@ CFloatConstToken* CFloatConstToken::Clone() const
 	return new CFloatConstToken(*this);
 }
 
-double CFloatConstToken::GetFloatValue() const
+float CFloatConstToken::GetFloatValue() const
 {
 	return Value;
 }
@@ -157,14 +157,74 @@ bool CTraits::IsKeyword(const string &s)
 		s == "struct" || s == "switch" || s == "typedef" || s == "while");
 }
 
-bool CTraits::IsComparisonOperation(const string &s)
+bool CTraits::IsComparisonOperation(ETokenType t)
 {
-	return (s == "==" || s == "!=" || s == "<" || s == ">" || s == "<=" || s == ">=");
+	static const ETokenType ComparisonOps[] = {
+		TOKEN_TYPE_OPERATION_EQUAL,
+		TOKEN_TYPE_OPERATION_NOT_EQUAL,
+		TOKEN_TYPE_OPERATION_LESS_THAN,
+		TOKEN_TYPE_OPERATION_GREATER_THAN,
+		TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL,
+		TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL,
+		TOKEN_TYPE_INVALID
+		};
+
+	for (int i = 0; ComparisonOps[i] != TOKEN_TYPE_INVALID; i++) {
+		if (t == ComparisonOps[i]) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
-bool CTraits::IsTrivialOperation(const string &s)
+bool CTraits::IsTrivialOperation(ETokenType t)
 {
-	return (s == "+" || s == "-" || s == "*" || s == "&" || s == "|" || s == "^" || s == "<<" || s == ">>");
+	static const ETokenType TrivialOps[] = {
+		TOKEN_TYPE_OPERATION_PLUS,
+		TOKEN_TYPE_OPERATION_MINUS,
+		TOKEN_TYPE_OPERATION_ASTERISK,
+		TOKEN_TYPE_OPERATION_AMPERSAND,
+		TOKEN_TYPE_OPERATION_BITWISE_OR,
+		TOKEN_TYPE_OPERATION_BITWISE_XOR,
+		TOKEN_TYPE_OPERATION_SHIFT_LEFT,
+		TOKEN_TYPE_OPERATION_SHIFT_RIGHT,
+		TOKEN_TYPE_INVALID
+		};
+
+	for (int i = 0; TrivialOps[i] != TOKEN_TYPE_INVALID; i++) {
+		if (t == TrivialOps[i]) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool CTraits::IsCompoundAssignment(ETokenType t)
+{
+	static const ETokenType CompoundAssignments[] = {
+		TOKEN_TYPE_OPERATION_PLUS_ASSIGN,
+		TOKEN_TYPE_OPERATION_MINUS_ASSIGN,
+		TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN,
+		TOKEN_TYPE_OPERATION_SLASH_ASSIGN,
+		TOKEN_TYPE_OPERATION_PERCENT_ASSIGN,
+		TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN,
+		TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN,
+		TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN,
+		TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN,
+		TOKEN_TYPE_OPERATION_SHIFT_LEFT_ASSIGN,
+		TOKEN_TYPE_OPERATION_SHIFT_RIGHT_ASSIGN,
+		TOKEN_TYPE_INVALID
+		};
+
+	for (int i = 0; CompoundAssignments[i] != TOKEN_TYPE_INVALID; i++) {
+		if (t == CompoundAssignments[i]) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 /******************************************************************************

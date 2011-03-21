@@ -15,6 +15,11 @@ string CStatement::GetName() const
 	return Name;
 }
 
+bool CStatement::IsExpression() const
+{
+	return false;
+}
+
 /******************************************************************************
  * CNullStatement
  ******************************************************************************/
@@ -277,6 +282,11 @@ CLabel::~CLabel()
 void CLabel::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
+}
+
+void CLabel::SetName(const string &AName)
+{
+	Name = AName;
 }
 
 CStatement* CLabel::GetNext() const

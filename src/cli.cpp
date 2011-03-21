@@ -104,7 +104,7 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 	}
 
 	if (Parameters.CompilerMode == COMPILER_MODE_UNDEFINED) {
-		Parameters.CompilerMode = COMPILER_MODE_PARSE;	// default mode
+		Parameters.CompilerMode = COMPILER_MODE_GENERATE;	// default mode
 	}
 
 	if (Parameters.ParserMode == PARSER_MODE_EXPRESSION && Parameters.CompilerMode != COMPILER_MODE_PARSE) {

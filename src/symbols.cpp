@@ -48,12 +48,9 @@ void CSymbolTable::Add(CSymbol *ASymbol)
 	Symbols[ASymbol->GetName()] = ASymbol;
 
 	CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(ASymbol);
-	if (!VarSym) {
-		return;
+	if (VarSym) {
+		InitOffset(VarSym);
 	}
-
-	CurrentOffset += VarSym->GetType()->GetSize();
-	VarSym->SetOffset(CurrentOffset);
 }
 
 CSymbol* CSymbolTable::Get(const string &AName) const
@@ -89,19 +86,32 @@ unsigned int CSymbolTable::GetSize() const
 unsigned int CSymbolTable::GetElementsSize() const
 {
 	return CurrentOffset;
+}
 
-	/*unsigned int result = 0;
+void CSymbolTable::InitOffset(CVariableSymbol *ASymbol)
+{
+	CurrentOffset += ASymbol->GetType()->GetSize();
+	ASymbol->SetOffset(-CurrentOffset);
+}
 
-	CVariableSymbol *VarSym = NULL;
+/******************************************************************************
+ * CArgumentsSymbolTable
+ ******************************************************************************/
 
-	for (SymbolsIterator it = Begin(); it != End(); ++it) {
-		VarSym = dynamic_cast<CVariableSymbol *>(it->second); 
-		if (VarSym) {
-			result += VarSym->GetType()->GetSize();
-		}
-	}
+void CArgumentsSymbolTable::InitOffset(CVariableSymbol *ASymbol)
+{
+	CurrentOffset += ASymbol->GetType()->GetSize();
+	ASymbol->SetOffset(4 + CurrentOffset);	// FIXME: magic number: 4 - old EBP register value size
+}
 
-	return result;*/
+/******************************************************************************
+ * CStructSymbolTable
+ ******************************************************************************/
+
+void CStructSymbolTable::InitOffset(CVariableSymbol *ASymbol)
+{
+	ASymbol->SetOffset(CurrentOffset);
+	CurrentOffset += ASymbol->GetType()->GetSize();
 }
 
 /******************************************************************************
@@ -360,12 +370,12 @@ CVariableSymbol* CStructSymbol::GetField(const string &AName)
 	return dynamic_cast<CVariableSymbol *>(Fields->Get(AName));
 }
 
-CSymbolTable* CStructSymbol::GetSymbolTable()
+CStructSymbolTable* CStructSymbol::GetSymbolTable()
 {
 	return Fields;
 }
 
-void CStructSymbol::SetSymbolTable(CSymbolTable *ASymbolTable)
+void CStructSymbol::SetSymbolTable(CStructSymbolTable *ASymbolTable)
 {
 	Fields = ASymbolTable;
 }
@@ -521,12 +531,12 @@ void CVariableSymbol::SetType(CTypeSymbol *AType)
 	Type = AType;
 }
 
-size_t CVariableSymbol::GetOffset() const
+int CVariableSymbol::GetOffset() const
 {
 	return Offset;
 }
 
-void CVariableSymbol::SetOffset(size_t AOffset)
+void CVariableSymbol::SetOffset(int AOffset)
 {
 	Offset = AOffset;
 }
@@ -564,12 +574,12 @@ void CFunctionSymbol::AddArgument(CSymbol *AArgument)
 	}
 }
 
-CSymbolTable* CFunctionSymbol::GetArgumentsSymbolTable()
+CArgumentsSymbolTable* CFunctionSymbol::GetArgumentsSymbolTable()
 {
 	return Arguments;
 }
 
-void CFunctionSymbol::SetArgumentsSymbolTable(CSymbolTable *ASymbolTable)
+void CFunctionSymbol::SetArgumentsSymbolTable(CArgumentsSymbolTable *ASymbolTable)
 {
 	Arguments = ASymbolTable;
 }

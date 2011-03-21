@@ -60,18 +60,35 @@ string CAsmImm::GetText() const
  * CAsmMem
  ******************************************************************************/
 
-CAsmMem::CAsmMem(int ADisplacement, ERegister ABase) : Displacement(ADisplacement), Base(ABase)
+CAsmMem::CAsmMem(int ADisplacement, ERegister ABase, ERegister AOffset, int AMultiplier) : Displacement(ADisplacement), Base(ABase), Offset(AOffset), Multiplier(AMultiplier)
 {
 }
 
 string CAsmMem::GetText() const
 {
-	return ToString(Displacement) + "(" + "%" + RegistersText[Base] + ")";
+	string result;
+
+	result += Displacement ? ToString(Displacement) : "";
+	result += "(";
+	result += (Base != INVALID_REGISTER) ? "%" + RegistersText[Base] : "";
+	if (Offset != INVALID_REGISTER || Multiplier) {
+		result += ", ";
+	}
+	result += (Offset != INVALID_REGISTER) ? "%" + RegistersText[Offset] : "";
+	result += Multiplier ? ", " + ToString(Multiplier) : "";
+	result += ")";
+
+	return result;
 }
 
-CAsmMem* mem(int ADisplacement, ERegister ABase)
+CAsmMem* mem(int ADisplacement, ERegister ABase, ERegister AOffset = INVALID_REGISTER, int AMultiplier = 0)
 {
-	return new CAsmMem(ADisplacement, ABase);
+	return new CAsmMem(ADisplacement, ABase, AOffset, AMultiplier);
+}
+
+CAsmMem* mem(ERegister ABase)
+{
+	return new CAsmMem(0, ABase, INVALID_REGISTER, 0);
 }
 
 /******************************************************************************
@@ -205,8 +222,10 @@ CAsmCode::CAsmCode() : LabelsCount(0)
 	MnemonicsText[IDIV] = "idiv";
 	MnemonicsText[INC] = "inc";
 	MnemonicsText[DEC] = "dec";
+	MnemonicsText[NEG] = "neg";
 	MnemonicsText[CMP] = "cmp";
 	MnemonicsText[CDQ] = "cdq";
+	MnemonicsText[NOT] = "not";
 	MnemonicsText[AND] = "and";
 	MnemonicsText[OR] = "or";
 	MnemonicsText[XOR] = "xor";
@@ -284,6 +303,11 @@ void CAsmCode::Add(EMnemonic ACmd, CAsmMem *AOp1, ERegister AOp2)
 	Code.push_back(new CAsmCmd2(MnemonicsText[ACmd], AOp1, new CAsmReg(RegistersText[AOp2])));
 }
 
+void CAsmCode::Add(const string &ALabel)
+{
+	Code.push_back(new CAsmLabel(ALabel));
+}
+
 void CAsmCode::Output(ostream &Stream)
 {
 	Stream << ".text" << endl;
@@ -306,126 +330,328 @@ string CAsmCode::GenerateLabel()
 }
 
 /******************************************************************************
- * CCodeGenerationVisitor
+ * CAddressGenerationVisitor
  ******************************************************************************/
 
-CCodeGenerationVisitor::CCodeGenerationVisitor(CAsmCode &AAsm, CFunctionSymbol *AFuncSym) : Asm(AAsm), FuncSym(AFuncSym), BlockNesting(0)
+CAddressGenerationVisitor::CAddressGenerationVisitor(CAsmCode &AAsm, CCodeGenerationVisitor &ACode) : Asm(AAsm), Code(ACode)
 {
-	OperationCmd["=="] = JE;
-	OperationCmd["!="] = JNE;
-	OperationCmd["<"] = JL;
-	OperationCmd[">"] = JG;
-	OperationCmd["<="] = JLE;
-	OperationCmd[">="] = JGE;
-	OperationCmd["+"] = ADD;
-	OperationCmd["-"] = SUB;
-	OperationCmd["*"] = IMUL;
-	OperationCmd["&"] = AND;
-	OperationCmd["|"] = OR;
-	OperationCmd["^"] = XOR;
-	OperationCmd["<<"] = SAL;
-	OperationCmd[">>"] = SAR;
 }
 
-void CCodeGenerationVisitor::Visit(CUnaryOp &AStmt)
+void CAddressGenerationVisitor::Visit(CUnaryOp &AStmt)
 {
 	AStmt.GetArgument()->Accept(*this);
 	Asm.Add(POP, EAX);
 
-	string OpName = AStmt.GetName();
+	if (AStmt.GetType() == TOKEN_TYPE_OPERATION_ASTERISK) {
+		Asm.Add(PUSH, mem(EAX));
+	}
+}
 
-	if (OpName == "++" || OpName == "--") {
-		if (OpName == "--") {
-			Asm.Add(DEC, EAX);
-		} else if (OpName == "++") {
-			Asm.Add(INC, EAX);
+void CAddressGenerationVisitor::Visit(CBinaryOp &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CConditionalOp &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CIntegerConst &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CFloatConst &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CSymbolConst &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CStringConst &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CVariable &AStmt)
+{
+	Asm.Add(LEA, mem(AStmt.GetSymbol()->GetOffset(), EBP), EAX);
+	Asm.Add(PUSH, EAX);
+}
+
+void CAddressGenerationVisitor::Visit(CPostfixOp &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CFunctionCall &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CStructAccess &AStmt)
+{
+	AStmt.GetStruct()->Accept(*this);
+	Asm.Add(POP, EBX);
+
+	Asm.Add(MOV, AStmt.GetField()->GetSymbol()->GetOffset(), EAX);
+
+	Asm.Add(LEA, mem(0, EBX, EAX, 1), EAX);
+	Asm.Add(PUSH, EAX);
+}
+
+void CAddressGenerationVisitor::Visit(CIndirectAccess &AStmt)
+{
+	AStmt.GetPointer()->Accept(Code);
+	Asm.Add(POP, EBX);
+
+	Asm.Add(MOV, AStmt.GetField()->GetSymbol()->GetOffset(), EAX);
+
+	Asm.Add(LEA, mem(0, EBX, EAX, 1), EAX);
+	Asm.Add(PUSH, EAX);
+}
+
+void CAddressGenerationVisitor::Visit(CArrayAccess &AStmt)
+{
+	int ElemSize;
+
+	if (AStmt.GetLeft()->GetResultType()->IsArray()) {
+		AStmt.GetLeft()->Accept(*this);
+		AStmt.GetRight()->Accept(Code);
+		ElemSize = static_cast<CArraySymbol *>(AStmt.GetLeft()->GetResultType())->GetElementsType()->GetSize();
+	} else {
+		AStmt.GetRight()->Accept(*this);
+		AStmt.GetLeft()->Accept(Code);
+		ElemSize = static_cast<CArraySymbol *>(AStmt.GetRight()->GetResultType())->GetElementsType()->GetSize();
+	}
+	
+	Asm.Add(POP, EAX);
+	Asm.Add(MOV, ElemSize, EBX);
+	Asm.Add(IMUL, EBX, EAX);
+	Asm.Add(POP, EBX);
+
+	Asm.Add(LEA, mem(0, EBX, EAX, 1), EAX);
+	Asm.Add(PUSH, EAX);
+}
+
+void CAddressGenerationVisitor::Visit(CNullStatement &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CBlockStatement &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CIfStatement &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CForStatement &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CWhileStatement &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CDoStatement &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CLabel &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CCaseLabel &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CDefaultCaseLabel &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CGotoStatement &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CBreakStatement &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CContinueStatement &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CReturnStatement &AStmt)
+{
+}
+
+void CAddressGenerationVisitor::Visit(CSwitchStatement &AStmt)
+{
+}
+
+/******************************************************************************
+ * CCodeGenerationVisitor
+ ******************************************************************************/
+
+CCodeGenerationVisitor::CCodeGenerationVisitor(CAsmCode &AAsm, CFunctionSymbol *AFuncSym) : Asm(AAsm), FuncSym(AFuncSym), BlockNesting(0), Addr(AAsm, *this)
+{
+	OperationCmd[TOKEN_TYPE_OPERATION_EQUAL] = JE;
+	OperationCmd[TOKEN_TYPE_OPERATION_NOT_EQUAL] = JNE;
+	OperationCmd[TOKEN_TYPE_OPERATION_LESS_THAN] = JL;
+	OperationCmd[TOKEN_TYPE_OPERATION_GREATER_THAN] = JG;
+	OperationCmd[TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL] = JLE;
+	OperationCmd[TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL] = JGE;
+	OperationCmd[TOKEN_TYPE_OPERATION_PLUS] = ADD;
+	OperationCmd[TOKEN_TYPE_OPERATION_MINUS] = SUB;
+	OperationCmd[TOKEN_TYPE_OPERATION_ASTERISK] = IMUL;
+	OperationCmd[TOKEN_TYPE_OPERATION_AMPERSAND] = AND;
+	OperationCmd[TOKEN_TYPE_OPERATION_BITWISE_OR] = OR;
+	OperationCmd[TOKEN_TYPE_OPERATION_BITWISE_XOR] = XOR;
+	OperationCmd[TOKEN_TYPE_OPERATION_SHIFT_LEFT] = SAL;
+	OperationCmd[TOKEN_TYPE_OPERATION_SHIFT_RIGHT] = SAR;
+	OperationCmd[TOKEN_TYPE_OPERATION_INCREMENT] = INC;
+	OperationCmd[TOKEN_TYPE_OPERATION_DECREMENT] = DEC;
+
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_PLUS_ASSIGN] = TOKEN_TYPE_OPERATION_PLUS;
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_MINUS_ASSIGN] = TOKEN_TYPE_OPERATION_MINUS;
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN] = TOKEN_TYPE_OPERATION_ASTERISK;
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_SLASH_ASSIGN] = TOKEN_TYPE_OPERATION_SLASH;
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_PERCENT_ASSIGN] = TOKEN_TYPE_OPERATION_PERCENT;
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN] = TOKEN_TYPE_OPERATION_BITWISE_NOT;
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN] = TOKEN_TYPE_OPERATION_BITWISE_OR;
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN] = TOKEN_TYPE_OPERATION_AMPERSAND;
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN] = TOKEN_TYPE_OPERATION_BITWISE_XOR;
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_SHIFT_LEFT_ASSIGN] = TOKEN_TYPE_OPERATION_SHIFT_LEFT;
+	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_SHIFT_RIGHT_ASSIGN] = TOKEN_TYPE_OPERATION_SHIFT_RIGHT;
+}
+
+void CCodeGenerationVisitor::Visit(CUnaryOp &AStmt)
+{
+	ETokenType OpType = AStmt.GetType();
+	CExpression *Arg = AStmt.GetArgument();
+
+	if (OpType == TOKEN_TYPE_OPERATION_INCREMENT || OpType == TOKEN_TYPE_OPERATION_DECREMENT) {
+		Arg->Accept(Addr);
+		Arg->Accept(*this);
+
+		Asm.Add(POP, EAX);
+		Asm.Add(POP, EBX);
+
+		Asm.Add(OperationCmd[OpType], EAX);
+
+		Asm.Add(MOV, EAX, mem(EBX));
+	} else if (OpType == TOKEN_TYPE_OPERATION_AMPERSAND) {
+		Arg->Accept(Addr);
+		Asm.Add(POP, EAX);
+	} else if (OpType == TOKEN_TYPE_KEYWORD && AStmt.GetName() == "sizeof") {
+		Asm.Add(MOV, Arg->GetResultType()->GetSize(), EAX);
+	} else {
+		Arg->Accept(*this);
+		Asm.Add(POP, EAX);
+
+		if (OpType == TOKEN_TYPE_OPERATION_ASTERISK) {
+			Asm.Add(MOV, mem(EAX), EAX);
+		} else if (OpType == TOKEN_TYPE_OPERATION_MINUS) {
+			Asm.Add(NEG, EAX);
+		} else if (OpType == TOKEN_TYPE_OPERATION_BITWISE_NOT) {
+			Asm.Add(NOT, EAX);
+		} else if (OpType == TOKEN_TYPE_OPERATION_LOGIC_NOT) {
+			string TrueLabel = Asm.GenerateLabel();
+			string EndLabel = Asm.GenerateLabel();
+
+			Asm.Add(CMP, 0, EAX);
+			Asm.Add(JNE, TrueLabel);
+			Asm.Add(MOV, 1, EAX);
+			Asm.Add(JMP, EndLabel);
+			Asm.Add(TrueLabel);
+			Asm.Add(MOV, 0, EAX);
+			Asm.Add(EndLabel);
 		}
-
-		int off = dynamic_cast<CVariableSymbol *>(dynamic_cast<CVariable *>(AStmt.GetArgument())->GetSymbol())->GetOffset();
-		Asm.Add(MOV, EAX, mem(-off, EBP));
-
-	} else if (OpName == "*") {
-		Asm.Add(MOV, mem(0, EAX), EAX);
-	} else if (OpName == "&") {
-		int off = dynamic_cast<CVariableSymbol *>(dynamic_cast<CVariable *>(AStmt.GetArgument())->GetSymbol())->GetOffset();
-		Asm.Add(LEA, mem(-off, EBP), EAX);
 	}
 
 	Asm.Add(PUSH, EAX);
-
-	// TODO: unary ops code gen..
 }
 
 void CCodeGenerationVisitor::Visit(CBinaryOp &AStmt)
 {
-	string OpName = AStmt.GetName();
+	ETokenType OpType = AStmt.GetType();
 
-	if (OpName == "=") {
-		int off = dynamic_cast<CVariableSymbol *>(dynamic_cast<CVariable *>(AStmt.GetLeft())->GetSymbol())->GetOffset();
-
+	if (OpType == TOKEN_TYPE_OPERATION_ASSIGN) {
+		AStmt.GetLeft()->Accept(Addr);
 		AStmt.GetRight()->Accept(*this);
 
 		Asm.Add(POP, EAX);
-		Asm.Add(MOV, EAX, mem(-off, EBP));
-		Asm.Add(PUSH, EAX);
+		Asm.Add(POP, EBX);
 
-		return;
-	}
+		Asm.Add(MOV, EAX, mem(EBX));
+	} else {
+		bool CompoundAssignment = false;
 
-	AStmt.GetLeft()->Accept(*this);
-	AStmt.GetRight()->Accept(*this);
-
-	Asm.Add(POP, EBX);
-	Asm.Add(POP, EAX);
-
-	if (CTraits::IsTrivialOperation(OpName)) {
-		Asm.Add(OperationCmd[OpName], EBX, EAX);
-	} else if (OpName == "/" || OpName == "%") {
-		Asm.Add(CDQ);
-		Asm.Add(IDIV, EBX);
-		if (OpName == "%") {
-			Asm.Add(MOV, EDX, EAX);
+		if (CTraits::IsCompoundAssignment(OpType)) {
+			AStmt.GetLeft()->Accept(Addr);
+			OpType = CompoundAssignmentOp[OpType];
+			CompoundAssignment = true;
 		}
-	} else if (OpName == "&&") {
-		string FalseLabel = Asm.GenerateLabel();
-		string EndCheckLabel = Asm.GenerateLabel();
 
-		Asm.Add(CMP, 0, EAX);
-		Asm.Add(JE, FalseLabel);
-		Asm.Add(CMP, 0, EBX);
-		Asm.Add(JE, FalseLabel);
-		Asm.Add(MOV, 1, EAX);
-		Asm.Add(JMP, EndCheckLabel);
-		Asm.Add(new CAsmLabel(FalseLabel));
-		Asm.Add(MOV, 0, EAX);
-		Asm.Add(new CAsmLabel(EndCheckLabel));
+		AStmt.GetLeft()->Accept(*this);
+		AStmt.GetRight()->Accept(*this);
 
-	} else if (OpName == "||") {
-		string TrueLabel = Asm.GenerateLabel();
-		string EndCheckLabel = Asm.GenerateLabel();
+		Asm.Add(POP, EBX);
+		Asm.Add(POP, EAX);
 
-		Asm.Add(CMP, 0, EAX);
-		Asm.Add(JNE, TrueLabel);
-		Asm.Add(CMP, 0, EBX);
-		Asm.Add(JNE, TrueLabel);
-		Asm.Add(MOV, 0, EAX);
-		Asm.Add(JMP, EndCheckLabel);
-		Asm.Add(new CAsmLabel(TrueLabel));
-		Asm.Add(MOV, 1, EAX);
-		Asm.Add(new CAsmLabel(EndCheckLabel));
-	} else if (CTraits::IsComparisonOperation(OpName)) {
-		string TrueLabel = Asm.GenerateLabel();
-		string EndCheckLabel = Asm.GenerateLabel();
+		if (CTraits::IsTrivialOperation(OpType)) {
+			Asm.Add(OperationCmd[OpType], EBX, EAX);
+		} else if (OpType == TOKEN_TYPE_OPERATION_SLASH || OpType == TOKEN_TYPE_OPERATION_PERCENT) {
+			Asm.Add(CDQ);
+			Asm.Add(IDIV, EBX);
+			if (OpType == TOKEN_TYPE_OPERATION_PERCENT) {
+				Asm.Add(MOV, EDX, EAX);
+			}
+		} else if (OpType == TOKEN_TYPE_OPERATION_LOGIC_AND) {
+			string FalseLabel = Asm.GenerateLabel();
+			string EndCheckLabel = Asm.GenerateLabel();
 
-		Asm.Add(CMP, EBX, EAX);
-		Asm.Add(OperationCmd[OpName], TrueLabel);
-		Asm.Add(MOV, 0, EAX);
-		Asm.Add(JMP, EndCheckLabel);
-		Asm.Add(new CAsmLabel(TrueLabel));
-		Asm.Add(MOV, 1, EAX);
-		Asm.Add(new CAsmLabel(EndCheckLabel));
-	} else if (OpName == ",") {
-		Asm.Add(MOV, EBX, EAX);
+			Asm.Add(CMP, 0, EAX);
+			Asm.Add(JE, FalseLabel);
+			Asm.Add(CMP, 0, EBX);
+			Asm.Add(JE, FalseLabel);
+			Asm.Add(MOV, 1, EAX);
+			Asm.Add(JMP, EndCheckLabel);
+			Asm.Add(FalseLabel);
+			Asm.Add(MOV, 0, EAX);
+			Asm.Add(EndCheckLabel);
+
+		} else if (OpType == TOKEN_TYPE_OPERATION_LOGIC_OR) {
+			string TrueLabel = Asm.GenerateLabel();
+			string EndCheckLabel = Asm.GenerateLabel();
+
+			Asm.Add(CMP, 0, EAX);
+			Asm.Add(JNE, TrueLabel);
+			Asm.Add(CMP, 0, EBX);
+			Asm.Add(JNE, TrueLabel);
+			Asm.Add(MOV, 0, EAX);
+			Asm.Add(JMP, EndCheckLabel);
+			Asm.Add(TrueLabel);
+			Asm.Add(MOV, 1, EAX);
+			Asm.Add(EndCheckLabel);
+
+		} else if (CTraits::IsComparisonOperation(OpType)) {
+			string TrueLabel = Asm.GenerateLabel();
+			string EndCheckLabel = Asm.GenerateLabel();
+
+			Asm.Add(CMP, EBX, EAX);
+			Asm.Add(OperationCmd[OpType], TrueLabel);
+			Asm.Add(MOV, 0, EAX);
+			Asm.Add(JMP, EndCheckLabel);
+			Asm.Add(TrueLabel);
+			Asm.Add(MOV, 1, EAX);
+			Asm.Add(EndCheckLabel);
+
+		} else if (OpType == TOKEN_TYPE_SEPARATOR_COMMA) {
+			Asm.Add(MOV, EBX, EAX);
+		}
+
+		if (CompoundAssignment) {
+			Asm.Add(POP, EBX);
+			Asm.Add(MOV, EAX, mem(EBX));
+		}
 	}
 
 	Asm.Add(PUSH, EAX);
@@ -445,11 +671,11 @@ void CCodeGenerationVisitor::Visit(CConditionalOp &AStmt)
 	AStmt.GetTrueExpr()->Accept(*this);
 
 	Asm.Add(JMP, ConditionalEndLabel);
-	Asm.Add(new CAsmLabel(ElseLabel));
+	Asm.Add(ElseLabel);
 
 	AStmt.GetFalseExpr()->Accept(*this);
 
-	Asm.Add(new CAsmLabel(ConditionalEndLabel));
+	Asm.Add(ConditionalEndLabel);
 }
 
 void CCodeGenerationVisitor::Visit(CIntegerConst &AStmt)
@@ -459,6 +685,11 @@ void CCodeGenerationVisitor::Visit(CIntegerConst &AStmt)
 
 void CCodeGenerationVisitor::Visit(CFloatConst &AStmt)
 {
+	// DIRTY HACK: probably will not work on other archs..
+
+	float value = AStmt.GetValue();
+	int32_t int_rep = *((int32_t *) &value);
+	Asm.Add(PUSH, int_rep);
 }
 
 void CCodeGenerationVisitor::Visit(CSymbolConst &AStmt)
@@ -471,32 +702,20 @@ void CCodeGenerationVisitor::Visit(CStringConst &AStmt)
 
 void CCodeGenerationVisitor::Visit(CVariable &AStmt)
 {
-	CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(AStmt.GetSymbol());
-	int off = VarSym->GetOffset();
-	Asm.Add(PUSH, mem(-off, EBP));
-	//Asm.Add(PUSH, 
+	Asm.Add(PUSH, mem(AStmt.GetSymbol()->GetOffset(), EBP));
 }
 
 void CCodeGenerationVisitor::Visit(CPostfixOp &AStmt)
 {
 	AStmt.GetArgument()->Accept(*this);
-	Asm.Add(POP, EAX);
-	Asm.Add(MOV, EAX, EBX);
+	AStmt.GetArgument()->Accept(Addr);
 
-	string OpName = AStmt.GetName();
+	Asm.Add(POP, EBX);
+	Asm.Add(MOV, mem(ESP), EAX);
 
-	if (OpName == "--") {
-		Asm.Add(DEC, EAX);
-	} else if (OpName == "++") {
-		Asm.Add(INC, EAX);
-	}
+	Asm.Add(OperationCmd[AStmt.GetType()], EAX);
 
-	int off = dynamic_cast<CVariableSymbol *>(dynamic_cast<CVariable *>(AStmt.GetArgument())->GetSymbol())->GetOffset();
-	Asm.Add(MOV, EAX, mem(-off, EBP));
-
-	Asm.Add(PUSH, EBX);
-
-	// TODO: postfix ops code gen..
+	Asm.Add(MOV, EAX, mem(EBX));
 }
 
 void CCodeGenerationVisitor::Visit(CFunctionCall &AStmt)
@@ -507,19 +726,52 @@ void CCodeGenerationVisitor::Visit(CFunctionCall &AStmt)
 
 	Asm.Add(CALL, AStmt.GetFunction()->GetName());
 	Asm.Add(ADD, AStmt.GetFunction()->GetArgumentsSymbolTable()->GetElementsSize(), ESP);
-	Asm.Add(PUSH, EAX);
+
+	if (!AStmt.GetFunction()->GetReturnType()->IsVoid()) {
+		Asm.Add(PUSH, EAX);
+	}
 }
 
 void CCodeGenerationVisitor::Visit(CStructAccess &AStmt)
 {
+	AStmt.GetStruct()->Accept(Addr);
+	Asm.Add(POP, EBX);
+
+	Asm.Add(MOV, AStmt.GetField()->GetSymbol()->GetOffset(), EAX);
+
+	Asm.Add(PUSH, mem(0, EBX, EAX, 1));
 }
 
 void CCodeGenerationVisitor::Visit(CIndirectAccess &AStmt)
 {
+	AStmt.GetPointer()->Accept(*this);
+	Asm.Add(POP, EBX);
+
+	Asm.Add(MOV, AStmt.GetField()->GetSymbol()->GetOffset(), EAX);
+
+	Asm.Add(PUSH, mem(0, EBX, EAX, 1));
 }
 
 void CCodeGenerationVisitor::Visit(CArrayAccess &AStmt)
 {
+	int ElemSize;
+
+	if (AStmt.GetLeft()->GetResultType()->IsArray()) {
+		AStmt.GetLeft()->Accept(Addr);
+		AStmt.GetRight()->Accept(*this);
+		ElemSize = static_cast<CArraySymbol *>(AStmt.GetLeft()->GetResultType())->GetElementsType()->GetSize();
+	} else {
+		AStmt.GetRight()->Accept(Addr);
+		AStmt.GetLeft()->Accept(*this);
+		ElemSize = static_cast<CArraySymbol *>(AStmt.GetRight()->GetResultType())->GetElementsType()->GetSize();
+	}
+
+	Asm.Add(POP, EAX);
+	Asm.Add(MOV, ElemSize, EBX);
+	Asm.Add(IMUL, EBX, EAX);
+	Asm.Add(POP, EBX);
+
+	Asm.Add(PUSH, mem(0, EBX, EAX, 1));
 }
 
 void CCodeGenerationVisitor::Visit(CNullStatement &AStmt)
@@ -545,7 +797,10 @@ void CCodeGenerationVisitor::Visit(CBlockStatement &AStmt)
 
 	for (CBlockStatement::StatementsIterator it = AStmt.Begin(); it != AStmt.End(); ++it) {
 		(*it)->Accept(*this);
-		// TODO: if an expression yields a value, we should pop it from the stack..
+
+		if ((*it)->IsExpression()) {
+			Asm.Add(POP, EAX);
+		}
 	}
 
 	BlockNesting--;
@@ -554,7 +809,7 @@ void CCodeGenerationVisitor::Visit(CBlockStatement &AStmt)
 		/*if (!ReturnEncountered && !FuncSym->GetReturnType()->IsVoid()) {
 			throw CException("no `return` statement in function 
 		}*/
-		Asm.Add(new CAsmLabel(".RL" + FuncSym->GetName()));
+		Asm.Add(".RL" + FuncSym->GetName());
 	}
 
 	Asm.Add(ADD, AStmt.GetSymbolTable()->GetElementsSize(), ESP);
@@ -581,11 +836,11 @@ void CCodeGenerationVisitor::Visit(CIfStatement &AStmt)
 	TryVisit(AStmt.GetThenStatement());
 
 	Asm.Add(JMP, IfEndLabel);
-	Asm.Add(new CAsmLabel(ElseLabel));
+	Asm.Add(ElseLabel);
 
 	TryVisit(AStmt.GetElseStatement());
 
-	Asm.Add(new CAsmLabel(IfEndLabel));
+	Asm.Add(IfEndLabel);
 }
 
 void CCodeGenerationVisitor::Visit(CForStatement &AStmt)
@@ -599,7 +854,7 @@ void CCodeGenerationVisitor::Visit(CForStatement &AStmt)
 		Asm.Add(POP, EAX);
 	}
 
-	Asm.Add(new CAsmLabel(LoopStart));
+	Asm.Add(LoopStart);
 
 	if (AStmt.GetCondition()) {
 		AStmt.GetCondition()->Accept(*this);
@@ -614,14 +869,14 @@ void CCodeGenerationVisitor::Visit(CForStatement &AStmt)
 
 	BreakLabels.pop();
 
-	Asm.Add(new CAsmLabel(LoopContinue));
+	Asm.Add(LoopContinue);
 
 	if (AStmt.GetUpdate()) {
 		AStmt.GetUpdate()->Accept(*this);
 		Asm.Add(POP, EAX);
 	}
 	Asm.Add(JMP, LoopStart);
-	Asm.Add(new CAsmLabel(LoopEnd));
+	Asm.Add(LoopEnd);
 }
 
 void CCodeGenerationVisitor::Visit(CWhileStatement &AStmt)
@@ -629,7 +884,7 @@ void CCodeGenerationVisitor::Visit(CWhileStatement &AStmt)
 	string LoopStart = Asm.GenerateLabel();
 	string LoopEnd = Asm.GenerateLabel();
 
-	Asm.Add(new CAsmLabel(LoopStart));
+	Asm.Add(LoopStart);
 
 	AStmt.GetCondition()->Accept(*this);
 	Asm.Add(POP, EAX);
@@ -645,7 +900,7 @@ void CCodeGenerationVisitor::Visit(CWhileStatement &AStmt)
 	ContinueLabels.pop();
 
 	Asm.Add(JMP, LoopStart);
-	Asm.Add(new CAsmLabel(LoopEnd));
+	Asm.Add(LoopEnd);
 }
 
 void CCodeGenerationVisitor::Visit(CDoStatement &AStmt)
@@ -654,7 +909,7 @@ void CCodeGenerationVisitor::Visit(CDoStatement &AStmt)
 	string LoopEnd = Asm.GenerateLabel();
 	string LoopContinue = Asm.GenerateLabel();
 
-	Asm.Add(new CAsmLabel(LoopStart));
+	Asm.Add(LoopStart);
 
 	BreakLabels.push(LoopEnd);
 	ContinueLabels.push(LoopContinue);
@@ -664,29 +919,33 @@ void CCodeGenerationVisitor::Visit(CDoStatement &AStmt)
 	BreakLabels.pop();
 	ContinueLabels.pop();
 
-	Asm.Add(new CAsmLabel(LoopContinue));
+	Asm.Add(LoopContinue);
 
 	AStmt.GetCondition()->Accept(*this);
 	Asm.Add(POP, EAX);
 	Asm.Add(CMP, 0, EAX);
 	Asm.Add(JNE, LoopStart);
 
-	Asm.Add(new CAsmLabel(LoopEnd));
+	Asm.Add(LoopEnd);
 }
 
 void CCodeGenerationVisitor::Visit(CLabel &AStmt)
 {
-	Asm.Add(new CAsmLabel(".CL" + FuncSym->GetName() + "_" + AStmt.GetName()));
+	Asm.Add(".CL" + FuncSym->GetName() + "_" + AStmt.GetName());
 
 	TryVisit(AStmt.GetNext());
 }
 
 void CCodeGenerationVisitor::Visit(CCaseLabel &AStmt)
 {
+	Asm.Add(AStmt.GetName());
+	TryVisit(AStmt.GetNext());
 }
 
 void CCodeGenerationVisitor::Visit(CDefaultCaseLabel &AStmt)
 {
+	Asm.Add(AStmt.GetName());
+	TryVisit(AStmt.GetNext());
 }
 
 void CCodeGenerationVisitor::Visit(CGotoStatement &AStmt)
@@ -717,8 +976,37 @@ void CCodeGenerationVisitor::Visit(CReturnStatement &AStmt)
 
 void CCodeGenerationVisitor::Visit(CSwitchStatement &AStmt)
 {
-}
+	AStmt.GetTestExpression()->Accept(*this);
 
-CAddressGenerationVisitor::CAddressGenerationVisitor(CAsmCode &AAsm) : Asm(AAsm)
-{
+	Asm.Add(POP, ECX);
+
+	string CaseLabelName;
+
+	for (CSwitchStatement::CasesIterator it = AStmt.Begin(); it != AStmt.End(); ++it) {
+		it->second->GetCaseExpression()->Accept(*this);
+
+		CaseLabelName = Asm.GenerateLabel();
+		it->second->SetName(CaseLabelName);
+
+		Asm.Add(POP, EAX);
+		Asm.Add(CMP, EAX, ECX);
+		Asm.Add(JE, CaseLabelName);
+	}
+
+	if (AStmt.GetDefaultCase()) {
+		CaseLabelName = Asm.GenerateLabel();
+		AStmt.GetDefaultCase()->SetName(CaseLabelName);
+		Asm.Add(JMP, CaseLabelName);
+	}
+
+	CaseLabelName = Asm.GenerateLabel();
+	Asm.Add(JMP, CaseLabelName);
+
+	BreakLabels.push(CaseLabelName);
+
+	AStmt.GetBody()->Accept(*this);
+
+	BreakLabels.pop();
+
+	Asm.Add(CaseLabelName);
 }

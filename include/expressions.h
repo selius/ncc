@@ -19,6 +19,7 @@ public:
 	CPosition GetPosition() const;
 
 	virtual CTypeSymbol* GetResultType() const = 0;
+	void SetResultType(CTypeSymbol *AResultType);
 
 	virtual bool IsLValue() const;
 	virtual bool IsConst() const;
@@ -29,6 +30,8 @@ public:
 protected:
 	ETokenType Type;
 	CPosition Position;
+
+	CTypeSymbol *ResultType;
 };
 
 class CUnaryOp : public CExpression
@@ -69,6 +72,7 @@ public:
 	void SetRight(CExpression *ARight);
 
 	CTypeSymbol* GetResultType() const;
+	CTypeSymbol* GetCommonRealType() const;
 
 	bool IsConst() const;
 
@@ -301,6 +305,8 @@ public:
 	~CArrayAccess();
 
 	void Accept(CStatementVisitor &AVisitor);
+
+	size_t GetElementSize() const;
 
 	CTypeSymbol* GetResultType() const;
 

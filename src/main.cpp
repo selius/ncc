@@ -83,16 +83,17 @@ int main(int argc, char *argv[])
 					FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
 					if (FuncSym) {
 						*out << FuncSym->GetName() << ":" << endl;
+						if (!FuncSym->GetBody()) {
+							*out << "\t(declared, but not defined)" << endl;
+						}
 
-						/*CSymbolTable *FSST = FuncSym->GetArgumentsSymbolTable();
+						CSymbolTable *FSST = FuncSym->GetArgumentsSymbolTable();
 						for (CSymbolTable::SymbolsIterator it = FSST->Begin(); it != FSST->End(); ++it) {
-							*out << it->second->GetName() <<": " << dynamic_cast<CVariableSymbol *>(it->second)->GetType()->GetName() << endl;
-						}*/
+							*out << "\t" << it->second->GetName() <<": " << dynamic_cast<CVariableSymbol *>(it->second)->GetType()->GetName() << endl;
+						}
 
 						if (FuncSym->GetBody()) {
 							FuncSym->GetBody()->Accept(*vis);
-						} else {
-							*out << "\t(declared, but not defined)" << endl;
 						}
 					}
 				}
@@ -121,7 +122,7 @@ int main(int argc, char *argv[])
 					CCodeGenerationVisitor vis(code, FuncSym);
 
 					code.Add(new CAsmDirective("globl", FuncSym->GetName()));
-					code.Add(new CAsmLabel(FuncSym->GetName()));
+					code.Add(FuncSym->GetName());
 					FuncSym->GetBody()->Accept(vis);
 					code.Add(RET);
 				}

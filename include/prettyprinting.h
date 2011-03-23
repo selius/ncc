@@ -81,7 +81,8 @@ public:
 	void Visit(CReturnStatement &AStmt);
 	void Visit(CSwitchStatement &AStmt);
 
-private:
+//private:
+public:
 	void PrintTreeDecoration();
 	void PrintName(CStatement &AStmt);
 

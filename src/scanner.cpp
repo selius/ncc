@@ -607,9 +607,11 @@ CToken* CScanner::ScanStringConstant()
 	char symbol;
 
 	while (InputStream.good() && ((symbol = AdvanceOneSymbol()) != '\n')) {
-		if (symbol == '\\') {
+		/*if (symbol == '\\') {
 			Text += ProcessEscapeSequence();
-		} else if (symbol == '"') {
+		} else*/
+		
+		if (symbol == '"') {
 			return new CToken(TOKEN_TYPE_CONSTANT_STRING, Text, StartPosition);
 		} else {
 			Text += symbol;

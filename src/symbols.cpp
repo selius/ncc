@@ -88,6 +88,11 @@ unsigned int CSymbolTable::GetElementsSize() const
 	return CurrentOffset;
 }
 
+void CSymbolTable::SetCurrentOffset(size_t AOffset)
+{
+	CurrentOffset = AOffset;
+}
+
 void CSymbolTable::InitOffset(CVariableSymbol *ASymbol)
 {
 	CurrentOffset += ASymbol->GetType()->GetSize();
@@ -133,6 +138,11 @@ CSymbolTable* CSymbolTableStack::Pop()
 CSymbolTable* CSymbolTableStack::GetTop() const
 {
 	return Tables.front();
+}
+
+CSymbolTable* CSymbolTableStack::GetGlobal() const
+{
+	return Tables.back();
 }
 
 /******************************************************************************
@@ -545,7 +555,7 @@ void CVariableSymbol::SetOffset(int AOffset)
  * CFunctionSymbol
  ******************************************************************************/
 
-CFunctionSymbol::CFunctionSymbol(const string &AName /*= ""*/, CTypeSymbol *AReturnType /*= NULL*/) : CSymbol(AName), ReturnType(AReturnType), Arguments(NULL), Body(NULL), Type(new CFunctionTypeSymbol) //, Locals(NULL)
+CFunctionSymbol::CFunctionSymbol(const string &AName /*= ""*/, CTypeSymbol *AReturnType /*= NULL*/) : CSymbol(AName), ReturnType(AReturnType), Arguments(NULL), Body(NULL), Type(new CFunctionTypeSymbol)
 {
 }
 
@@ -554,7 +564,6 @@ CFunctionSymbol::~CFunctionSymbol()
 	delete Arguments;
 	delete Body;
 	delete Type;
-	//delete Locals;
 }
 
 CTypeSymbol* CFunctionSymbol::GetReturnType() const
@@ -571,6 +580,7 @@ void CFunctionSymbol::AddArgument(CSymbol *AArgument)
 {
 	if (Arguments) {
 		Arguments->Add(AArgument);
+		ArgumentsOrder.push_back(AArgument);
 	}
 }
 
@@ -582,6 +592,11 @@ CArgumentsSymbolTable* CFunctionSymbol::GetArgumentsSymbolTable()
 void CFunctionSymbol::SetArgumentsSymbolTable(CArgumentsSymbolTable *ASymbolTable)
 {
 	Arguments = ASymbolTable;
+}
+
+CFunctionSymbol::ArgumentsOrderContainer* CFunctionSymbol::GetArgumentsOrderedList()
+{
+	return &ArgumentsOrder;
 }
 
 CBlockStatement* CFunctionSymbol::GetBody() const

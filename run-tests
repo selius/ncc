@@ -48,6 +48,7 @@ TestMode scanner -S
 TestMode parser-simple-expressions "-P --parser-mode expression"
 TestMode parser-arbitrary-expressions "-P --parser-mode expression"
 TestMode parser-statements -P
+cd tests/codegen/ && ./run-tests && cd ./../
 
-echo -e "\nTotal successful: $TOTAL_SUCCESSFUL"
-echo -e "Total failed: $TOTAL_FAILED"
+#echo -e "\nTotal successful: $TOTAL_SUCCESSFUL"
+#echo -e "Total failed: $TOTAL_FAILED"

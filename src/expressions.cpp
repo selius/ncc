@@ -61,7 +61,7 @@ namespace CheckTypes
  * CExpression
  ******************************************************************************/
 
-CExpression::CExpression() : Type(TOKEN_TYPE_INVALID)
+CExpression::CExpression() : Type(TOKEN_TYPE_INVALID), ResultType(NULL)
 {
 }
 
@@ -84,6 +84,11 @@ ETokenType CExpression::GetType() const
 CPosition CExpression::GetPosition() const
 {
 	return Position;
+}
+
+void CExpression::SetResultType(CTypeSymbol *AResultType)
+{
+	ResultType = AResultType;
 }
 
 bool CExpression::IsLValue() const
@@ -232,12 +237,24 @@ void CBinaryOp::SetRight(CExpression *ARight)
 
 CTypeSymbol* CBinaryOp::GetResultType() const
 {
-	if (Type == TOKEN_TYPE_OPERATION_PERCENT || Type == TOKEN_TYPE_OPERATION_SHIFT_LEFT || Type == TOKEN_TYPE_OPERATION_SHIFT_RIGHT) {
-		return Left->GetResultType();
+	if (ResultType) {
+		return ResultType;
 	}
 
-	// TODO: deal with this..
-	return Left->GetResultType();
+	if (Type == TOKEN_TYPE_SEPARATOR_COMMA) {
+		return Right->GetResultType();
+	}
+
+	return GetCommonRealType();
+}
+
+CTypeSymbol* CBinaryOp::GetCommonRealType() const
+{
+	if (Left->GetResultType()->IsInt() && Right->GetResultType()->IsFloat()) {
+		return Right->GetResultType();
+	} else {
+		return Left->GetResultType();
+	}
 }
 
 bool CBinaryOp::IsConst() const
@@ -666,17 +683,17 @@ void CFunctionCall::CheckTypes() const
 {
 	assert(Function != NULL);
 
-	CSymbolTable *ST = Function->GetArgumentsSymbolTable();
+	CFunctionSymbol::ArgumentsOrderContainer *ST = Function->GetArgumentsOrderedList();
 
 	ArgumentsIterator ait;
-	CSymbolTable::SymbolsIterator stit;
+	CFunctionSymbol::ArgumentsOrderIterator stit;
 
-	if (Arguments.size() != ST->GetSize()) {
+	if (Arguments.size() != Function->GetArgumentsSymbolTable()->GetSize()) {
 		throw CException("number of actual and formal parameters don't match", Position);
 	}
 
-	for (ait = Begin(), stit = ST->Begin(); ait != End() && stit != ST->End(); ++ait, ++stit) {
-		if (!(*ait)->GetResultType()->CompatibleWith(dynamic_cast<CVariableSymbol *>(stit->second)->GetType())) {
+	for (ait = Begin(), stit = ST->begin(); ait != End() && stit != ST->end(); ++ait, ++stit) {
+		if (!(*ait)->GetResultType()->CompatibleWith(dynamic_cast<CVariableSymbol *>(*stit)->GetType())) {
 			throw CException("function actual parameters don't match its formal parameters", Position);
 		}
 	}
@@ -855,13 +872,46 @@ void CArrayAccess::Accept(CStatementVisitor &AVisitor)
 	AVisitor.Visit(*this);
 }
 
+size_t CArrayAccess::GetElementSize() const
+{
+	size_t result;
+
+	if (Left->GetResultType()->IsPointer()) {
+		if (Left->GetResultType()->IsArray()) {
+			result = dynamic_cast<CArraySymbol *>(Left->GetResultType())->GetElementsType()->GetSize();
+		} else {
+			result = dynamic_cast<CPointerSymbol *>(Left->GetResultType())->GetRefType()->GetSize();
+		}
+	} else {
+		if (Right->GetResultType()->IsArray()) {
+			result = dynamic_cast<CArraySymbol *>(Right->GetResultType())->GetElementsType()->GetSize();
+		} else {
+			result = dynamic_cast<CPointerSymbol *>(Right->GetResultType())->GetRefType()->GetSize();
+		}
+	}
+
+	return result;
+}
+
 CTypeSymbol* CArrayAccess::GetResultType() const
 {
-	if (Left->GetResultType()->IsArray()) {
-		return dynamic_cast<CArraySymbol *>(Left->GetResultType())->GetElementsType();
+	CTypeSymbol *result;
+
+	if (Left->GetResultType()->IsPointer()) {
+		if (Left->GetResultType()->IsArray()) {
+			result = dynamic_cast<CArraySymbol *>(Left->GetResultType())->GetElementsType();
+		} else {
+			result = dynamic_cast<CPointerSymbol *>(Left->GetResultType())->GetRefType();
+		}
 	} else {
-		return dynamic_cast<CArraySymbol *>(Right->GetResultType())->GetElementsType();
+		if (Right->GetResultType()->IsArray()) {
+			result = dynamic_cast<CArraySymbol *>(Right->GetResultType())->GetElementsType();
+		} else {
+			result = dynamic_cast<CPointerSymbol *>(Right->GetResultType())->GetRefType();
+		}
 	}
+
+	return result;
 }
 
 bool CArrayAccess::IsLValue() const

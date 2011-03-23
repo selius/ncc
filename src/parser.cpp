@@ -74,11 +74,13 @@ CParser::CParser(CScanner &AScanner, EParserMode AMode /*= PARSER_MODE_NORMAL*/)
 	NextToken();
 
 	CSymbolTable *GlobalSymTable = new CSymbolTable;
+
+	SymbolTableStack.Push(GlobalSymTable);
+
 	GlobalSymTable->Add(new CIntegerSymbol);
 	GlobalSymTable->Add(new CFloatSymbol);
 	GlobalSymTable->Add(new CVoidSymbol);
-
-	SymbolTableStack.Push(GlobalSymTable);
+	GlobalSymTable->Add(new CPointerSymbol(SymbolTableStack.Lookup<CTypeSymbol>("int")));
 
 	BlockType.push(BLOCK_TYPE_DEFAULT);
 	ScopeType.push(SCOPE_TYPE_GLOBAL);
@@ -284,6 +286,13 @@ CSymbol* CParser::ParseDeclarator(CParser::CDeclarationSpecifier DeclSpec, bool 
 		return NULL;
 	}
 
+	/*if (CTypeSymbol *ExistingSym = SymbolTableStack.Lookup<CTypeSymbol>(DeclSpec.Type->GetName())) {
+		delete DeclSpec.Type;
+		DeclSpec.Type = ExistingSym;
+	} else {
+		SymbolTableStack.GetTop()->Add(DeclSpec.Type);
+	}*/
+
 	CSymbol *Result = NULL;
 	bool IdentifierFound = false;
 	string text;
@@ -375,6 +384,8 @@ CPointerSymbol* CParser::ParsePointer(CTypeSymbol *ARefType)
 		PreviousToken();
 	}
 
+	SymbolTableStack.GetGlobal()->Add(Sym);
+
 	return Sym;
 
 	// TODO: possibly add support of const pointers..
@@ -415,6 +426,8 @@ CArraySymbol* CParser::ParseArray(CTypeSymbol *AElemType)
 	if (Token->GetType() == TOKEN_TYPE_LEFT_SQUARE_BRACKET) {
 		Sym->SetElementsType(ParseArray(AElemType));
 	}
+
+	//SymbolTableStack.GetGlobal()->Add(Sym);
 
 	return Sym;
 }
@@ -550,7 +563,13 @@ CBlockStatement* CParser::ParseBlock()
 
 	CBlockStatement *Stmt = new CBlockStatement;
 
-	SymbolTableStack.Push(new CSymbolTable);
+	CSymbolTable *BlockSymTable = new CSymbolTable;
+
+	if (typeid(*SymbolTableStack.GetTop()) == typeid(CSymbolTable)) {
+		BlockSymTable->SetCurrentOffset(SymbolTableStack.GetTop()->GetElementsSize());
+	}
+
+	SymbolTableStack.Push(BlockSymTable);
 
 	while (ParseDeclaration());
 
@@ -1043,7 +1062,9 @@ CExpression* CParser::ParseAssignment()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseAssignment());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
 
 		Expr = Op;
 	}
@@ -1072,7 +1093,9 @@ CExpression* CParser::ParseConditional()
 
 		Op->SetFalseExpr(ParseConditional());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
 
 		Expr = Op;
 	}
@@ -1094,7 +1117,11 @@ CExpression* CParser::ParseLogicalOr()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseLogicalAnd());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
+
+		Op->SetResultType(SymbolTableStack.Lookup<CTypeSymbol>("int"));
 
 		Expr = Op;
 	}
@@ -1116,7 +1143,11 @@ CExpression* CParser::ParseLogicalAnd()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseBitwiseOr());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
+
+		Op->SetResultType(SymbolTableStack.Lookup<CTypeSymbol>("int"));
 
 		Expr = Op;
 	}
@@ -1138,7 +1169,9 @@ CExpression* CParser::ParseBitwiseOr()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseBitwiseXor());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
 
 		Expr = Op;
 	}
@@ -1160,7 +1193,9 @@ CExpression* CParser::ParseBitwiseXor()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseBitwiseAnd());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
 
 		Expr = Op;
 	}
@@ -1182,7 +1217,9 @@ CExpression* CParser::ParseBitwiseAnd()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseEqualityExpression());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
 
 		Expr = Op;
 	}
@@ -1204,7 +1241,11 @@ CExpression* CParser::ParseEqualityExpression()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseRelationalExpression());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
+
+		Op->SetResultType(SymbolTableStack.Lookup<CTypeSymbol>("int"));
 
 		Expr = Op;
 	}
@@ -1226,7 +1267,11 @@ CExpression* CParser::ParseRelationalExpression()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseShiftExpression());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
+
+		Op->SetResultType(SymbolTableStack.Lookup<CTypeSymbol>("int"));
 
 		Expr = Op;
 	}
@@ -1248,7 +1293,9 @@ CExpression* CParser::ParseShiftExpression()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseAdditiveExpression());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
 
 		Expr = Op;
 	}
@@ -1294,7 +1341,9 @@ CExpression* CParser::ParseMultiplicativeExpression()
 		Op->SetLeft(Expr);
 		Op->SetRight(ParseCastExpression());
 
-		Op->CheckTypes();
+		if (Mode != PARSER_MODE_EXPRESSION) {
+			Op->CheckTypes();
+		}
 
 		Expr = Op;
 	}
@@ -1359,8 +1408,12 @@ CExpression* CParser::ParseUnaryExpression()
 		Op->SetArgument(ParseCastExpression());
 	}
 
-	if (type != TOKEN_TYPE_OPERATION_ASTERISK || Mode != PARSER_MODE_EXPRESSION) { // ohlol, that's looking bad..
+	if (Mode != PARSER_MODE_EXPRESSION) {
 		Op->CheckTypes();
+	}
+
+	if (type == TOKEN_TYPE_OPERATION_LOGIC_NOT) {
+		Op->SetResultType(SymbolTableStack.Lookup<CTypeSymbol>("int"));
 	}
 
 	return Op;
@@ -1459,7 +1512,7 @@ CExpression* CParser::ParsePostfixExpression()
 			break;
 		}
 
-		if (Token->GetType() == TOKEN_TYPE_OPERATION_INCREMENT || Token->GetType() == TOKEN_TYPE_OPERATION_DECREMENT || Mode != PARSER_MODE_EXPRESSION) {
+		if (Mode != PARSER_MODE_EXPRESSION) {
 			Op->CheckTypes();
 		}
 
@@ -1488,7 +1541,7 @@ CExpression* CParser::ParsePrimaryExpression()
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_SYMBOL) {
 		Expr = new CSymbolConst(*Token, SymbolTableStack.Lookup<CTypeSymbol>("int"));
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_STRING) {
-		Expr = new CStringConst(*Token, NULL);	// TODO: replace NULL by something meaningful..
+		Expr = new CStringConst(*Token, SymbolTableStack.Lookup<CTypeSymbol>("int*"));
 	} else if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
 		CSymbol *Sym = SymbolTableStack.Lookup<CSymbol>(Token->GetText());
 

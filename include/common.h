@@ -20,7 +20,7 @@ using namespace std;
 
 #define COMPILER_NAME "ncc"
 #define COMPILER_TITLE "Nartov C Compiler"
-#define COMPILER_VERSION "0.3.0"
+#define COMPILER_VERSION "0.4.0"
 
 enum EExitCode
 {

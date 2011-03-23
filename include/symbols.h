@@ -39,6 +39,8 @@ public:
 
 	unsigned int GetElementsSize() const;
 
+	void SetCurrentOffset(size_t AOffset);
+
 protected:
 	virtual void InitOffset(CVariableSymbol *ASymbol);
 	SymbolsContainer Symbols;
@@ -68,6 +70,8 @@ public:
 	void Push(CSymbolTable *ATable);
 	CSymbolTable* Pop();
 	CSymbolTable* GetTop() const;
+
+	CSymbolTable* GetGlobal() const;
 
 	template<typename T>
 	T* Lookup(const string &AName) const
@@ -281,6 +285,9 @@ private:
 class CFunctionSymbol : public CSymbol
 {
 public:
+	typedef vector<CSymbol *> ArgumentsOrderContainer;
+	typedef ArgumentsOrderContainer::iterator ArgumentsOrderIterator;
+
 	CFunctionSymbol(const string &AName = "", CTypeSymbol *AReturnType = NULL);
 	~CFunctionSymbol();
 
@@ -292,6 +299,8 @@ public:
 	CArgumentsSymbolTable* GetArgumentsSymbolTable();
 	void SetArgumentsSymbolTable(CArgumentsSymbolTable *ASymbolTable);
 
+	ArgumentsOrderContainer* GetArgumentsOrderedList();
+
 	CBlockStatement* GetBody() const;
 	void SetBody(CBlockStatement *ABody);
 
@@ -301,7 +310,7 @@ private:
 	CTypeSymbol *ReturnType;
 
 	CArgumentsSymbolTable *Arguments;
-	//CSymbolTable *Locals;
+	ArgumentsOrderContainer ArgumentsOrder;
 
 	CBlockStatement *Body;
 

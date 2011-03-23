@@ -15,6 +15,8 @@ enum ERegister
 	EDI,
 	ESP,
 	EBP,
+	AX,
+	ST0,
 	INVALID_REGISTER,
 	// possibly add FPU registers
 };
@@ -33,6 +35,10 @@ enum EMnemonic
 	JG,
 	JLE,
 	JGE,
+	JA,
+	JB,
+	JAE,
+	JBE,
 	ADD,
 	SUB,
 	MUL,
@@ -51,6 +57,21 @@ enum EMnemonic
 	SAL,
 	SAR,
 	LEA,
+	SAHF,
+	FLD,
+	FILD,
+	FSTP,
+	FISTTP,
+	FCHS,
+	FLD1,
+	FADD,
+	FSUBR,
+	FMUL,
+	FDIVR,
+	FTST,
+	FCOMP,
+	FCOMPP,
+	FSTSW,
 	// to be continued
 };
 
@@ -215,12 +236,16 @@ public:
 
 	// TODO: add more "good" versions of Add
 
+	string AddStringLiteral(const string &ALiteral);
+
 	void Output(ostream &Stream);
 
 	string GenerateLabel();
 
 private:
 	CodeContainer Code;
+
+	map<string, string> StringLiterals;
 
 	int LabelsCount;
 
@@ -301,6 +326,10 @@ public:
 	void Visit(CSwitchStatement &AStmt);
 
 private:
+	void ConvertFloatToInt();
+	void ConvertIntToFloat();
+	void PerformConversion(CTypeSymbol *LHS, CTypeSymbol *RHS);
+
 	CAsmCode &Asm;
 	CFunctionSymbol *FuncSym;
 	int BlockNesting;
@@ -309,7 +338,8 @@ private:
 	stack<string> BreakLabels;
 	stack<string> ContinueLabels;
 
-	map<ETokenType, EMnemonic> OperationCmd;
+	map<ETokenType, EMnemonic> IntOperationCmd;
+	map<ETokenType, EMnemonic> FloatOperationCmd;
 	map<ETokenType, ETokenType> CompoundAssignmentOp;
 
 	CAddressGenerationVisitor Addr;

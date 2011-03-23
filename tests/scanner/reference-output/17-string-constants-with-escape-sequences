@@ -1,5 +1,4 @@
-1	1	CONSTANT_STRING                	test
-
-1	10	CONSTANT_STRING                	another 	 test
-2	1	CONSTANT_STRING                	hear beep? 
+1	1	CONSTANT_STRING                	test\n
+1	10	CONSTANT_STRING                	another \t test
+2	1	CONSTANT_STRING                	hear beep\? \a
 3	1	EOF                            	

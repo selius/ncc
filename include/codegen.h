@@ -16,6 +16,7 @@ enum ERegister
 	ESP,
 	EBP,
 	AX,
+	CL,
 	ST0,
 	INVALID_REGISTER,
 	// possibly add FPU registers

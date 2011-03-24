@@ -261,6 +261,7 @@ CAsmCode::CAsmCode() : LabelsCount(0)
 	RegistersText[ESP] = "esp";
 	RegistersText[EBP] = "ebp";
 	RegistersText[AX] = "ax";
+	RegistersText[CL] = "cl";
 	RegistersText[ST0] = "st(0)";
 }
 
@@ -558,7 +559,6 @@ CCodeGenerationVisitor::CCodeGenerationVisitor(CAsmCode &AAsm, CFunctionSymbol *
 	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN] = TOKEN_TYPE_OPERATION_ASTERISK;
 	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_SLASH_ASSIGN] = TOKEN_TYPE_OPERATION_SLASH;
 	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_PERCENT_ASSIGN] = TOKEN_TYPE_OPERATION_PERCENT;
-	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN] = TOKEN_TYPE_OPERATION_BITWISE_NOT;
 	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN] = TOKEN_TYPE_OPERATION_BITWISE_OR;
 	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN] = TOKEN_TYPE_OPERATION_AMPERSAND;
 	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN] = TOKEN_TYPE_OPERATION_BITWISE_XOR;
@@ -791,6 +791,10 @@ void CCodeGenerationVisitor::Visit(CBinaryOp &AStmt)
 				if (OpType == TOKEN_TYPE_OPERATION_PERCENT) {
 					Asm.Add(MOV, EDX, EAX);
 				}
+			} else if (OpType == TOKEN_TYPE_OPERATION_SHIFT_LEFT || OpType == TOKEN_TYPE_OPERATION_SHIFT_RIGHT) {
+				Asm.Add(MOV, EBX, ECX);
+				Asm.Add(IntOperationCmd[OpType], CL, EAX);
+
 			} else if (OpType == TOKEN_TYPE_OPERATION_LOGIC_AND) {
 				string FalseLabel = Asm.GenerateLabel();
 				string EndCheckLabel = Asm.GenerateLabel();
@@ -1195,7 +1199,7 @@ void CCodeGenerationVisitor::Visit(CSwitchStatement &AStmt)
 {
 	AStmt.GetTestExpression()->Accept(*this);
 
-	Asm.Add(POP, ECX);
+	Asm.Add(POP, EDX);
 
 	string CaseLabelName;
 
@@ -1206,7 +1210,7 @@ void CCodeGenerationVisitor::Visit(CSwitchStatement &AStmt)
 		it->second->SetName(CaseLabelName);
 
 		Asm.Add(POP, EAX);
-		Asm.Add(CMP, EAX, ECX);
+		Asm.Add(CMP, EAX, EDX);
 		Asm.Add(JE, CaseLabelName);
 	}
 

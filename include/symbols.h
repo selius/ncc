@@ -306,6 +306,9 @@ public:
 
 	CTypeSymbol* GetType() const;
 
+	bool GetBuiltIn() const;
+	void SetBuiltIn(bool ABuiltIn);
+
 private:
 	CTypeSymbol *ReturnType;
 
@@ -315,6 +318,8 @@ private:
 	CBlockStatement *Body;
 
 	CTypeSymbol *Type;
+
+	bool BuiltIn;
 };
 
 #endif // _SYMBOLS_H_

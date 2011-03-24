@@ -1,10 +1,3 @@
-int printf(int *fmt, int d);
-
-void test_out(int d)
-{
-	printf("%d\n", d);
-}
-
 int main()
 {
 	int a;
@@ -12,19 +5,19 @@ int main()
 	a = 5;
 	a = ~a;
 
-	test_out(a);
+	__print_int(a);
 
 	a = 5 | 2;
 
-	test_out(a);
+	__print_int(a);
 
 	a = 6 & 5;
 
-	test_out(a);
+	__print_int(a);
 
 	a = 5 ^ 6;
 
-	test_out(a);
+	__print_int(a);
 	
 	return 0;
 }

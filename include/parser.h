@@ -121,6 +121,8 @@ private:
 	void NextToken();
 	void PreviousToken();
 
+	void AddBuiltIn(const string &AName, const string &AReturnType, int AArgumentsCount, ...);
+
 	CTokenStream TokenStream;
 
 	const CToken *Token;

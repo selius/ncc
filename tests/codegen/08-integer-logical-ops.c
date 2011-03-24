@@ -1,38 +1,31 @@
-int printf(int *fmt, int d);
-
-void test_out(int d)
-{
-	printf("%d\n", d);
-}
-
 int main()
 {
 	int a;
 
 	a = 7;
-	test_out(!a);
+	__print_int(!a);
 
 	a = 0;
-	test_out(!a);
+	__print_int(!a);
 
-	test_out(a && 10);
-	test_out(10 && a);
+	__print_int(a && 10);
+	__print_int(10 && a);
 
 	a = 5;
 
-	test_out(a && 10);
-	test_out(10 && a);
+	__print_int(a && 10);
+	__print_int(10 && a);
 
-	test_out(a && 0);
-	test_out(0 && a);
+	__print_int(a && 0);
+	__print_int(0 && a);
 
-	test_out(a || 0);
-	test_out(0 || a);
+	__print_int(a || 0);
+	__print_int(0 || a);
 
 	a = 0;
 
-	test_out(a || 0);
-	test_out(0 || a);
+	__print_int(a || 0);
+	__print_int(0 || a);
 	
 	return 0;
 }

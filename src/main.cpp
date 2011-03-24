@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 
 				for (CSymbolTable::SymbolsIterator it = SymTable->Begin(); it != SymTable->End(); ++it) {
 					FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
-					if (FuncSym) {
+					if (FuncSym && !FuncSym->GetBuiltIn()) {
 						*out << FuncSym->GetName() << ":" << endl;
 						if (!FuncSym->GetBody()) {
 							*out << "\t(declared, but not defined)" << endl;

@@ -555,7 +555,7 @@ void CVariableSymbol::SetOffset(int AOffset)
  * CFunctionSymbol
  ******************************************************************************/
 
-CFunctionSymbol::CFunctionSymbol(const string &AName /*= ""*/, CTypeSymbol *AReturnType /*= NULL*/) : CSymbol(AName), ReturnType(AReturnType), Arguments(NULL), Body(NULL), Type(new CFunctionTypeSymbol)
+CFunctionSymbol::CFunctionSymbol(const string &AName /*= ""*/, CTypeSymbol *AReturnType /*= NULL*/) : CSymbol(AName), ReturnType(AReturnType), Arguments(NULL), Body(NULL), Type(new CFunctionTypeSymbol), BuiltIn(false)
 {
 }
 
@@ -612,4 +612,14 @@ void CFunctionSymbol::SetBody(CBlockStatement *ABody)
 CTypeSymbol* CFunctionSymbol::GetType() const
 {
 	return Type;
+}
+
+bool CFunctionSymbol::GetBuiltIn() const
+{
+	return BuiltIn;
+}
+
+void CFunctionSymbol::SetBuiltIn(bool ABuiltIn)
+{
+	BuiltIn = ABuiltIn;
 }

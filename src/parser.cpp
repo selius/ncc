@@ -82,6 +82,9 @@ CParser::CParser(CScanner &AScanner, EParserMode AMode /*= PARSER_MODE_NORMAL*/)
 	GlobalSymTable->Add(new CVoidSymbol);
 	GlobalSymTable->Add(new CPointerSymbol(SymbolTableStack.Lookup<CTypeSymbol>("int")));
 
+	AddBuiltIn("__print_int", "void", 1, "int");
+	AddBuiltIn("__print_float", "void", 1, "float");
+
 	BlockType.push(BLOCK_TYPE_DEFAULT);
 	ScopeType.push(SCOPE_TYPE_GLOBAL);
 }
@@ -960,7 +963,6 @@ bool IsAssignment(const CToken &Token)
 		TOKEN_TYPE_OPERATION_MINUS_ASSIGN,
 		TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN,
 		TOKEN_TYPE_OPERATION_SLASH_ASSIGN,
-		TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN,
 		TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN,
 		TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN,
 		TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN,
@@ -1578,3 +1580,16 @@ void CParser::PreviousToken()
 	Token = TokenStream.Previous();
 }
 
+void CParser::AddBuiltIn(const string &AName, const string &AReturnType, int AArgumentsCount, ...)
+{
+	CFunctionSymbol *fs = new CFunctionSymbol(AName, SymbolTableStack.Lookup<CTypeSymbol>(AReturnType));
+	fs->SetArgumentsSymbolTable(new CArgumentsSymbolTable);
+	fs->SetBuiltIn(true);
+	va_list vl;
+	va_start(vl, AArgumentsCount);
+	for (int i = 0; i < AArgumentsCount; i++) {
+		fs->AddArgument(new CVariableSymbol("", SymbolTableStack.Lookup<CTypeSymbol>(va_arg(vl, const char *))));
+	}
+	va_end(vl);
+	SymbolTableStack.GetGlobal()->Add(fs);
+}

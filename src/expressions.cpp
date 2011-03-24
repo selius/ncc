@@ -70,6 +70,7 @@ CExpression::CExpression(const CToken &AToken)
 	Type = AToken.GetType();
 	Name = AToken.GetText();
 	Position = AToken.GetPosition();
+	ResultType = NULL;
 }
 
 CExpression::~CExpression()
@@ -335,7 +336,6 @@ void CBinaryOp::CheckTypes() const
 		CheckTypes::Arithmetic(this);
 		break;
 	case TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN:
-	case TOKEN_TYPE_OPERATION_BITWISE_NOT_ASSIGN:
 	case TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN:
 	case TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN:
 	case TOKEN_TYPE_OPERATION_PERCENT_ASSIGN:

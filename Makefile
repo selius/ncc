@@ -19,11 +19,14 @@ SOURCES		=	src/main.cpp \
 
 TARGET		=	bin/ncc
 
+BUILTIN_DIR	=	builtin/
+
 CFLAGS		:=	$(CFLAGS) -Iinclude
 
 
 all: $(SOURCES)
 	$(CXX) -o $(TARGET) $(CFLAGS) $(SOURCES)
+	$(MAKE) -C $(BUILTIN_DIR)
 
 debug: CFLAGS += -g3
 debug: all
@@ -37,3 +40,4 @@ tags:
 distclean:
 	-$(RM) $(TARGET)
 	-$(RM) tests/*/output/*
+	$(MAKE) -C $(BUILTIN_DIR) distclean

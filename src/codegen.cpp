@@ -240,7 +240,7 @@ CAsmCode::CAsmCode() : LabelsCount(0)
 	MnemonicsText[FLD] = "fld";
 	MnemonicsText[FILD] = "fild";
 	MnemonicsText[FSTP] = "fstp";
-	MnemonicsText[FISTTP] = "fisttp";
+	MnemonicsText[FISTTP] = "fisttpl";
 	MnemonicsText[FCHS] = "fchs";
 	MnemonicsText[FLD1] = "fld1";
 	MnemonicsText[FADD] = "fadd";

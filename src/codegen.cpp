@@ -1090,10 +1090,12 @@ void CCodeGenerationVisitor::Visit(CForStatement &AStmt)
 	}
 
 	BreakLabels.push(LoopEnd);
+	ContinueLabels.push(LoopStart);
 
 	AStmt.GetBody()->Accept(*this);
 
 	BreakLabels.pop();
+	ContinueLabels.pop();
 
 	Asm.Add(LoopContinue);
 

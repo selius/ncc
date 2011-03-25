@@ -96,12 +96,20 @@ CParser::~CParser()
 
 CSymbolTable* CParser::ParseTranslationUnit()
 {
+	CDeclarationSpecifier DeclSpec;
 	CSymbol *Sym = NULL;
 
 	while (Token->GetType() != TOKEN_TYPE_EOF) {
 		CPosition DeclPos = Token->GetPosition();
 
-		Sym = ParseDeclarator(ParseDeclarationSpecifier(), false);
+		DeclSpec = ParseDeclarationSpecifier();
+
+		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_SEMICOLON && DeclSpec.Type && DeclSpec.Type->IsStruct()) {
+			NextToken();
+			continue;
+		}
+
+		Sym = ParseDeclarator(DeclSpec, false);
 		if (!Sym) {
 			throw CException("expected declaration or function definition, got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
@@ -360,7 +368,7 @@ void CParser::ParseParameterList(CFunctionSymbol *Func)
 	ScopeType.push(SCOPE_TYPE_PARAMETERS);
 
 	while (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
-		FuncArgs->Add(ParseDeclarator(ParseDeclarationSpecifier()));
+		Func->AddArgument(ParseDeclarator(ParseDeclarationSpecifier()));
 
 		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA) {
 			NextToken();

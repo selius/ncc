@@ -937,14 +937,21 @@ void CCodeGenerationVisitor::Visit(CPostfixOp &AStmt)
 
 void CCodeGenerationVisitor::Visit(CFunctionCall &AStmt)
 {
-	for (CFunctionCall::ArgumentsReverseIterator it = AStmt.RBegin(); it != AStmt.REnd(); ++it) {
-		(*it)->Accept(*this);
+	CFunctionSymbol *Func = AStmt.GetFunction();
+	CFunctionSymbol::ArgumentsOrderContainer *FormalArgs = Func->GetArgumentsOrderedList();
+
+	CFunctionCall::ArgumentsReverseIterator ait;
+	CFunctionSymbol::ArgumentsReverseOrderIterator fit;
+
+	for (ait = AStmt.RBegin(), fit = FormalArgs->rbegin(); ait != AStmt.REnd() && fit != FormalArgs->rend(); ++ait, ++fit) {
+		(*ait)->Accept(*this);
+		PerformConversion(static_cast<CVariableSymbol *>(*fit)->GetType(), (*ait)->GetResultType());
 	}
 
-	Asm.Add(CALL, AStmt.GetFunction()->GetName());
-	Asm.Add(ADD, AStmt.GetFunction()->GetArgumentsSymbolTable()->GetElementsSize(), ESP);
+	Asm.Add(CALL, Func->GetName());
+	Asm.Add(ADD, Func->GetArgumentsSymbolTable()->GetElementsSize(), ESP);
 
-	if (!AStmt.GetFunction()->GetReturnType()->IsVoid()) {
+	if (!Func->GetReturnType()->IsVoid()) {
 		Asm.Add(PUSH, EAX);
 	}
 }

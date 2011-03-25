@@ -141,6 +141,10 @@ void CUnaryOp::SetArgument(CExpression *AArgument)
 
 CTypeSymbol* CUnaryOp::GetResultType() const
 {
+	if (ResultType) {
+		return ResultType;
+	}
+
 	if (Type == TOKEN_TYPE_OPERATION_ASTERISK) {
 		return dynamic_cast<CPointerSymbol *>(Argument->GetResultType())->GetRefType();
 	}
@@ -683,17 +687,17 @@ void CFunctionCall::CheckTypes() const
 {
 	assert(Function != NULL);
 
-	CFunctionSymbol::ArgumentsOrderContainer *ST = Function->GetArgumentsOrderedList();
+	CFunctionSymbol::ArgumentsOrderContainer *FormalArgs = Function->GetArgumentsOrderedList();
 
 	ArgumentsIterator ait;
-	CFunctionSymbol::ArgumentsOrderIterator stit;
+	CFunctionSymbol::ArgumentsOrderIterator fit;
 
 	if (Arguments.size() != Function->GetArgumentsSymbolTable()->GetSize()) {
 		throw CException("number of actual and formal parameters don't match", Position);
 	}
 
-	for (ait = Begin(), stit = ST->begin(); ait != End() && stit != ST->end(); ++ait, ++stit) {
-		if (!(*ait)->GetResultType()->CompatibleWith(dynamic_cast<CVariableSymbol *>(*stit)->GetType())) {
+	for (ait = Begin(), fit = FormalArgs->begin(); ait != End() && fit != FormalArgs->end(); ++ait, ++fit) {
+		if (!(*ait)->GetResultType()->CompatibleWith(dynamic_cast<CVariableSymbol *>(*fit)->GetType())) {
 			throw CException("function actual parameters don't match its formal parameters", Position);
 		}
 	}
@@ -874,23 +878,7 @@ void CArrayAccess::Accept(CStatementVisitor &AVisitor)
 
 size_t CArrayAccess::GetElementSize() const
 {
-	size_t result;
-
-	if (Left->GetResultType()->IsPointer()) {
-		if (Left->GetResultType()->IsArray()) {
-			result = dynamic_cast<CArraySymbol *>(Left->GetResultType())->GetElementsType()->GetSize();
-		} else {
-			result = dynamic_cast<CPointerSymbol *>(Left->GetResultType())->GetRefType()->GetSize();
-		}
-	} else {
-		if (Right->GetResultType()->IsArray()) {
-			result = dynamic_cast<CArraySymbol *>(Right->GetResultType())->GetElementsType()->GetSize();
-		} else {
-			result = dynamic_cast<CPointerSymbol *>(Right->GetResultType())->GetRefType()->GetSize();
-		}
-	}
-
-	return result;
+	return GetResultType()->GetSize();
 }
 
 CTypeSymbol* CArrayAccess::GetResultType() const

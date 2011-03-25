@@ -287,6 +287,7 @@ class CFunctionSymbol : public CSymbol
 public:
 	typedef vector<CSymbol *> ArgumentsOrderContainer;
 	typedef ArgumentsOrderContainer::iterator ArgumentsOrderIterator;
+	typedef ArgumentsOrderContainer::reverse_iterator ArgumentsReverseOrderIterator;
 
 	CFunctionSymbol(const string &AName = "", CTypeSymbol *AReturnType = NULL);
 	~CFunctionSymbol();

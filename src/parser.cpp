@@ -576,8 +576,8 @@ CBlockStatement* CParser::ParseBlock()
 
 	CSymbolTable *BlockSymTable = new CSymbolTable;
 
-	if (typeid(*SymbolTableStack.GetTop()) == typeid(CSymbolTable)) {
-		BlockSymTable->SetCurrentOffset(SymbolTableStack.GetTop()->GetElementsSize());
+	if (typeid(*SymbolTableStack.GetTop()) != typeid(CArgumentsSymbolTable)) {
+		BlockSymTable->SetCurrentOffset(SymbolTableStack.GetTop()->GetCurrentOffset());
 	}
 
 	SymbolTableStack.Push(BlockSymTable);

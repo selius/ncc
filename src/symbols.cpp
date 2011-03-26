@@ -85,6 +85,11 @@ unsigned int CSymbolTable::GetSize() const
 
 unsigned int CSymbolTable::GetElementsSize() const
 {
+	return ElementsSize;
+}
+
+size_t CSymbolTable::GetCurrentOffset() const
+{
 	return CurrentOffset;
 }
 
@@ -95,6 +100,7 @@ void CSymbolTable::SetCurrentOffset(size_t AOffset)
 
 void CSymbolTable::InitOffset(CVariableSymbol *ASymbol)
 {
+	ElementsSize += ASymbol->GetType()->GetSize();
 	CurrentOffset += ASymbol->GetType()->GetSize();
 	ASymbol->SetOffset(-CurrentOffset);
 }
@@ -105,6 +111,7 @@ void CSymbolTable::InitOffset(CVariableSymbol *ASymbol)
 
 void CArgumentsSymbolTable::InitOffset(CVariableSymbol *ASymbol)
 {
+	ElementsSize += ASymbol->GetType()->GetSize();
 	CurrentOffset += ASymbol->GetType()->GetSize();
 	ASymbol->SetOffset(4 + CurrentOffset);	// FIXME: magic number: 4 - old EBP register value size
 }
@@ -115,6 +122,7 @@ void CArgumentsSymbolTable::InitOffset(CVariableSymbol *ASymbol)
 
 void CStructSymbolTable::InitOffset(CVariableSymbol *ASymbol)
 {
+	ElementsSize += ASymbol->GetType()->GetSize();
 	ASymbol->SetOffset(CurrentOffset);
 	CurrentOffset += ASymbol->GetType()->GetSize();
 }
@@ -138,6 +146,11 @@ CSymbolTable* CSymbolTableStack::Pop()
 CSymbolTable* CSymbolTableStack::GetTop() const
 {
 	return Tables.front();
+}
+
+CSymbolTable* CSymbolTableStack::GetPreviousTop() const
+{
+	return *(++Tables.begin());
 }
 
 CSymbolTable* CSymbolTableStack::GetGlobal() const

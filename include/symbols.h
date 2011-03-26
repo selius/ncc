@@ -37,8 +37,9 @@ public:
 
 	unsigned int GetSize() const;
 
-	unsigned int GetElementsSize() const;
+	size_t GetElementsSize() const;
 
+	size_t GetCurrentOffset() const;
 	void SetCurrentOffset(size_t AOffset);
 
 protected:
@@ -46,6 +47,7 @@ protected:
 	SymbolsContainer Symbols;
 
 	size_t CurrentOffset;
+	size_t ElementsSize;
 
 };
 
@@ -69,8 +71,9 @@ public:
 
 	void Push(CSymbolTable *ATable);
 	CSymbolTable* Pop();
-	CSymbolTable* GetTop() const;
 
+	CSymbolTable* GetTop() const;
+	CSymbolTable* GetPreviousTop() const;
 	CSymbolTable* GetGlobal() const;
 
 	template<typename T>

@@ -445,11 +445,19 @@ void CAddressGenerationVisitor::Visit(CIndirectAccess &AStmt)
 
 void CAddressGenerationVisitor::Visit(CArrayAccess &AStmt)
 {
-	if (AStmt.GetLeft()->GetResultType()->IsArray()) {
-		AStmt.GetLeft()->Accept(*this);
+	if (AStmt.GetLeft()->GetResultType()->IsPointer()) {
+		if (AStmt.GetLeft()->GetResultType()->IsArray()) {
+			AStmt.GetLeft()->Accept(*this);
+		} else {
+			AStmt.GetLeft()->Accept(Code);
+		}
 		AStmt.GetRight()->Accept(Code);
 	} else {
-		AStmt.GetRight()->Accept(*this);
+		if (AStmt.GetRight()->GetResultType()->IsArray()) {
+			AStmt.GetRight()->Accept(*this);
+		} else {
+			AStmt.GetRight()->Accept(Code);
+		}
 		AStmt.GetLeft()->Accept(Code);
 	}
 	

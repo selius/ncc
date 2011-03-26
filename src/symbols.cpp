@@ -28,7 +28,7 @@ void CSymbol::SetName(const string &AName)
  * CSymbolTable
  ******************************************************************************/
 
-CSymbolTable::CSymbolTable() : CurrentOffset(0)
+CSymbolTable::CSymbolTable() : CurrentOffset(0), ElementsSize(0)
 {
 }
 

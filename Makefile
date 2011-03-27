@@ -13,6 +13,7 @@ SOURCES		=	src/main.cpp \
 			src/scanner.cpp \
 			src/parser.cpp \
 			src/codegen.cpp \
+			src/optimization.cpp \
 			src/expressions.cpp \
 			src/statements.cpp \
 			src/symbols.cpp 

@@ -115,11 +115,15 @@ CSymbolTable* CParser::ParseTranslationUnit()
 		}
 
 		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_SEMICOLON) {
-			if (SymbolTableStack.GetTop()->Exists(Sym->GetName())) {
+			if (SymbolTableStack.GetGlobal()->Exists(Sym->GetName())) {
 				throw CParserException("identifier redeclared: `" + Sym->GetName() + "`", DeclPos);
 			}
 
-			SymbolTableStack.GetTop()->Add(Sym);
+			SymbolTableStack.GetGlobal()->Add(Sym);
+
+			if (CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Sym)) {
+				VarSym->SetGlobal(true);
+			}
 			NextToken();
 		} else if (Token->GetType() == TOKEN_TYPE_BLOCK_START) {
 			CFunctionSymbol *FuncSym = dynamic_cast<CFunctionSymbol *>(Sym);
@@ -138,7 +142,7 @@ CSymbolTable* CParser::ParseTranslationUnit()
 
 				delete Sym;
 			} else {
-				SymbolTableStack.GetTop()->Add(FuncSym);
+				SymbolTableStack.GetGlobal()->Add(FuncSym);
 			}
 
 			ScopeType.push(SCOPE_TYPE_FUNCTION);

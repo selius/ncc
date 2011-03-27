@@ -280,9 +280,13 @@ public:
 	int GetOffset() const;
 	void SetOffset(int AOffset);
 
+	bool GetGlobal() const;
+	void SetGlobal(bool AGlobal);
+
 private:
 	CTypeSymbol *Type;
 	int Offset;
+	bool Global;
 };
 
 class CFunctionSymbol : public CSymbol

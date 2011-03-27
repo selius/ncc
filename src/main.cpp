@@ -3,6 +3,7 @@
 #include "scanner.h"
 #include "parser.h"
 #include "codegen.h"
+#include "optimization.h"
 #include "prettyprinting.h"
 #include "statements.h"
 
@@ -98,22 +99,37 @@ int main(int argc, char *argv[])
 			CScanner scanner(in);
 			CParser parser(scanner);
 			CAsmCode code;
-			CCodeGenerationVisitor vis(code);
+			CCodeGenerationVisitor vis(code, Parameters.Optimize);
 
 			CSymbolTable *SymTable = parser.ParseTranslationUnit();
 
 			CFunctionSymbol *FuncSym = NULL;
+			CVariableSymbol *VarSym = NULL;
 
 			for (CSymbolTable::SymbolsIterator it = SymTable->Begin(); it != SymTable->End(); ++it) {
 				FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
+				VarSym = dynamic_cast<CVariableSymbol *>(it->second);
 				if (FuncSym && FuncSym->GetBody()) {
-					vis.SetFunction(FuncSym);
+					if (Parameters.Optimize) {
+						CUnreachableCodeElimination uce;
+						FuncSym->GetBody()->Accept(uce);
+					}
 
 					code.Add(new CAsmDirective("globl", FuncSym->GetName()));
 					code.Add(FuncSym->GetName());
+
+					vis.SetFunction(FuncSym);
 					FuncSym->GetBody()->Accept(vis);
+
 					code.Add(RET);
+				} else if (VarSym) {
+					code.Add(new CAsmDirective("comm", VarSym->GetName() + "," + ToString(VarSym->GetType()->GetSize())));
 				}
+			}
+
+			if (Parameters.Optimize) {
+				CLowLevelOptimizer optimizer(code);
+				optimizer.Optimize();
 			}
 
 			code.Output(*out);

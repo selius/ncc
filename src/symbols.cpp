@@ -540,7 +540,7 @@ bool CFunctionTypeSymbol::IsFunction() const
  * CVariableSymbol
  ******************************************************************************/
 
-CVariableSymbol::CVariableSymbol(const string &AName /*= ""*/, CTypeSymbol *AType /*= NULL*/) : CSymbol(AName), Type(AType), Offset(0)
+CVariableSymbol::CVariableSymbol(const string &AName /*= ""*/, CTypeSymbol *AType /*= NULL*/) : CSymbol(AName), Type(AType), Offset(0), Global(false)
 {
 }
 
@@ -562,6 +562,16 @@ int CVariableSymbol::GetOffset() const
 void CVariableSymbol::SetOffset(int AOffset)
 {
 	Offset = AOffset;
+}
+
+bool CVariableSymbol::GetGlobal() const
+{
+	return Global;
+}
+
+void CVariableSymbol::SetGlobal(bool AGlobal)
+{
+	Global = AGlobal;
 }
 
 /******************************************************************************

@@ -99,7 +99,9 @@ class CAsmOp
 public:
 	virtual string GetText() const = 0;
 
-private:
+	virtual bool IsReg() const;
+	virtual bool IsImm() const;
+	virtual bool IsMem() const;
 
 };
 
@@ -113,6 +115,8 @@ public:
 
 	string GetText() const;
 
+	bool IsReg() const;
+
 private:
 	string Name;
 
@@ -125,8 +129,12 @@ public:
 
 	string GetText() const;
 
+	int GetValue() const;
+
+	bool IsImm() const;
+
 private:
-	int Value;	// temp..
+	int Value;
 };
 
 class CAsmMem : public CAsmOp
@@ -136,12 +144,17 @@ public:
 
 	string GetText() const;
 
+	bool IsMem() const;
+
 private:
 	int Displacement;
 	ERegister Base;
 	ERegister Offset;
 	int Multiplier;
 };
+
+CAsmMem* mem(int ADisplacement, ERegister ABase, ERegister AOffset = INVALID_REGISTER, int AMultiplier = 0);
+CAsmMem* mem(ERegister ABase);
 
 class CAsmLabelOp : public CAsmOp
 {
@@ -174,6 +187,9 @@ public:
 
 	string GetText() const;
 
+	CAsmOp* GetOp() const;
+	void SetOp(CAsmOp *AOp);
+
 private:
 	CAsmOp *Op;
 
@@ -186,6 +202,12 @@ public:
 	~CAsmCmd2();
 
 	string GetText() const;
+
+	CAsmOp* GetOp1() const;
+	CAsmOp* GetOp2() const;
+
+	void SetOp1(CAsmOp *AOp1);
+	void SetOp2(CAsmOp *AOp2);
 
 private:
 	CAsmOp *Op1;
@@ -216,7 +238,7 @@ private:
 class CAsmCode
 {
 public:
-	typedef vector<CAsmCmd *> CodeContainer;
+	typedef list<CAsmCmd *> CodeContainer;
 	typedef CodeContainer::iterator CodeIterator;
 
 	CAsmCode();
@@ -235,11 +257,16 @@ public:
 	void Add(EMnemonic ACmd, CAsmMem *AOp1, ERegister AOp2);
 	void Add(const string &ALabel);
 
-	// TODO: add more "good" versions of Add
-
 	string AddStringLiteral(const string &ALiteral);
 
 	void Output(ostream &Stream);
+
+	CodeIterator Insert(CodeIterator APosition, CAsmCmd *ACmd);
+
+	CodeIterator Begin();
+	CodeIterator End();
+
+	CodeIterator Erase(CodeIterator APosition);
 
 	string GenerateLabel();
 
@@ -296,7 +323,7 @@ private:
 class CCodeGenerationVisitor : public CStatementVisitor
 {
 public:
-	CCodeGenerationVisitor(CAsmCode &AAsm);
+	CCodeGenerationVisitor(CAsmCode &AAsm, bool AOptimize);
 
 	void SetFunction(CFunctionSymbol *AFuncSym);
 
@@ -346,6 +373,8 @@ private:
 	map<ETokenType, ETokenType> CompoundAssignmentOp;
 
 	CAddressGenerationVisitor Addr;
+
+	bool Optimize;
 };
 
 #endif // _CODEGEN_H_

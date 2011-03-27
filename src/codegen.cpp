@@ -21,6 +21,25 @@ void CAsmCmd::SetName(const string &AName)
 }
 
 /******************************************************************************
+ * CAsmOp
+ ******************************************************************************/
+
+bool CAsmOp::IsReg() const
+{
+	return false;
+}
+
+bool CAsmOp::IsImm() const
+{
+	return false;
+}
+
+bool CAsmOp::IsMem() const
+{
+	return false;
+}
+
+/******************************************************************************
  * CAsmReg
  ******************************************************************************/
 
@@ -43,6 +62,11 @@ string CAsmReg::GetText() const
 	return "%" + Name;
 }
 
+bool CAsmReg::IsReg() const
+{
+	return true;
+}
+
 /******************************************************************************
  * CAsmImm
  ******************************************************************************/
@@ -54,6 +78,16 @@ CAsmImm::CAsmImm(int AValue) : Value(AValue)
 string CAsmImm::GetText() const
 {
 	return "$" + ToString(Value);
+}
+
+int CAsmImm::GetValue() const
+{
+	return Value;
+}
+
+bool CAsmImm::IsImm() const
+{
+	return true;
 }
 
 /******************************************************************************
@@ -81,7 +115,12 @@ string CAsmMem::GetText() const
 	return result;
 }
 
-CAsmMem* mem(int ADisplacement, ERegister ABase, ERegister AOffset = INVALID_REGISTER, int AMultiplier = 0)
+bool CAsmMem::IsMem() const
+{
+	return true;
+}
+
+CAsmMem* mem(int ADisplacement, ERegister ABase, ERegister AOffset /*= INVALID_REGISTER*/, int AMultiplier /*= 0*/)
 {
 	return new CAsmMem(ADisplacement, ABase, AOffset, AMultiplier);
 }
@@ -148,6 +187,16 @@ string CAsmCmd1::GetText() const
 	return "\t" + Name + "\t" + Op->GetText();
 }
 
+CAsmOp* CAsmCmd1::GetOp() const
+{
+	return Op;
+}
+
+void CAsmCmd1::SetOp(CAsmOp *AOp)
+{
+	Op = AOp;
+}
+
 /******************************************************************************
  * CAsmCmd2
  ******************************************************************************/
@@ -166,6 +215,26 @@ CAsmCmd2::~CAsmCmd2()
 string CAsmCmd2::GetText() const
 {
 	return "\t" + Name + "\t" + Op1->GetText() + ", " + Op2->GetText();
+}
+
+CAsmOp* CAsmCmd2::GetOp1() const
+{
+	return Op1;
+}
+
+CAsmOp* CAsmCmd2::GetOp2() const
+{
+	return Op2;
+}
+
+void CAsmCmd2::SetOp1(CAsmOp *AOp1)
+{
+	Op1 = AOp1;
+}
+
+void CAsmCmd2::SetOp2(CAsmOp *AOp2)
+{
+	Op2 = AOp2;
 }
 
 /******************************************************************************
@@ -270,9 +339,6 @@ CAsmCode::~CAsmCode()
 	for (CodeIterator it = Code.begin(); it != Code.end(); ++it) {
 		delete *it;
 	}
-
-	RegistersText.clear();
-	MnemonicsText.clear();
 }
 
 void CAsmCode::Add(CAsmCmd *ACmd)
@@ -353,11 +419,35 @@ void CAsmCode::Output(ostream &Stream)
 
 	Stream << ".text" << endl;
 
-	for (vector<CAsmCmd *>::iterator it = Code.begin(); it != Code.end(); ++it) {
+	for (CodeIterator it = Code.begin(); it != Code.end(); ++it) {
 		Stream << (*it)->GetText() << endl;
 	}
 
 	Stream << ".end" << endl;
+}
+
+CAsmCode::CodeIterator CAsmCode::Insert(CodeIterator APosition, CAsmCmd *ACmd)
+{
+	return Code.insert(APosition, ACmd);
+}
+
+CAsmCode::CodeIterator CAsmCode::Begin()
+{
+	return Code.begin();
+}
+
+CAsmCode::CodeIterator CAsmCode::End()
+{
+	return Code.end();
+}
+
+CAsmCode::CodeIterator CAsmCode::Erase(CAsmCode::CodeIterator APosition)
+{
+	if (APosition != End()) {
+		delete *APosition;
+	}
+
+	return Code.erase(APosition);
 }
 
 string CAsmCode::GenerateLabel()
@@ -409,8 +499,12 @@ void CAddressGenerationVisitor::Visit(CStringConst &AStmt)
 
 void CAddressGenerationVisitor::Visit(CVariable &AStmt)
 {
-	Asm.Add(LEA, mem(AStmt.GetSymbol()->GetOffset(), EBP), EAX);
-	Asm.Add(PUSH, EAX);
+	if (AStmt.GetSymbol()->GetGlobal()) {
+		Asm.Add(PUSH, "$" + AStmt.GetName());
+	} else {
+		Asm.Add(LEA, mem(AStmt.GetSymbol()->GetOffset(), EBP), EAX);
+		Asm.Add(PUSH, EAX);
+	}
 }
 
 void CAddressGenerationVisitor::Visit(CPostfixOp &AStmt)
@@ -530,7 +624,7 @@ void CAddressGenerationVisitor::Visit(CSwitchStatement &AStmt)
  * CCodeGenerationVisitor
  ******************************************************************************/
 
-CCodeGenerationVisitor::CCodeGenerationVisitor(CAsmCode &AAsm) : Asm(AAsm), FuncSym(NULL), BlockNesting(0), Addr(AAsm, *this)
+CCodeGenerationVisitor::CCodeGenerationVisitor(CAsmCode &AAsm, bool AOptimize) : Asm(AAsm), FuncSym(NULL), BlockNesting(0), Addr(AAsm, *this), Optimize(AOptimize)
 {
 	IntOperationCmd[TOKEN_TYPE_OPERATION_EQUAL] = JE;
 	IntOperationCmd[TOKEN_TYPE_OPERATION_NOT_EQUAL] = JNE;
@@ -922,7 +1016,11 @@ void CCodeGenerationVisitor::Visit(CVariable &AStmt)
 	if (AStmt.GetSymbol()->GetType()->IsArray()) {
 		AStmt.Accept(Addr);
 	} else {
-		Asm.Add(PUSH, mem(AStmt.GetSymbol()->GetOffset(), EBP));
+		if (AStmt.GetSymbol()->GetGlobal()) {
+			Asm.Add(PUSH, AStmt.GetSymbol()->GetName());
+		} else {
+			Asm.Add(PUSH, mem(AStmt.GetSymbol()->GetOffset(), EBP));
+		}
 	}
 }
 
@@ -1028,7 +1126,7 @@ void CCodeGenerationVisitor::Visit(CBlockStatement &AStmt)
 		return;
 	}
 
-	if (!BlockNesting) {
+	if (!BlockNesting && (!Optimize || AStmt.GetSymbolTable()->GetElementsSize() != 0 || FuncSym->GetArgumentsSymbolTable()->GetElementsSize() != 0)) {
 		Asm.Add(PUSH, EBP);
 		Asm.Add(MOV, ESP, EBP);
 	}
@@ -1053,7 +1151,7 @@ void CCodeGenerationVisitor::Visit(CBlockStatement &AStmt)
 
 	Asm.Add(ADD, AStmt.GetSymbolTable()->GetElementsSize(), ESP);
 
-	if (!BlockNesting) {
+	if (!BlockNesting && (!Optimize || AStmt.GetSymbolTable()->GetElementsSize() != 0 || FuncSym->GetArgumentsSymbolTable()->GetElementsSize() != 0)) {
 		Asm.Add(MOV, EBP, ESP);
 		Asm.Add(POP, EBP);
 	}

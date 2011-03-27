@@ -49,6 +49,8 @@ public:
 
 	void Add(CStatement *AStatement);
 
+	StatementsIterator Erase(StatementsIterator AFirst, StatementsIterator ALast);
+
 	CSymbolTable* GetSymbolTable() const;
 	void SetSymbolTable(CSymbolTable *ASymbolTable);
 

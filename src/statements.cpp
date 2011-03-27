@@ -78,6 +78,11 @@ void CBlockStatement::Add(CStatement *AStatement)
 	Statements.push_back(AStatement);
 }
 
+CBlockStatement::StatementsIterator CBlockStatement::Erase(CBlockStatement::StatementsIterator AFirst, CBlockStatement::StatementsIterator ALast)
+{
+	return Statements.erase(AFirst, ALast);
+}
+
 CSymbolTable* CBlockStatement::GetSymbolTable() const
 {
 	return SymbolTable;

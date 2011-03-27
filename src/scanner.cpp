@@ -233,7 +233,7 @@ map<ETokenType, string> CScanner::TokenTypesNames;
 CScanner::CScanner(istream &AInputStream) : InputStream(AInputStream), LastToken(NULL), CurrentPosition(1, 1)
 {
 	if (!InputStream.good()) {
-		throw CException("can't read from input stream", CurrentPosition);
+		throw CScannerException("can't read from input stream", CurrentPosition);
 	}
 
 	InputStream >> noskipws;
@@ -579,7 +579,7 @@ CToken* CScanner::ScanSingleSymbol()
 		Type = TOKEN_TYPE_SEPARATOR_COLON;
 		break;
 	default:
-		throw CException(string("invalid symbol '") + symbol + "' encountered", CurrentPosition);
+		throw CScannerException(string("invalid symbol '") + symbol + "' encountered", CurrentPosition);
 	}
 
 	AdvanceOneSymbol();
@@ -608,7 +608,7 @@ CToken* CScanner::ScanStringConstant()
 		}
 	}
 
-	throw CException("unterminated string constant", StartPosition);
+	throw CScannerException("unterminated string constant", StartPosition);
 }
 
 CToken* CScanner::ScanSymbolConstant()
@@ -619,7 +619,7 @@ CToken* CScanner::ScanSymbolConstant()
 	AdvanceOneSymbol();
 
 	if (!InputStream.good()) {
-		throw CException("unterminated symbol constant", StartPosition);
+		throw CScannerException("unterminated symbol constant", StartPosition);
 	}
 
 	char symbol = InputStream.peek();
@@ -633,7 +633,7 @@ CToken* CScanner::ScanSymbolConstant()
 	}
 
 	if (!InputStream.good() || AdvanceOneSymbol() != '\'') {
-		throw CException("unterminated symbol constant", StartPosition);
+		throw CScannerException("unterminated symbol constant", StartPosition);
 	}
 
 	return new CSymbolConstToken(Text, StartPosition);
@@ -732,19 +732,19 @@ string CScanner::ScanIntegerPart()
 			result += 'x';
 			AdvanceOneSymbol();
 			if (!CTraits::IsHexDigit(InputStream.peek())) {
-				throw CException("invalid hexadecimal constant", CurrentPosition);
+				throw CScannerException("invalid hexadecimal constant", CurrentPosition);
 			}
 			result += ScanHexadecimalInteger();
 			if (InputStream.peek() == '.') {
-				throw CException("invalid float constant", CurrentPosition);
+				throw CScannerException("invalid float constant", CurrentPosition);
 			}
 		} else if (CTraits::IsOctDigit(c)) {
 			result += ScanOctalInteger();
 			if (InputStream.peek() == '.') {
-				throw CException("invalid float constant", CurrentPosition);
+				throw CScannerException("invalid float constant", CurrentPosition);
 			}
 		} else if (CTraits::IsDigit(c)) {
-			throw CException("invalid octal constant", CurrentPosition);
+			throw CScannerException("invalid octal constant", CurrentPosition);
 		}
 
 	} else {
@@ -811,10 +811,10 @@ string CScanner::ScanFloatSuffix()
 		if (!CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
 			return string(1, c);
 		} else {
-			throw CException("invalid suffix on float constant", CurrentPosition);
+			throw CScannerException("invalid suffix on float constant", CurrentPosition);
 		}
 	} else if (CTraits::IsValidIdentifierSymbol(c)) {
-		throw CException("invalid suffix on float constant", CurrentPosition);
+		throw CScannerException("invalid suffix on float constant", CurrentPosition);
 	}
 
 	return "";
@@ -829,7 +829,7 @@ string CScanner::ScanIntegerSuffix()
 		result += fc;
 		AdvanceOneSymbol();
 	} else if (CTraits::IsValidIdentifierSymbol(fc)) {
-		throw CException("invalid suffix on integer constant", CurrentPosition);
+		throw CScannerException("invalid suffix on integer constant", CurrentPosition);
 	}
 
 	char sc = InputStream.peek();
@@ -838,11 +838,11 @@ string CScanner::ScanIntegerSuffix()
 		result += fc;
 		AdvanceOneSymbol();
 	} else if (CTraits::IsValidIdentifierSymbol(sc)) {
-		throw CException("invalid suffix on integer constant", CurrentPosition);
+		throw CScannerException("invalid suffix on integer constant", CurrentPosition);
 	}
 
 	if (CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
-		throw CException("invalid suffix on integer constant", CurrentPosition);
+		throw CScannerException("invalid suffix on integer constant", CurrentPosition);
 	}
 
 	return result;
@@ -887,7 +887,7 @@ char CScanner::ProcessEscapeSequence()
 		result = '\v';
 		break;
 	default:
-		throw CException("invalid escape sequence", CurrentPosition);
+		throw CScannerException("invalid escape sequence", CurrentPosition);
 	}
 
 	return result;
@@ -930,7 +930,7 @@ bool CScanner::SkipComment()
 	}
 
 	if (!InputStream.good()) {
-		throw CException("unterminated comment", start);
+		throw CScannerException("unterminated comment", start);
 	}
 
 	return true;

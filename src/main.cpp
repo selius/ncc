@@ -31,8 +31,8 @@ int main(int argc, char *argv[])
 		out = new ofstream(Parameters.OutputFilename.c_str());
 	}
 
-	if (Parameters.CompilerMode == COMPILER_MODE_SCAN) {
-		try {
+	try {
+		if (Parameters.CompilerMode == COMPILER_MODE_SCAN) {
 			CScanner scanner(in);
 			const CToken *token = NULL;
 
@@ -48,13 +48,7 @@ int main(int argc, char *argv[])
 				*out << '\t' << token->GetText() << endl;
 
 			} while (token->GetType() != TOKEN_TYPE_EOF);
-
-		} catch (CException e) {
-			e.Output(cerr);
-			ExitCode = EXIT_CODE_SCANNER_ERROR;
-		}
-	} else if (Parameters.CompilerMode == COMPILER_MODE_PARSE) {
-		try {
+		} else if (Parameters.CompilerMode == COMPILER_MODE_PARSE) {
 			CScanner scanner(in);
 			CParser parser(scanner, Parameters.ParserMode);
 
@@ -100,17 +94,11 @@ int main(int argc, char *argv[])
 			}
 
 			delete vis;
-
-		} catch (CException e) {
-			e.Output(cerr);
-			ExitCode = EXIT_CODE_PARSER_ERROR;
-		}
-	} else if (Parameters.CompilerMode == COMPILER_MODE_GENERATE) {
-		try {
+		} else if (Parameters.CompilerMode == COMPILER_MODE_GENERATE) {
 			CScanner scanner(in);
 			CParser parser(scanner);
 			CAsmCode code;
-			//CCodeGenerationVisitor vis(code);
+			CCodeGenerationVisitor vis(code);
 
 			CSymbolTable *SymTable = parser.ParseTranslationUnit();
 
@@ -119,7 +107,7 @@ int main(int argc, char *argv[])
 			for (CSymbolTable::SymbolsIterator it = SymTable->Begin(); it != SymTable->End(); ++it) {
 				FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
 				if (FuncSym && FuncSym->GetBody()) {
-					CCodeGenerationVisitor vis(code, FuncSym);
+					vis.SetFunction(FuncSym);
 
 					code.Add(new CAsmDirective("globl", FuncSym->GetName()));
 					code.Add(FuncSym->GetName());
@@ -129,12 +117,10 @@ int main(int argc, char *argv[])
 			}
 
 			code.Output(*out);
-		} catch (CException e) {
-			e.Output(cerr);
-			//ExitCode = EXIT_CODE_GENERATOR_ERROR;
 		}
-	} else {
-		ExitCode = CLI.Error("mode is not implemented yet", EXIT_CODE_NOT_IMPLEMENTED);
+	} catch (CException &e) {
+		e.Output(cerr);
+		ExitCode = e.GetExitCode();
 	}
 
 	if (out != &cout) {

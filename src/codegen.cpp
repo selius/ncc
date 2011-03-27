@@ -530,7 +530,7 @@ void CAddressGenerationVisitor::Visit(CSwitchStatement &AStmt)
  * CCodeGenerationVisitor
  ******************************************************************************/
 
-CCodeGenerationVisitor::CCodeGenerationVisitor(CAsmCode &AAsm, CFunctionSymbol *AFuncSym) : Asm(AAsm), FuncSym(AFuncSym), BlockNesting(0), Addr(AAsm, *this)
+CCodeGenerationVisitor::CCodeGenerationVisitor(CAsmCode &AAsm) : Asm(AAsm), FuncSym(NULL), BlockNesting(0), Addr(AAsm, *this)
 {
 	IntOperationCmd[TOKEN_TYPE_OPERATION_EQUAL] = JE;
 	IntOperationCmd[TOKEN_TYPE_OPERATION_NOT_EQUAL] = JNE;
@@ -572,6 +572,11 @@ CCodeGenerationVisitor::CCodeGenerationVisitor(CAsmCode &AAsm, CFunctionSymbol *
 	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN] = TOKEN_TYPE_OPERATION_BITWISE_XOR;
 	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_SHIFT_LEFT_ASSIGN] = TOKEN_TYPE_OPERATION_SHIFT_LEFT;
 	CompoundAssignmentOp[TOKEN_TYPE_OPERATION_SHIFT_RIGHT_ASSIGN] = TOKEN_TYPE_OPERATION_SHIFT_RIGHT;
+}
+
+void CCodeGenerationVisitor::SetFunction(CFunctionSymbol *AFuncSym)
+{
+	FuncSym = AFuncSym;
 }
 
 void CCodeGenerationVisitor::Visit(CUnaryOp &AStmt)

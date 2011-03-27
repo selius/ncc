@@ -28,9 +28,40 @@ CPosition CException::GetPosition() const
 	return Position;
 }
 
+EExitCode CException::GetExitCode() const
+{
+	return EXIT_CODE_UNKNOWN_ERROR;
+}
+
 void CException::Output(ostream &Stream) const
 {
 	Stream << Position.Line << ", " << Position.Column << ": error: " << Message << endl;
+}
+
+/******************************************************************************
+ * CScannerException
+ ******************************************************************************/
+
+CScannerException::CScannerException(const string &AMessage, const CPosition &APosition) : CException(AMessage, APosition)
+{
+}
+
+EExitCode CScannerException::GetExitCode() const
+{
+	return EXIT_CODE_SCANNER_ERROR;
+}
+
+/******************************************************************************
+ * CParserException
+ ******************************************************************************/
+
+CParserException::CParserException(const string &AMessage, const CPosition &APosition) : CException(AMessage, APosition)
+{
+}
+
+EExitCode CParserException::GetExitCode() const
+{
+	return EXIT_CODE_PARSER_ERROR;
 }
 
 /******************************************************************************

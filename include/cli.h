@@ -12,6 +12,7 @@ struct CCompilerParameters
 	ECompilerMode CompilerMode;
 	EParserOutputMode ParserOutputMode;
 	EParserMode ParserMode;
+	bool Optimize;
 };
 
 class CCommandLineInterface
@@ -43,6 +44,7 @@ private:
 		CHelpContainer();
 
 		void Add(const string &AShort, const string &ALong, const string &ADescription);
+		void AddSeparator();
 		void Output(ostream &Stream);
 
 	private:

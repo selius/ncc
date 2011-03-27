@@ -4,7 +4,7 @@
  * CCompilerParameters
  ******************************************************************************/
 
-CCompilerParameters::CCompilerParameters() : CompilerMode(COMPILER_MODE_UNDEFINED), ParserOutputMode(PARSER_OUTPUT_MODE_TREE), ParserMode(PARSER_MODE_NORMAL)
+CCompilerParameters::CCompilerParameters() : CompilerMode(COMPILER_MODE_UNDEFINED), ParserOutputMode(PARSER_OUTPUT_MODE_TREE), ParserMode(PARSER_MODE_NORMAL), Optimize(false)
 {
 }
 
@@ -50,20 +50,20 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 				}
 
 				Parameters.OutputFilename = *(++it);
-			} else if (CurArg == "-S" || CurArg == "-P" || CurArg == "-G" || CurArg == "-O") {
+			} else if (CurArg == "-S" || CurArg == "--scan" || CurArg == "-P" || CurArg == "--parse" || CurArg == "-G" || CurArg == "--generate") {
 				if (Parameters.CompilerMode != COMPILER_MODE_UNDEFINED) {
 					throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "only one mode could be specified");
 				}
 
-				if (CurArg == "-S") {
+				if (CurArg == "-S" || CurArg == "--scan") {
 					Parameters.CompilerMode = COMPILER_MODE_SCAN;
-				} else if (CurArg == "-P") {
+				} else if (CurArg == "-P" || CurArg == "--parse") {
 					Parameters.CompilerMode = COMPILER_MODE_PARSE;
-				} else if (CurArg == "-G") {
+				} else if (CurArg == "-G" || CurArg == "--generate") {
 					Parameters.CompilerMode = COMPILER_MODE_GENERATE;
-				} else if (CurArg == "-O") {
-					Parameters.CompilerMode = COMPILER_MODE_OPTIMIZE;
 				}
+			} else if (CurArg == "-O" || CurArg == "--optimize") {
+				Parameters.Optimize = true;
 			} else if (CurArg == "--parser-output-mode") {
 				RequireArgument(it);
 
@@ -111,6 +111,10 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 		throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "expressions-only parser mode can only be selected when compiler mode is parsing");
 	}
 
+	if (Parameters.Optimize && Parameters.CompilerMode != COMPILER_MODE_GENERATE) {
+		throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "optimization can only be enabled when compiler mode is code generation");
+	}
+
 	return Parameters;
 }
 
@@ -152,6 +156,11 @@ void CCommandLineInterface::CHelpContainer::Add(const string &AShort, const stri
 	LongWidth = max(LongWidth, ALong.length());
 }
 
+void CCommandLineInterface::CHelpContainer::AddSeparator()
+{
+	Entries.push_back(CHelpEntry("", "", ""));
+}
+
 void CCommandLineInterface::CHelpContainer::Output(ostream &Stream)
 {
 	streamsize w = Stream.width();
@@ -172,12 +181,20 @@ void CCommandLineInterface::PopulateHelp()
 	Help.Add("-h", "--help", "Print this help message and exit");
 	Help.Add("-o", "filename", "Write output to a file named filename");
 
-	Help.Add("-S", "--scan", "Run scanner");
-	Help.Add("-P", "--parser", "Run parser");
-	Help.Add("-G", "--generate", "Run code generator");
-	Help.Add("-O", "--optimize", "Run optimizer");
+	Help.AddSeparator();
 
-	Help.Add("", "--parser-output-mode linear|tree", "Set parser output mode to linear or tree-like");
+	Help.Add("-S", "--scan", "Run scanner");
+	Help.Add("-P", "--parse", "Run parser");
+	Help.Add("-G", "--generate", "Run code generator");
+
+	Help.AddSeparator();
+
+	Help.Add("-O", "--optimize", "Perform optimizations");
+
+	Help.AddSeparator();
+
+	Help.Add("", "--parser-output-mode tree|linear", "Set parser output mode to tree-like or linear");
+	Help.Add("", "--parser-mode normal|expression", "Set parser mode to normal or expression-only");
 }
 
 void CCommandLineInterface::RequireArgument(ArgumentsIterator &AOption)

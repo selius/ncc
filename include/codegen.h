@@ -296,7 +296,9 @@ private:
 class CCodeGenerationVisitor : public CStatementVisitor
 {
 public:
-	CCodeGenerationVisitor(CAsmCode &AAsm, CFunctionSymbol *AFuncSym);
+	CCodeGenerationVisitor(CAsmCode &AAsm);
+
+	void SetFunction(CFunctionSymbol *AFuncSym);
 
 	void Visit(CUnaryOp &AStmt);
 	void Visit(CBinaryOp &AStmt);

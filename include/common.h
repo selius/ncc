@@ -32,6 +32,7 @@ enum EExitCode
 	EXIT_CODE_TOO_MANY_INPUT_FILES,
 	EXIT_CODE_SCANNER_ERROR,
 	EXIT_CODE_PARSER_ERROR,
+	EXIT_CODE_UNKNOWN_ERROR,
 	EXIT_CODE_NOT_IMPLEMENTED,
 };
 
@@ -41,7 +42,6 @@ enum ECompilerMode
 	COMPILER_MODE_SCAN,
 	COMPILER_MODE_PARSE,
 	COMPILER_MODE_GENERATE,
-	COMPILER_MODE_OPTIMIZE,
 };
 
 enum EParserOutputMode
@@ -70,12 +70,29 @@ public:
 
 	string GetMessage() const;
 	CPosition GetPosition() const;
+	virtual EExitCode GetExitCode() const;
 
 	void Output(ostream &Stream) const;
 
 private:
 	string Message;
 	CPosition Position;
+};
+
+class CScannerException : public CException
+{
+public:
+	CScannerException(const string &AMessage, const CPosition &APosition);
+
+	EExitCode GetExitCode() const;
+};
+
+class CParserException : public CException
+{
+public:
+	CParserException(const string &AMessage, const CPosition &APosition);
+
+	EExitCode GetExitCode() const;
 };
 
 class CFatalException

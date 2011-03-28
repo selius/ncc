@@ -10,7 +10,7 @@ public:
 	CLowLevelOptimization(CAsmCode &AAsm);
 	virtual ~CLowLevelOptimization();
 
-	virtual void Optimize() = 0;
+	virtual bool Optimize() = 0;
 
 protected:
 	CAsmCode &Asm;
@@ -36,7 +36,7 @@ class CSuperfluousInstructionsRemoval : public CLowLevelOptimization
 public:
 	CSuperfluousInstructionsRemoval(CAsmCode &AAsm);
 
-	void Optimize();
+	bool Optimize();
 };
 
 class CArithmeticInstructionsOptimization : public CLowLevelOptimization
@@ -44,7 +44,7 @@ class CArithmeticInstructionsOptimization : public CLowLevelOptimization
 public:
 	CArithmeticInstructionsOptimization(CAsmCode &AAsm);
 
-	void Optimize();
+	bool Optimize();
 };
 
 class CJumpsOptimization : public CLowLevelOptimization
@@ -52,7 +52,7 @@ class CJumpsOptimization : public CLowLevelOptimization
 public:
 	CJumpsOptimization(CAsmCode &AAsm);
 
-	void Optimize();
+	bool Optimize();
 };
 
 class CUnreachableCodeElimination : public CStatementVisitor

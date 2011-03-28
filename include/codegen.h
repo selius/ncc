@@ -359,6 +359,7 @@ private:
 	void ConvertFloatToInt();
 	void ConvertIntToFloat();
 	void PerformConversion(CTypeSymbol *LHS, CTypeSymbol *RHS);
+	//void CopyStruct(CVariableSymbol *ADest, CVariableSymbol *ASrc);
 
 	CAsmCode &Asm;
 	CFunctionSymbol *FuncSym;

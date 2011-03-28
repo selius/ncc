@@ -1,5 +1,5 @@
 #!/bin/bash
-# run-tests - script to run ncc codegen tests
+# run-tests - script to run ncc codegen and optimization tests
 
 echo -e "\nRunning codegen tests...\n"
 
@@ -10,12 +10,37 @@ for i in *.c
 do
 	j="${i%.c}"
 	../../bin/ncc -G $i -o output/$j.s
-	../../bin/ncc -G -O $i -o optimized-output/$j.s
 	gcc -o output/$j output/$j.s ../../builtin/builtin.a
 	output/$j > output/$j.out
 	echo $? > output/$j.ret
 
 	if diff -u --strip-trailing-cr reference-output/$j.out output/$j.out && diff -u --strip-trailing-cr reference-output/$j.ret output/$j.ret
+	then
+		((SUCCESSFUL += 1))
+		echo "OK - $j"
+	else
+		((FAILED += 1))
+		echo "FAILED - $j"
+	fi
+done
+
+echo -e "\nSuccessful: $SUCCESSFUL"
+echo -e "Failed: $FAILED\n"
+
+echo -e "\nRunning optimization tests...\n"
+
+SUCCESSFUL=0
+FAILED=0
+
+for i in *.c
+do
+	j="${i%.c}"
+	../../bin/ncc -G -O $i -o optimized-output/$j.s
+	gcc -o optimized-output/$j optimized-output/$j.s ../../builtin/builtin.a
+	optimized-output/$j > optimized-output/$j.out
+	echo $? > optimized-output/$j.ret
+
+	if diff -u --strip-trailing-cr reference-output/$j.out optimized-output/$j.out && diff -u --strip-trailing-cr reference-output/$j.ret optimized-output/$j.ret
 	then
 		((SUCCESSFUL += 1))
 		echo "OK - $j"

@@ -34,9 +34,13 @@ CLowLevelOptimizer::~CLowLevelOptimizer()
 
 void CLowLevelOptimizer::Optimize()
 {
-	for (OptimizationsIterator it = Optimizations.begin(); it != Optimizations.end(); ++it) {
-		(*it)->Optimize();
-	}
+	bool Optimized;
+	do {
+		Optimized = false;
+		for (OptimizationsIterator it = Optimizations.begin(); it != Optimizations.end(); ++it) {
+			Optimized = Optimized || (*it)->Optimize();
+		}
+	} while (Optimized);
 }
 
 /******************************************************************************
@@ -47,8 +51,10 @@ CSuperfluousInstructionsRemoval::CSuperfluousInstructionsRemoval(CAsmCode &AAsm)
 {
 }
 
-void CSuperfluousInstructionsRemoval::Optimize()
+bool CSuperfluousInstructionsRemoval::Optimize()
 {
+	bool Optimized = false;
+
 	CAsmCode::CodeIterator nit1 = Asm.Begin();
 	CAsmCode::CodeIterator nit2 = ++Asm.Begin();
 
@@ -80,6 +86,8 @@ void CSuperfluousInstructionsRemoval::Optimize()
 				} else {
 					nit1 = nit2++;
 				}
+				Optimized = true;
+
 			} else if (cmd1->GetName() == "pop" && cmd2->GetName() == "push" && cmd1->GetOp()->IsReg() && cmd1->GetOp()->GetText() == cmd2->GetOp()->GetText()) {
 				Asm.Insert(it1, new CAsmCmd2("mov", mem(0, ESP), cmd2->GetOp()));
 
@@ -88,6 +96,7 @@ void CSuperfluousInstructionsRemoval::Optimize()
 				Asm.Erase(it2);
 
 				nit1 = nit2++;
+				Optimized = true;
 			} else if (cmd1->GetName() == "push" && cmd2->GetName() == "pop") {
 				if (!cmd1->GetOp()->IsMem() || !cmd2->GetOp()->IsMem()) {
 					Asm.Insert(it1, new CAsmCmd2("mov", cmd1->GetOp(), cmd2->GetOp()));
@@ -98,10 +107,13 @@ void CSuperfluousInstructionsRemoval::Optimize()
 					Asm.Erase(it2);
 
 					nit1 = nit2++;
+					Optimized = true;
 				}
 			}
 		}
 	}
+
+	return Optimized;
 }
 
 /******************************************************************************
@@ -112,8 +124,10 @@ CArithmeticInstructionsOptimization::CArithmeticInstructionsOptimization(CAsmCod
 {
 }
 
-void CArithmeticInstructionsOptimization::Optimize()
+bool CArithmeticInstructionsOptimization::Optimize()
 {
+	bool Optimized = false;
+
 	CAsmCode::CodeIterator next = Asm.Begin();
 	CAsmCode::CodeIterator cur;
 
@@ -132,12 +146,14 @@ void CArithmeticInstructionsOptimization::Optimize()
 			if (imm->GetValue() == 0) {
 				if (cmd2->GetName() == "add" || cmd2->GetName() == "sub") {
 					Asm.Erase(cur);
+					Optimized = true;
 				} else if (cmd2->GetName() == "imul") {
 					Asm.Insert(cur, new CAsmCmd2("mov", imm, cmd2->GetOp2()));
 
 					cmd2->SetOp1(NULL);
 					cmd2->SetOp2(NULL);
 					Asm.Erase(cur);
+					Optimized = true;
 				} else if (cmd2->GetName() == "mov" && cmd2->GetOp2()->IsReg()) {
 					CAsmReg *reg = dynamic_cast<CAsmReg *>(cmd2->GetOp2());
 
@@ -145,10 +161,12 @@ void CArithmeticInstructionsOptimization::Optimize()
 
 					cmd2->SetOp2(NULL);
 					Asm.Erase(cur);
+					Optimized = true;
 				}
 			} else if (imm->GetValue() == 1) {
 				if (cmd2->GetName() == "imul" || cmd2->GetName() == "idiv") {
 					Asm.Erase(cur);
+					Optimized = true;
 				}
 			}
 		} else if (cmd1 && cmd1->GetOp()->IsReg()) {
@@ -157,14 +175,18 @@ void CArithmeticInstructionsOptimization::Optimize()
 
 				cmd1->SetOp(NULL);
 				Asm.Erase(cur);
+				Optimized = true;
 			} else if (cmd1->GetName() == "dec") {
 				Asm.Insert(cur, new CAsmCmd2("sub", new CAsmImm(1), cmd1->GetOp()));
 
 				cmd1->SetOp(NULL);
 				Asm.Erase(cur);
+				Optimized = true;
 			}
 		}
 	}
+
+	return Optimized;
 }
 
 /******************************************************************************
@@ -175,15 +197,15 @@ CJumpsOptimization::CJumpsOptimization(CAsmCode &AAsm) : CLowLevelOptimization(A
 {
 }
 
-void CJumpsOptimization::Optimize()
+bool CJumpsOptimization::Optimize()
 {
+	bool Optimized = false;
+
 	CAsmCode::CodeIterator nit1 = Asm.Begin();
 	CAsmCode::CodeIterator nit2 = ++Asm.Begin();
 
 	CAsmCode::CodeIterator it1;
 	CAsmCode::CodeIterator it2;
-
-	bool beginning = false;
 
 	CAsmCmd1 *cmd1;
 	CAsmLabel *cmd2;
@@ -198,8 +220,11 @@ void CJumpsOptimization::Optimize()
 		if (cmd1 && cmd2 && cmd1->GetName() == "jmp" && cmd1->GetOp()->GetText() == cmd2->GetName()) {
 			Asm.Erase(it1);
 			nit1 = nit2++;
+			Optimized = true;
 		}
 	}
+
+	return Optimized;
 }
 
 /******************************************************************************

@@ -172,6 +172,26 @@ CSymbolTable* CParser::ParseTranslationUnit()
 	return SymbolTableStack.GetTop();
 }
 
+CExpression* CParser::ParseExpression()
+{
+	CExpression *Expr = ParseAssignment();
+
+	CBinaryOp *Op;
+
+	while (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA) {
+		Op = new CBinaryOp(*Token);
+
+		NextToken();
+
+		Op->SetLeft(Expr);
+		Op->SetRight(ParseAssignment());
+
+		Expr = Op;
+	}
+
+	return Expr;
+}
+
 bool IsTypeKeyword(const string &s)
 {
 	return (s == "const"|| s == "struct" || s == "typedef");
@@ -945,26 +965,6 @@ CStatement* CParser::ParseSwitch()
 	SwitchesStack.pop();
 
 	return Stmt;
-}
-
-CExpression* CParser::ParseExpression()
-{
-	CExpression *Expr = ParseAssignment();
-
-	CBinaryOp *Op;
-
-	while (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA) {
-		Op = new CBinaryOp(*Token);
-
-		NextToken();
-
-		Op->SetLeft(Expr);
-		Op->SetRight(ParseAssignment());
-
-		Expr = Op;
-	}
-
-	return Expr;
 }
 
 bool IsAssignment(const CToken &Token)

@@ -31,11 +31,6 @@ public:
 
 	CSymbolTable* ParseTranslationUnit();
 
-	bool ParseDeclaration();
-
-	CStatement* ParseStatement();
-	CBlockStatement* ParseBlock();
-
 	CExpression* ParseExpression();
 
 private:
@@ -71,12 +66,17 @@ private:
 
 	};
 
+	bool ParseDeclaration();
 	CDeclarationSpecifier ParseDeclarationSpecifier();
 	CSymbol* ParseDeclarator(CDeclarationSpecifier DeclSpec, bool CheckExistense = true);
 	void ParseParameterList(CFunctionSymbol *Func);
 	CPointerSymbol* ParsePointer(CTypeSymbol *ARefType);
 	CArraySymbol* ParseArray(CTypeSymbol *AElemType);
 	CStructSymbol* ParseStruct();
+
+	CStatement* ParseStatement();
+
+	CBlockStatement* ParseBlock();
 
 	CStatement* ParseIf();
 

@@ -41,4 +41,5 @@ tags:
 distclean:
 	-$(RM) $(TARGET)
 	-$(RM) tests/*/output/*
+	-$(RM) tests/codegen/optimized-output/*
 	$(MAKE) -C $(BUILTIN_DIR) distclean

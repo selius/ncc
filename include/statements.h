@@ -57,6 +57,7 @@ public:
 private:
 	StatementsContainer Statements;
 	CSymbolTable *SymbolTable;
+	// TODO: add separate symbol table for tags
 };
 
 class CIfStatement : public CStatement

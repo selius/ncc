@@ -59,8 +59,18 @@ protected:
 
 class CStructSymbolTable : public CSymbolTable
 {
+	// TODO: make this class more useful, get rid of dynamic_casts, etc.
+	// 	structs can only have CVariableSymbols
 protected:
 	void InitOffset(CVariableSymbol *ASymbol);
+};
+
+class CTagsSymbolTable : public CSymbolTable
+{
+public:
+	// TODO: add interface and implementaton for tags symbol table;
+	// 	tags have scope that begins just after their appearance, and ends at the block end.
+
 };
 
 class CSymbolTableStack
@@ -96,6 +106,7 @@ private:
 
 };
 
+// TODO: add support for incomplete types..
 class CTypeSymbol : public CSymbol
 {
 public:
@@ -164,6 +175,7 @@ public:
 
 	bool IsVoid() const;
 
+	// TODO: make void symbol incomplete
 private:
 
 };
@@ -215,6 +227,7 @@ public:
 
 private:
 	CStructSymbolTable *Fields;
+	// TODO: struct can also have internal tags..
 
 };
 
@@ -316,6 +329,9 @@ public:
 
 	bool GetBuiltIn() const;
 	void SetBuiltIn(bool ABuiltIn);
+
+	// TODO: add possibility to check equality of function types
+	// 	a function is characterized by return type and number and type of arguments
 
 private:
 	CTypeSymbol *ReturnType;

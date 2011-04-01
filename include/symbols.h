@@ -3,14 +3,24 @@
 
 #include "common.h"
 
+enum ESymbolType
+{
+	SYMBOL_TYPE_VARIABLE,
+	SYMBOL_TYPE_FUNCTION,
+	SYMBOL_TYPE_TYPE,
+
+};
+
 class CSymbol
 {
 public:
 	CSymbol(const string &AName = "");
 	virtual ~CSymbol();
 
-	virtual string GetName() const;
+	string GetName() const;
 	void SetName(const string &AName);
+
+	virtual ESymbolType GetSymbolType() const = 0;
 
 protected:
 	string Name;
@@ -18,22 +28,40 @@ protected:
 };
 
 class CVariableSymbol;
+class CFunctionSymbol;
+class CTypeSymbol;
+class CStructSymbol;
 
 class CSymbolTable
 {
 public:
-	typedef map<string, CSymbol *> SymbolsContainer;
-	typedef SymbolsContainer::const_iterator SymbolsIterator;
+	typedef map<string, CVariableSymbol *> VariablesContainer;
+	typedef VariablesContainer::const_iterator VariablesIterator;
+
+	typedef map<string, CTypeSymbol *> TypesContainer;
+	typedef TypesContainer::const_iterator TypesIterator;
+
+	typedef map<string, CStructSymbol *> TagsContainer;
+	typedef TagsContainer::const_iterator TagsIterator;
 
 	CSymbolTable();
 	virtual ~CSymbolTable();
 
-	void Add(CSymbol *ASymbol);
-	CSymbol* Get(const string &AName) const;
-	bool Exists(const string &AName) const;
+	void AddVariable(CVariableSymbol *ASymbol);
+	void AddType(CTypeSymbol *ASymbol);
+	void AddTag(CStructSymbol *ASymbol);
 
-	SymbolsIterator Begin() const;
-	SymbolsIterator End() const;
+	CVariableSymbol* GetVariable(const string &AName) const;
+	CTypeSymbol* GetType(const string &AName) const;
+	virtual CFunctionSymbol* GetFunction(const string &AName) const;
+	CStructSymbol* GetTag(const string &AName) const;
+
+	CSymbol* Get(const string &AName) const;
+
+	virtual bool Exists(const string &AName) const;
+
+	VariablesIterator VariablesBegin() const;
+	VariablesIterator VariablesEnd() const;
 
 	unsigned int GetSize() const;
 
@@ -44,10 +72,34 @@ public:
 
 protected:
 	virtual void InitOffset(CVariableSymbol *ASymbol);
-	SymbolsContainer Symbols;
+
+	VariablesContainer Variables;
+	TypesContainer Types;
+	TagsContainer Tags;
 
 	size_t CurrentOffset;
 	size_t ElementsSize;
+};
+
+class CGlobalSymbolTable : public CSymbolTable
+{
+public:
+	typedef map<string, CFunctionSymbol *> FunctionsContainer;
+	typedef FunctionsContainer::const_iterator FunctionsIterator;
+
+	~CGlobalSymbolTable();
+
+	void AddFunction(CFunctionSymbol *ASymbol);
+
+	CFunctionSymbol* GetFunction(const string &AName) const;
+
+	bool Exists(const string &AName) const;
+
+	FunctionsIterator FunctionsBegin() const;
+	FunctionsIterator FunctionsEnd() const;
+
+private:
+	FunctionsContainer Functions;
 
 };
 
@@ -59,18 +111,8 @@ protected:
 
 class CStructSymbolTable : public CSymbolTable
 {
-	// TODO: make this class more useful, get rid of dynamic_casts, etc.
-	// 	structs can only have CVariableSymbols
 protected:
 	void InitOffset(CVariableSymbol *ASymbol);
-};
-
-class CTagsSymbolTable : public CSymbolTable
-{
-public:
-	// TODO: add interface and implementaton for tags symbol table;
-	// 	tags have scope that begins just after their appearance, and ends at the block end.
-
 };
 
 class CSymbolTableStack
@@ -79,43 +121,44 @@ public:
 	typedef deque<CSymbolTable *> TablesContainer;
 	typedef TablesContainer::const_iterator TablesIterator;
 
+	CSymbolTableStack();
+
 	void Push(CSymbolTable *ATable);
 	CSymbolTable* Pop();
 
 	CSymbolTable* GetTop() const;
 	CSymbolTable* GetPreviousTop() const;
-	CSymbolTable* GetGlobal() const;
+	CGlobalSymbolTable* GetGlobal() const;
 
-	template<typename T>
-	T* Lookup(const string &AName) const
-	{
-		CSymbol *result = NULL;
+	void SetGlobal(CGlobalSymbolTable *ASymbolTable);
 
-		for (TablesIterator it = Tables.begin(); it != Tables.end(); ++it) {
-			result = (*it)->Get(AName); 
-			if (result) {
-				return dynamic_cast<T *>(result);
-			}
-		}
-
-		return NULL;
-	}
+	CVariableSymbol* LookupVariable(const string &AName) const;
+	CTypeSymbol* LookupType(const string &AName) const;
+	CStructSymbol* LookupTag(const string &AName) const;
+	CSymbol* LookupAll(const string &AName) const;
 
 private:
 	TablesContainer Tables;
+	CGlobalSymbolTable *Global;
 
 };
 
-// TODO: add support for incomplete types..
 class CTypeSymbol : public CSymbol
 {
 public:
 	CTypeSymbol(const string &AName = "");
 
+	virtual string GetQualifiedName() const;
+
+	ESymbolType GetSymbolType() const;
+
 	virtual size_t GetSize() const = 0;
 
 	bool GetConst() const;
 	void SetConst(bool AConst);
+
+	bool GetComplete() const;
+	void SetComplete(bool AComplete);
 
 	virtual bool IsInt() const;
 	virtual bool IsFloat() const;
@@ -130,16 +173,12 @@ public:
 
 	virtual bool CompatibleWith(CTypeSymbol *ASymbol);
 
-private:
+protected:
 	bool Const;
+	bool Complete;
 };
 
-class CScalarTypeSymbol : public CTypeSymbol
-{
-
-};
-
-class CIntegerSymbol : public CScalarTypeSymbol
+class CIntegerSymbol : public CTypeSymbol
 {
 public:
 	CIntegerSymbol();
@@ -153,7 +192,7 @@ private:
 
 };
 
-class CFloatSymbol : public CScalarTypeSymbol
+class CFloatSymbol : public CTypeSymbol
 {
 public:
 	CFloatSymbol();
@@ -183,6 +222,8 @@ private:
 class CArraySymbol : public CTypeSymbol
 {
 public:
+	CArraySymbol(CTypeSymbol *AElementsType = NULL, unsigned int ALength = 0);
+
 	size_t GetSize() const;
 
 	CTypeSymbol* GetElementsType() const;
@@ -197,6 +238,8 @@ public:
 	bool CompatibleWith(CTypeSymbol *ASymbol);
 
 private:
+	void UpdateName();
+
 	CTypeSymbol *ElementsType;
 	unsigned int Length;
 
@@ -212,7 +255,7 @@ public:
 
 	size_t GetSize() const;
 
-	void AddField(CSymbol *AField);
+	void AddField(CVariableSymbol *AField);
 
 	CVariableSymbol* GetField(const string &AName);
 
@@ -236,7 +279,7 @@ class CPointerSymbol : public CTypeSymbol
 public:
 	CPointerSymbol(CTypeSymbol *ARefType = NULL);
 
-	string GetName() const;
+	string GetQualifiedName() const;
 
 	size_t GetSize() const;
 
@@ -287,6 +330,8 @@ class CVariableSymbol : public CSymbol
 public:
 	CVariableSymbol(const string &AName = "", CTypeSymbol *AType = NULL);
 
+	ESymbolType GetSymbolType() const;
+
 	CTypeSymbol* GetType() const;
 	void SetType(CTypeSymbol *AType);
 
@@ -305,17 +350,19 @@ private:
 class CFunctionSymbol : public CSymbol
 {
 public:
-	typedef vector<CSymbol *> ArgumentsOrderContainer;
+	typedef vector<CVariableSymbol *> ArgumentsOrderContainer;
 	typedef ArgumentsOrderContainer::iterator ArgumentsOrderIterator;
 	typedef ArgumentsOrderContainer::reverse_iterator ArgumentsReverseOrderIterator;
 
 	CFunctionSymbol(const string &AName = "", CTypeSymbol *AReturnType = NULL);
 	~CFunctionSymbol();
 
+	ESymbolType GetSymbolType() const;
+
 	CTypeSymbol* GetReturnType() const;
 	void SetReturnType(CTypeSymbol *AReturnType);
 
-	void AddArgument(CSymbol *AArgument);
+	void AddArgument(CVariableSymbol *AArgument);
 
 	CArgumentsSymbolTable* GetArgumentsSymbolTable();
 	void SetArgumentsSymbolTable(CArgumentsSymbolTable *ASymbolTable);

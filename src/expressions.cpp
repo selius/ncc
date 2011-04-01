@@ -454,7 +454,7 @@ bool CConst::IsConst() const
 
 CIntegerConst::CIntegerConst(const CToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
 {
-	Value = dynamic_cast<const CIntegerConstToken &>(AToken).GetIntegerValue();
+	Value = static_cast<const CIntegerConstToken &>(AToken).GetIntegerValue();
 }
 
 void CIntegerConst::Accept(CStatementVisitor &AVisitor)
@@ -473,7 +473,7 @@ int CIntegerConst::GetValue() const
 
 CFloatConst::CFloatConst(const CToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
 {
-	Value = dynamic_cast<const CFloatConstToken &>(AToken).GetFloatValue();
+	Value = static_cast<const CFloatConstToken &>(AToken).GetFloatValue();
 }
 
 void CFloatConst::Accept(CStatementVisitor &AVisitor)
@@ -487,20 +487,20 @@ float CFloatConst::GetValue() const
 }
 
 /******************************************************************************
- * CSymbolConst
+ * CCharConst
  ******************************************************************************/
 
-CSymbolConst::CSymbolConst(const CToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
+CCharConst::CCharConst(const CToken &AToken, CTypeSymbol *AType) : CConst(AToken, AType)
 {
-	Value = dynamic_cast<const CSymbolConstToken &>(AToken).GetSymbolValue();
+	Value = static_cast<const CCharConstToken &>(AToken).GetCharValue();
 }
 
-void CSymbolConst::Accept(CStatementVisitor &AVisitor)
+void CCharConst::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
 }
 
-char CSymbolConst::GetValue() const
+char CCharConst::GetValue() const
 {
 	return Value;
 }
@@ -528,7 +528,7 @@ string CStringConst::GetValue() const
  * CVariable
  ******************************************************************************/
 
-CVariable::CVariable(const CToken &AToken, CSymbol *ASymbol /*= NULL*/) : CExpression(AToken), Symbol(ASymbol)
+CVariable::CVariable(const CToken &AToken, CVariableSymbol *ASymbol /*= NULL*/) : CExpression(AToken), Symbol(ASymbol)
 {
 	Name = AToken.GetText();
 }
@@ -540,7 +540,7 @@ void CVariable::Accept(CStatementVisitor &AVisitor)
 
 CVariableSymbol* CVariable::GetSymbol() const
 {
-	return static_cast<CVariableSymbol *>(Symbol);
+	return Symbol;
 }
 
 void CVariable::SetSymbol(CVariableSymbol *ASymbol)
@@ -550,7 +550,13 @@ void CVariable::SetSymbol(CVariableSymbol *ASymbol)
 
 CTypeSymbol* CVariable::GetResultType() const
 {
-	CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
+	if (!Symbol) {
+		return NULL;
+	}
+
+	return Symbol->GetType();
+
+	/*CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
 	if (!VarSym) {
 		CFunctionSymbol *FuncSym = dynamic_cast<CFunctionSymbol *>(Symbol);
 		if (!FuncSym) {
@@ -560,18 +566,54 @@ CTypeSymbol* CVariable::GetResultType() const
 		return FuncSym->GetType();
 	}
 
-	return VarSym->GetType();
+	return VarSym->GetType();*/
 }
 
 bool CVariable::IsLValue() const
 {
 	// this is check for modifiable lvalue, not regular lvalue..
-	CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
+	/*CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
 	if (!VarSym) {
+		return false;
+	}*/
+
+	if (!Symbol) {
 		return false;
 	}
 
-	return !VarSym->GetType()->GetConst();
+	return !Symbol->GetType()->GetConst();
+}
+
+/******************************************************************************
+ * CFunction
+ ******************************************************************************/
+
+CFunction::CFunction(const CToken &AToken, CFunctionSymbol *ASymbol /*= NULL*/) : CExpression(AToken), Symbol(ASymbol)
+{
+}
+
+void CFunction::Accept(CStatementVisitor &AVisitor)
+{
+	AVisitor.Visit(*this);
+}
+
+CFunctionSymbol* CFunction::GetSymbol() const
+{
+	return Symbol;
+}
+
+void CFunction::SetSymbol(CFunctionSymbol *ASymbol)
+{
+	Symbol = ASymbol;
+}
+
+CTypeSymbol* CFunction::GetResultType() const
+{
+	if (!Symbol) {
+		return NULL;
+	}
+
+	return Symbol->GetType();
 }
 
 /******************************************************************************
@@ -606,12 +648,12 @@ void CPostfixOp::CheckTypes() const
  * CFunctionCall
  ******************************************************************************/
 
-CFunctionCall::CFunctionCall(const CToken &AToken, CSymbol *AFunction) : CExpression(AToken)
+CFunctionCall::CFunctionCall(const CToken &AToken, CFunctionSymbol *AFunction) : CExpression(AToken)
 {
 	Type = TOKEN_TYPE_RIGHT_PARENTHESIS;	// well, that's not really clear, but looks good in error messages at least..
 	Name = AFunction->GetName() + "()";
 
-	Function = dynamic_cast<CFunctionSymbol *>(AFunction);
+	Function = AFunction;
 }
 
 CFunctionCall::~CFunctionCall()
@@ -715,6 +757,7 @@ CStructAccess::CStructAccess(const CToken &AToken, CExpression *AStruct /*= NULL
 CStructAccess::~CStructAccess()
 {
 	delete Struct;
+	delete Field;
 }
 
 void CStructAccess::Accept(CStatementVisitor &AVisitor)
@@ -790,6 +833,7 @@ CIndirectAccess::CIndirectAccess(const CToken &AToken, CExpression *APointer /*=
 CIndirectAccess::~CIndirectAccess()
 {
 	delete Pointer;
+	delete Field;
 }
 
 void CIndirectAccess::Accept(CStatementVisitor &AVisitor)

@@ -3,7 +3,8 @@
 
 #include "common.h"
 #include "symbols.h"
-#include "scanner.h"
+#include "parser.h"
+#include "prettyprinting.h"
 
 enum ERegister
 {
@@ -258,6 +259,7 @@ public:
 	void Add(const string &ALabel);
 
 	string AddStringLiteral(const string &ALiteral);
+	void AddGlobalVariable(CVariableSymbol *AVariable);
 
 	void Output(ostream &Stream);
 
@@ -291,9 +293,10 @@ public:
 	void Visit(CConditionalOp &AStmt);
 	void Visit(CIntegerConst &AStmt);
 	void Visit(CFloatConst &AStmt);
-	void Visit(CSymbolConst &AStmt);
+	void Visit(CCharConst &AStmt);
 	void Visit(CStringConst &AStmt);
 	void Visit(CVariable &AStmt);
+	void Visit(CFunction &AStmt);
 	void Visit(CPostfixOp &AStmt);
 	void Visit(CFunctionCall &AStmt);
 	void Visit(CStructAccess &AStmt);
@@ -332,9 +335,10 @@ public:
 	void Visit(CConditionalOp &AStmt);
 	void Visit(CIntegerConst &AStmt);
 	void Visit(CFloatConst &AStmt);
-	void Visit(CSymbolConst &AStmt);
+	void Visit(CCharConst &AStmt);
 	void Visit(CStringConst &AStmt);
 	void Visit(CVariable &AStmt);
+	void Visit(CFunction &AStmt);
 	void Visit(CPostfixOp &AStmt);
 	void Visit(CFunctionCall &AStmt);
 	void Visit(CStructAccess &AStmt);
@@ -376,6 +380,21 @@ private:
 	CAddressGenerationVisitor Addr;
 
 	bool Optimize;
+};
+
+class CCodeGenerator
+{
+public:
+	CCodeGenerator(CParser &AParser, const CCompilerParameters &AParameters);
+
+	void Output(ostream &Stream);
+
+private:
+	CParser &Parser;
+	const CCompilerParameters &Parameters;
+
+	CAsmCode Code;
+	CCodeGenerationVisitor Visitor;
 };
 
 #endif // _CODEGEN_H_

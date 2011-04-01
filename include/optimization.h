@@ -63,9 +63,10 @@ public:
 	void Visit(CConditionalOp &AStmt);
 	void Visit(CIntegerConst &AStmt);
 	void Visit(CFloatConst &AStmt);
-	void Visit(CSymbolConst &AStmt);
+	void Visit(CCharConst &AStmt);
 	void Visit(CStringConst &AStmt);
 	void Visit(CVariable &AStmt);
+	void Visit(CFunction &AStmt);
 	void Visit(CPostfixOp &AStmt);
 	void Visit(CFunctionCall &AStmt);
 	void Visit(CStructAccess &AStmt);

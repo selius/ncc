@@ -29,9 +29,11 @@ public:
 	CParser(CScanner &AScanner, EParserMode AMode = PARSER_MODE_NORMAL);
 	~CParser();
 
-	CSymbolTable* ParseTranslationUnit();
+	CGlobalSymbolTable* ParseTranslationUnit();
 
 	CExpression* ParseExpression();
+
+	const CToken* GetToken() const;
 
 private:
 	enum EBlockType
@@ -55,6 +57,7 @@ private:
 
 		CTypeSymbol *Type;
 		bool Typedef;
+		bool Const;
 	};
 
 	struct CLabelInfo
@@ -66,13 +69,43 @@ private:
 
 	};
 
-	bool ParseDeclaration();
-	CDeclarationSpecifier ParseDeclarationSpecifier();
-	CSymbol* ParseDeclarator(CDeclarationSpecifier DeclSpec, bool CheckExistense = true);
+	bool TryParseDeclaration();
+
+	void ParseDeclaration();
+
+	void ParseTypedefSpecifier(CDeclarationSpecifier &DeclSpec);
+	void ParseStructSpecifier(CDeclarationSpecifier &DeclSpec);
+
+	void CheckMultipleTypeSpecifiers(CDeclarationSpecifier &DeclSpec);
+
+	void ParseDeclarationSpecifiers(CDeclarationSpecifier &DeclSpec);
+
+	bool TryParseDeclarator();
+
+	CSymbol* ParseInitDeclaratorList(CDeclarationSpecifier &DeclSpec);
+
+	CSymbol* ParseInitDeclarator(CDeclarationSpecifier &DeclSpec);
+
+	void CheckUniqueness(const string &Ident, CTypeSymbol *Type);
+
+	CVariableSymbol* AddVariable(const string &Ident, CTypeSymbol *Type);
+
+	CFunctionSymbol* AddFunction(const string &Ident, CTypeSymbol *RetType);
+
+	CTypedefSymbol* AddTypedef(const string &Ident, CTypeSymbol *RefType);
+
+	CSymbol* ParseDeclarator(CDeclarationSpecifier &DeclSpec);
+
+	CTypeSymbol* ParsePointer(CTypeSymbol *ARefType);
+
+	CTypeSymbol* ParseArray(CTypeSymbol *AElemType);
+
 	void ParseParameterList(CFunctionSymbol *Func);
-	CPointerSymbol* ParsePointer(CTypeSymbol *ARefType);
-	CArraySymbol* ParseArray(CTypeSymbol *AElemType);
-	CStructSymbol* ParseStruct();
+
+	CTypeSymbol* FilterDuplicates(CTypeSymbol *AType);
+
+	void ParseInitializer(CVariableSymbol *ASymbol);
+
 
 	CStatement* ParseStatement();
 
@@ -129,6 +162,7 @@ private:
 
 	CSymbolTableStack SymbolTableStack;
 	map<string, CLabelInfo> LabelTable;
+	stack<CBlockStatement *> Blocks;
 	stack<EBlockType> BlockType;
 	stack<EScopeType> ScopeType;
 	stack<CSwitchStatement *> SwitchesStack;

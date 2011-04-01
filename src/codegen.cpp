@@ -1,6 +1,8 @@
 #include "codegen.h"
 
 #include "expressions.h"
+#include "parser.h"
+#include "optimization.h"
 
 /******************************************************************************
  * CAsmCmd
@@ -409,6 +411,11 @@ string CAsmCode::AddStringLiteral(const string &ALiteral)
 	return NewLiteralLabel;
 }
 
+void CAsmCode::AddGlobalVariable(CVariableSymbol *AVariable)
+{
+	Code.push_back(new CAsmDirective("comm", AVariable->GetName() + "," + ToString(AVariable->GetType()->GetSize())));
+}
+
 void CAsmCode::Output(ostream &Stream)
 {
 	Stream << ".data" << endl;
@@ -489,7 +496,7 @@ void CAddressGenerationVisitor::Visit(CFloatConst &AStmt)
 {
 }
 
-void CAddressGenerationVisitor::Visit(CSymbolConst &AStmt)
+void CAddressGenerationVisitor::Visit(CCharConst &AStmt)
 {
 }
 
@@ -505,6 +512,10 @@ void CAddressGenerationVisitor::Visit(CVariable &AStmt)
 		Asm.Add(LEA, mem(AStmt.GetSymbol()->GetOffset(), EBP), EAX);
 		Asm.Add(PUSH, EAX);
 	}
+}
+
+void CAddressGenerationVisitor::Visit(CFunction &AStmt)
+{
 }
 
 void CAddressGenerationVisitor::Visit(CPostfixOp &AStmt)
@@ -829,7 +840,7 @@ void CCodeGenerationVisitor::Visit(CBinaryOp &AStmt)
 	} else {
 		bool CompoundAssignment = false;
 
-		if (CTraits::IsCompoundAssignment(OpType)) {
+		if (TokenTraits::IsCompoundAssignment(OpType)) {
 			AStmt.GetLeft()->Accept(Addr);
 			OpType = CompoundAssignmentOp[OpType];
 			CompoundAssignment = true;
@@ -842,7 +853,7 @@ void CCodeGenerationVisitor::Visit(CBinaryOp &AStmt)
 		PerformConversion(AStmt.GetCommonRealType(), AStmt.GetRight()->GetResultType());
 
 		if (AStmt.GetCommonRealType()->IsFloat()) {
-			if (CTraits::IsTrivialOperation(OpType) || OpType == TOKEN_TYPE_OPERATION_SLASH) {
+			if (TokenTraits::IsTrivialOperation(OpType) || OpType == TOKEN_TYPE_OPERATION_SLASH) {
 				Asm.Add(FLD, mem(ESP));
 				Asm.Add(ADD, TypeSize::Float, ESP);
 				Asm.Add(FloatOperationCmd[OpType], mem(ESP));
@@ -905,7 +916,7 @@ void CCodeGenerationVisitor::Visit(CBinaryOp &AStmt)
 				Asm.Add(FSTP, ST0);
 				Asm.Add(ADD, 2 * TypeSize::Float, ESP);
 
-			} else if (CTraits::IsComparisonOperation(OpType)) {
+			} else if (TokenTraits::IsComparisonOperation(OpType)) {
 				string TrueLabel = Asm.GenerateLabel();
 				string EndCheckLabel = Asm.GenerateLabel();
 
@@ -929,7 +940,7 @@ void CCodeGenerationVisitor::Visit(CBinaryOp &AStmt)
 			Asm.Add(POP, EBX);
 			Asm.Add(POP, EAX);
 
-			if (CTraits::IsTrivialOperation(OpType)) {
+			if (TokenTraits::IsTrivialOperation(OpType)) {
 				Asm.Add(IntOperationCmd[OpType], EBX, EAX);
 			} else if (OpType == TOKEN_TYPE_OPERATION_SLASH || OpType == TOKEN_TYPE_OPERATION_PERCENT) {
 				Asm.Add(CDQ);
@@ -969,7 +980,7 @@ void CCodeGenerationVisitor::Visit(CBinaryOp &AStmt)
 				Asm.Add(MOV, 1, EAX);
 				Asm.Add(EndCheckLabel);
 
-			} else if (CTraits::IsComparisonOperation(OpType)) {
+			} else if (TokenTraits::IsComparisonOperation(OpType)) {
 				string TrueLabel = Asm.GenerateLabel();
 				string EndCheckLabel = Asm.GenerateLabel();
 
@@ -1039,7 +1050,7 @@ void CCodeGenerationVisitor::Visit(CFloatConst &AStmt)
 	Asm.Add(PUSH, int_rep);
 }
 
-void CCodeGenerationVisitor::Visit(CSymbolConst &AStmt)
+void CCodeGenerationVisitor::Visit(CCharConst &AStmt)
 {
 	Asm.Add(PUSH, AStmt.GetValue());
 }
@@ -1063,6 +1074,10 @@ void CCodeGenerationVisitor::Visit(CVariable &AStmt)
 			Asm.Add(PUSH, mem(AStmt.GetSymbol()->GetOffset(), EBP));
 		}
 	}
+}
+
+void CCodeGenerationVisitor::Visit(CFunction &AStmt)
+{
 }
 
 void CCodeGenerationVisitor::Visit(CPostfixOp &AStmt)
@@ -1167,9 +1182,14 @@ void CCodeGenerationVisitor::Visit(CBlockStatement &AStmt)
 		return;
 	}
 
-	if (!BlockNesting && (!Optimize || AStmt.GetSymbolTable()->GetElementsSize() != 0 || FuncSym->GetArgumentsSymbolTable()->GetElementsSize() != 0)) {
-		Asm.Add(PUSH, EBP);
-		Asm.Add(MOV, ESP, EBP);
+	if (!BlockNesting) {
+		Asm.Add(new CAsmDirective("globl", FuncSym->GetName()));
+		Asm.Add(FuncSym->GetName());
+
+		if (!Optimize || AStmt.GetSymbolTable()->GetElementsSize() != 0 || FuncSym->GetArgumentsSymbolTable()->GetElementsSize() != 0) {
+			Asm.Add(PUSH, EBP);
+			Asm.Add(MOV, ESP, EBP);
+		}
 	}
 
 	Asm.Add(SUB, AStmt.GetSymbolTable()->GetElementsSize(), ESP);
@@ -1192,9 +1212,13 @@ void CCodeGenerationVisitor::Visit(CBlockStatement &AStmt)
 
 	Asm.Add(ADD, AStmt.GetSymbolTable()->GetElementsSize(), ESP);
 
-	if (!BlockNesting && (!Optimize || AStmt.GetSymbolTable()->GetElementsSize() != 0 || FuncSym->GetArgumentsSymbolTable()->GetElementsSize() != 0)) {
-		Asm.Add(MOV, EBP, ESP);
-		Asm.Add(POP, EBP);
+	if (!BlockNesting) {
+		if (!Optimize || AStmt.GetSymbolTable()->GetElementsSize() != 0 || FuncSym->GetArgumentsSymbolTable()->GetElementsSize() != 0) {
+			Asm.Add(MOV, EBP, ESP);
+			Asm.Add(POP, EBP);
+		}
+
+		Asm.Add(RET);
 	}
 
 	Blocks.pop();
@@ -1446,3 +1470,43 @@ void CCodeGenerationVisitor::PerformConversion(CTypeSymbol *LHS, CTypeSymbol *RH
 
 
 }*/
+
+/******************************************************************************
+ * CCodeGenerator
+ ******************************************************************************/
+
+CCodeGenerator::CCodeGenerator(CParser &AParser, const CCompilerParameters &AParameters) : Parser(AParser), Parameters(AParameters), Visitor(Code, Parameters.Optimize)
+{
+}
+
+void CCodeGenerator::Output(ostream &Stream)
+{
+	CGlobalSymbolTable *SymTable = Parser.ParseTranslationUnit();
+
+	CFunctionSymbol *FuncSym = NULL;
+
+	for (CGlobalSymbolTable::FunctionsIterator it = SymTable->FunctionsBegin(); it != SymTable->FunctionsEnd(); ++it) {
+		FuncSym = it->second;
+
+		if (FuncSym->GetBody()) {
+			if (Parameters.Optimize) {
+				CUnreachableCodeElimination uce;
+				FuncSym->GetBody()->Accept(uce);
+			}
+
+			Visitor.SetFunction(FuncSym);
+			FuncSym->GetBody()->Accept(Visitor);
+		}
+	}
+
+	for (CGlobalSymbolTable::VariablesIterator it = SymTable->VariablesBegin(); it != SymTable->VariablesEnd(); ++it) {
+		Code.AddGlobalVariable(it->second);
+	}
+
+	if (Parameters.Optimize) {
+		CLowLevelOptimizer optimizer(Code);
+		optimizer.Optimize();
+	}
+
+	Code.Output(Stream);
+}

@@ -1,10 +1,33 @@
 #ifndef _PRETTYPRINTING_H_
 #define _PRETTYPRINTING_H_
 
-//#include "common.h"
+#include "common.h"
 #include "expressions.h"
 #include "statements.h"
+#include "parser.h"
 
+class CScanPrettyPrinter
+{
+public:
+	CScanPrettyPrinter(CScanner &AScanner);
+
+	void Output(ostream &Stream);
+
+private:
+	CScanner &Scanner;
+};
+
+class CParsePrettyPrinter
+{
+public:
+	CParsePrettyPrinter(CParser &AParser, const CCompilerParameters &AParameters);
+
+	void Output(ostream &Stream);
+
+private:
+	CParser &Parser;
+	const CCompilerParameters &Parameters;
+};
 
 class CStatementLinearPrintVisitor : public CStatementVisitor
 {
@@ -16,9 +39,10 @@ public:
 	void Visit(CConditionalOp &AStmt);
 	void Visit(CIntegerConst &AStmt);
 	void Visit(CFloatConst &AStmt);
-	void Visit(CSymbolConst &AStmt);
+	void Visit(CCharConst &AStmt);
 	void Visit(CStringConst &AStmt);
 	void Visit(CVariable &AStmt);
+	void Visit(CFunction &AStmt);
 	void Visit(CPostfixOp &AStmt);
 	void Visit(CFunctionCall &AStmt);
 	void Visit(CStructAccess &AStmt);
@@ -58,9 +82,10 @@ public:
 	void Visit(CConditionalOp &AStmt);
 	void Visit(CIntegerConst &AStmt);
 	void Visit(CFloatConst &AStmt);
-	void Visit(CSymbolConst &AStmt);
+	void Visit(CCharConst &AStmt);
 	void Visit(CStringConst &AStmt);
 	void Visit(CVariable &AStmt);
+	void Visit(CFunction &AStmt);
 	void Visit(CPostfixOp &AStmt);
 	void Visit(CFunctionCall &AStmt);
 	void Visit(CStructAccess &AStmt);
@@ -81,8 +106,7 @@ public:
 	void Visit(CReturnStatement &AStmt);
 	void Visit(CSwitchStatement &AStmt);
 
-//private:
-public:
+private:
 	void PrintTreeDecoration();
 	void PrintName(CStatement &AStmt);
 

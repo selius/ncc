@@ -1,6 +1,86 @@
 #include "prettyprinting.h"
 
 /******************************************************************************
+ * CScanPrettyPrinter
+ ******************************************************************************/
+
+CScanPrettyPrinter::CScanPrettyPrinter(CScanner &AScanner) : Scanner(AScanner)
+{
+}
+
+void CScanPrettyPrinter::Output(ostream &Stream)
+{
+	const CToken *token = NULL;
+
+	const streamsize TOKEN_NAME_FIELD_WIDTH = 31;
+	streamsize w = Stream.width();
+
+	do {
+		token = Scanner.Next();
+		Stream << token->GetPosition().Line << '\t' << token->GetPosition().Column << '\t';
+		Stream.width(TOKEN_NAME_FIELD_WIDTH);
+		Stream << left << token->GetStringifiedType();
+		Stream.width(w);
+		Stream << '\t' << token->GetText() << endl;
+
+	} while (token->GetType() != TOKEN_TYPE_EOF);
+}
+
+/******************************************************************************
+ * CParsePrettyPrinter
+ ******************************************************************************/
+
+CParsePrettyPrinter::CParsePrettyPrinter(CParser &AParser, const CCompilerParameters &AParameters) : Parser(AParser), Parameters(AParameters)
+{
+}
+
+void CParsePrettyPrinter::Output(ostream &Stream)
+{
+	CStatementVisitor *vis;
+
+	if (Parameters.ParserOutputMode == PARSER_OUTPUT_MODE_TREE) {
+		vis = new CStatementTreePrintVisitor(Stream);
+	} else {
+		vis = new CStatementLinearPrintVisitor(Stream);
+	}
+
+	if (Parameters.ParserMode == PARSER_MODE_EXPRESSION) {
+		CExpression *expr = Parser.ParseExpression();
+
+		if (Parser.GetToken()->GetType() != TOKEN_TYPE_EOF) {
+			throw CParserException("trailing characters", Parser.GetToken()->GetPosition());
+		}
+
+		expr->Accept(*vis);
+	} else {
+		CGlobalSymbolTable *SymTable = Parser.ParseTranslationUnit();
+
+		CFunctionSymbol *FuncSym = NULL;
+
+		for (CGlobalSymbolTable::FunctionsIterator it = SymTable->FunctionsBegin(); it != SymTable->FunctionsEnd(); ++it) {
+			FuncSym = it->second;
+			if (FuncSym && !FuncSym->GetBuiltIn()) {
+				Stream << FuncSym->GetName() << ":" << endl;
+				if (!FuncSym->GetBody()) {
+					Stream << "\t(declared, but not defined)" << endl;
+				}
+
+				CSymbolTable *FSST = FuncSym->GetArgumentsSymbolTable();
+				for (CSymbolTable::VariablesIterator it = FSST->VariablesBegin(); it != FSST->VariablesEnd(); ++it) {
+					Stream << "\t" << it->second->GetName() <<": " << it->second->GetType()->GetName() << endl;
+				}
+
+				if (FuncSym->GetBody()) {
+					FuncSym->GetBody()->Accept(*vis);
+				}
+			}
+		}
+	}
+
+	delete vis;
+}
+
+/******************************************************************************
  * CStatementLinearPrintVisitor
  ******************************************************************************/
 
@@ -45,7 +125,7 @@ void CStatementLinearPrintVisitor::Visit(CFloatConst &AStmt)
 	Stream << AStmt.GetValue();
 }
 
-void CStatementLinearPrintVisitor::Visit(CSymbolConst &AStmt)
+void CStatementLinearPrintVisitor::Visit(CCharConst &AStmt)
 {
 	Stream << '\'' << AStmt.GetValue() << '\'';
 }
@@ -56,6 +136,11 @@ void CStatementLinearPrintVisitor::Visit(CStringConst &AStmt)
 }
 
 void CStatementLinearPrintVisitor::Visit(CVariable &AStmt)
+{
+	Stream << AStmt.GetName();
+}
+
+void CStatementLinearPrintVisitor::Visit(CFunction &AStmt)
 {
 	Stream << AStmt.GetName();
 }
@@ -278,7 +363,7 @@ void CStatementTreePrintVisitor::Visit(CFloatConst &AStmt)
 	Stream << AStmt.GetValue() << endl;
 }
 
-void CStatementTreePrintVisitor::Visit(CSymbolConst &AStmt)
+void CStatementTreePrintVisitor::Visit(CCharConst &AStmt)
 {
 	PrintTreeDecoration();
 	Stream << '\'' << AStmt.GetValue() << '\'' << endl;
@@ -291,6 +376,12 @@ void CStatementTreePrintVisitor::Visit(CStringConst &AStmt)
 }
 
 void CStatementTreePrintVisitor::Visit(CVariable &AStmt)
+{
+	PrintTreeDecoration();
+	PrintName(AStmt);
+}
+
+void CStatementTreePrintVisitor::Visit(CFunction &AStmt)
 {
 	PrintTreeDecoration();
 	PrintName(AStmt);

@@ -34,53 +34,108 @@ CSymbolTable::CSymbolTable() : CurrentOffset(0), ElementsSize(0)
 
 CSymbolTable::~CSymbolTable()
 {
-	for (SymbolsIterator it = Begin(); it != End(); ++it) {
+	for (VariablesIterator it = Variables.begin(); it != Variables.end(); ++it) {
+		delete it->second;
+	}
+
+	for (TagsIterator it = Tags.begin(); it != Tags.end(); ++it) {
+		delete it->second;
+	}
+
+	for (TypesIterator it = Types.begin(); it != Types.end(); ++it) {
 		delete it->second;
 	}
 }
 
-void CSymbolTable::Add(CSymbol *ASymbol)
+void CSymbolTable::AddVariable(CVariableSymbol *ASymbol)
 {
-	if (!ASymbol) {
-		return;
-	}
+	assert(ASymbol != NULL);
 
-	Symbols[ASymbol->GetName()] = ASymbol;
-
-	CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(ASymbol);
-	if (VarSym) {
-		InitOffset(VarSym);
-	}
+	Variables[ASymbol->GetName()] = ASymbol;
+	InitOffset(ASymbol);
 }
 
-CSymbol* CSymbolTable::Get(const string &AName) const
+void CSymbolTable::AddType(CTypeSymbol *ASymbol)
 {
-	SymbolsIterator it = Symbols.find(AName);
-	if (it == Symbols.end()) {
+	assert(ASymbol != NULL);
+
+	Types[ASymbol->GetName()] = ASymbol;
+}
+
+void CSymbolTable::AddTag(CStructSymbol *ASymbol)
+{
+	assert(ASymbol != NULL);
+
+	Tags[ASymbol->GetName()] = ASymbol;
+}
+
+CVariableSymbol* CSymbolTable::GetVariable(const string &AName) const
+{
+	VariablesIterator it = Variables.find(AName);
+	if (it == Variables.end()) {
 		return NULL;
 	}
 
 	return it->second;
 }
 
+CTypeSymbol* CSymbolTable::GetType(const string &AName) const
+{
+	TypesIterator it = Types.find(AName);
+	if (it == Types.end()) {
+		return NULL;
+	}
+
+	return it->second;
+}
+
+CFunctionSymbol* CSymbolTable::GetFunction(const string &AName) const
+{
+	return NULL;
+}
+
+CStructSymbol* CSymbolTable::GetTag(const string &AName) const
+{
+	TagsIterator it = Tags.find(AName);
+	if (it == Tags.end()) {
+		return NULL;
+	}
+
+	return it->second;
+}
+
+CSymbol* CSymbolTable::Get(const string &AName) const
+{
+	CSymbol *Result = NULL;
+
+	if (Result = GetVariable(AName)) {
+		return Result;
+	}
+	if (Result = GetType(AName)) {
+		return Result;
+	}
+
+	return Result;
+}
+
 bool CSymbolTable::Exists(const string &AName) const
 {
-	return Symbols.count(AName);
+	return Variables.count(AName) || Types.count(AName);
 }
 
-CSymbolTable::SymbolsIterator CSymbolTable::Begin() const
+CSymbolTable::VariablesIterator CSymbolTable::VariablesBegin() const
 {
-	return Symbols.begin();
+	return Variables.begin();
 }
 
-CSymbolTable::SymbolsIterator CSymbolTable::End() const
+CSymbolTable::VariablesIterator CSymbolTable::VariablesEnd() const
 {
-	return Symbols.end();
+	return Variables.end();
 }
 
 unsigned int CSymbolTable::GetSize() const
 {
-	return Symbols.size();
+	return Variables.size() + Types.size() + Tags.size();
 }
 
 unsigned int CSymbolTable::GetElementsSize() const
@@ -103,6 +158,49 @@ void CSymbolTable::InitOffset(CVariableSymbol *ASymbol)
 	ElementsSize += ASymbol->GetType()->GetSize();
 	CurrentOffset += ASymbol->GetType()->GetSize();
 	ASymbol->SetOffset(-CurrentOffset);
+}
+
+/******************************************************************************
+ * CGlobalSymbolTable
+ ******************************************************************************/
+
+CGlobalSymbolTable::~CGlobalSymbolTable()
+{
+	for (FunctionsIterator it = Functions.begin(); it != Functions.end(); ++it) {
+		delete it->second;
+	}
+}
+
+void CGlobalSymbolTable::AddFunction(CFunctionSymbol *ASymbol)
+{
+	assert(ASymbol != NULL);
+
+	Functions[ASymbol->GetName()] = ASymbol;
+}
+
+CFunctionSymbol* CGlobalSymbolTable::GetFunction(const string &AName) const
+{
+	FunctionsIterator it = Functions.find(AName);
+	if (it == Functions.end()) {
+		return NULL;
+	}
+
+	return it->second;
+}
+
+bool CGlobalSymbolTable::Exists(const string &AName) const
+{
+	return CSymbolTable::Exists(AName) || Functions.count(AName);
+}
+
+CGlobalSymbolTable::FunctionsIterator CGlobalSymbolTable::FunctionsBegin() const
+{
+	return Functions.begin();
+}
+
+CGlobalSymbolTable::FunctionsIterator CGlobalSymbolTable::FunctionsEnd() const
+{
+	return Functions.end();
 }
 
 /******************************************************************************
@@ -131,6 +229,10 @@ void CStructSymbolTable::InitOffset(CVariableSymbol *ASymbol)
  * CSymbolTableStack
  ******************************************************************************/
 
+CSymbolTableStack::CSymbolTableStack() : Global(NULL)
+{
+}
+
 void CSymbolTableStack::Push(CSymbolTable *ATable)
 {
 	Tables.push_front(ATable);
@@ -153,9 +255,84 @@ CSymbolTable* CSymbolTableStack::GetPreviousTop() const
 	return *(++Tables.begin());
 }
 
-CSymbolTable* CSymbolTableStack::GetGlobal() const
+CGlobalSymbolTable* CSymbolTableStack::GetGlobal() const
 {
-	return Tables.back();
+	return Global;
+}
+
+void CSymbolTableStack::SetGlobal(CGlobalSymbolTable *ASymbolTable)
+{
+	if (Global) {
+		return;
+	}
+
+	Global = ASymbolTable;
+	Tables.push_back(ASymbolTable);
+}
+
+CVariableSymbol* CSymbolTableStack::LookupVariable(const string &AName) const
+{
+	CVariableSymbol *Result = NULL;
+
+	for (TablesIterator it = Tables.begin(); it != Tables.end(); ++it) {
+		Result = (*it)->GetVariable(AName); 
+		if (Result) {
+			return Result;
+		}
+	}
+
+	return NULL;
+}
+
+CTypeSymbol* CSymbolTableStack::LookupType(const string &AName) const
+{
+	CTypeSymbol *Result = NULL;
+
+	for (TablesIterator it = Tables.begin(); it != Tables.end(); ++it) {
+		Result = (*it)->GetType(AName); 
+		if (Result) {
+			return Result;
+		}
+	}
+
+	return NULL;
+}
+
+CStructSymbol* CSymbolTableStack::LookupTag(const string &AName) const
+{
+	CStructSymbol *Result = NULL;
+
+	for (TablesIterator it = Tables.begin(); it != Tables.end(); ++it) {
+		Result = (*it)->GetTag(AName); 
+		if (Result) {
+			return Result;
+		}
+	}
+
+	return NULL;
+}
+
+CSymbol* CSymbolTableStack::LookupAll(const string &AName) const
+{
+	CSymbol *Result = NULL;
+
+	for (TablesIterator it = Tables.begin(); it != Tables.end(); ++it) {
+		if (Result = (*it)->GetVariable(AName)) {
+			return Result;
+		}
+		if (Result = (*it)->GetType(AName)) {
+			return Result;
+		}
+		if (Result = (*it)->GetFunction(AName)) {
+			return Result;
+		}
+		if (Result = (*it)->GetTag(AName)) {
+			return Result;
+		}
+	}
+
+	return NULL;
+
 }
 
 /******************************************************************************
@@ -166,6 +343,16 @@ CTypeSymbol::CTypeSymbol(const string &AName /*= ""*/) : CSymbol(AName), Const(f
 {
 }
 
+string CTypeSymbol::GetQualifiedName() const
+{
+	return (Const ? "const " : "") + Name;
+}
+
+ESymbolType CTypeSymbol::GetSymbolType() const
+{
+	return SYMBOL_TYPE_TYPE;
+}
+
 bool CTypeSymbol::GetConst() const
 {
 	return Const;
@@ -174,6 +361,16 @@ bool CTypeSymbol::GetConst() const
 void CTypeSymbol::SetConst(bool AConst)
 {
 	Const = AConst;
+}
+
+bool CTypeSymbol::GetComplete() const
+{
+	return Complete;
+}
+
+void CTypeSymbol::SetComplete(bool AComplete)
+{
+	Complete = AComplete;
 }
 
 bool CTypeSymbol::IsInt() const
@@ -300,6 +497,11 @@ bool CVoidSymbol::IsVoid() const
  * CArraySymbol
  ******************************************************************************/
 
+CArraySymbol::CArraySymbol(CTypeSymbol *AElementsType /*= NULL*/, unsigned int ALength /*= 0*/) : ElementsType(AElementsType), Length(ALength)
+{
+	UpdateName();
+}
+
 size_t CArraySymbol::GetSize() const
 {
 	return Length * (ElementsType ? ElementsType->GetSize() : 0);
@@ -313,6 +515,7 @@ CTypeSymbol* CArraySymbol::GetElementsType() const
 void CArraySymbol::SetElementsType(CTypeSymbol *AElementsType)
 {
 	ElementsType = AElementsType;
+	UpdateName();
 }
 
 unsigned int CArraySymbol::GetLength() const
@@ -323,6 +526,7 @@ unsigned int CArraySymbol::GetLength() const
 void CArraySymbol::SetLength(unsigned int ALength)
 {
 	Length = ALength;
+	UpdateName();
 }
 
 bool CArraySymbol::IsPointer() const
@@ -348,6 +552,15 @@ bool CArraySymbol::CompatibleWith(CTypeSymbol *ASymbol)
 	}
 }
 
+void CArraySymbol::UpdateName()
+{
+	if (!ElementsType) {
+		return;
+	}
+
+	Name = ElementsType->GetName() + "[" + ToString(Length) + "]";
+}
+
 /******************************************************************************
  * CStructSymbol
  ******************************************************************************/
@@ -370,17 +583,17 @@ size_t CStructSymbol::GetSize() const
 
 	size_t result = 0;
 
-	for (CSymbolTable::SymbolsIterator it = Fields->Begin(); it != Fields->End(); ++it) {
-		result += static_cast<CVariableSymbol *>(it->second)->GetType()->GetSize();
+	for (CStructSymbolTable::VariablesIterator it = Fields->VariablesBegin(); it != Fields->VariablesEnd(); ++it) {
+		result += it->second->GetType()->GetSize();
 	}
 
 	return result;
 }
 
-void CStructSymbol::AddField(CSymbol *AField)
+void CStructSymbol::AddField(CVariableSymbol *AField)
 {
 	if (Fields) {
-		Fields->Add(AField);
+		Fields->AddVariable(AField);
 	}
 }
 
@@ -390,7 +603,7 @@ CVariableSymbol* CStructSymbol::GetField(const string &AName)
 		return NULL;
 	}
 
-	return dynamic_cast<CVariableSymbol *>(Fields->Get(AName));
+	return Fields->GetVariable(AName);
 }
 
 CStructSymbolTable* CStructSymbol::GetSymbolTable()
@@ -428,13 +641,14 @@ bool CStructSymbol::CompatibleWith(CTypeSymbol *ASymbol)
  * CPointerSymbol
  ******************************************************************************/
 
-CPointerSymbol::CPointerSymbol(CTypeSymbol *ARefType /*= NULL*/) : RefType(ARefType)
+CPointerSymbol::CPointerSymbol(CTypeSymbol *ARefType /*= NULL*/)
 {
+	SetRefType(ARefType);
 }
 
-string CPointerSymbol::GetName() const
+string CPointerSymbol::GetQualifiedName() const
 {
-	return RefType ? RefType->GetName() + "*" : "";
+	return Name + (Const ? " const" : "");
 }
 
 size_t CPointerSymbol::GetSize() const
@@ -450,6 +664,11 @@ CTypeSymbol* CPointerSymbol::GetRefType() const
 void CPointerSymbol::SetRefType(CTypeSymbol *ARefType)
 {
 	RefType = ARefType;
+
+	if (RefType) {
+		Name = RefType->GetName() + "*";
+
+	}
 }
 
 bool CPointerSymbol::IsPointer() const
@@ -544,6 +763,11 @@ CVariableSymbol::CVariableSymbol(const string &AName /*= ""*/, CTypeSymbol *ATyp
 {
 }
 
+ESymbolType CVariableSymbol::GetSymbolType() const
+{
+	return SYMBOL_TYPE_VARIABLE;
+}
+
 CTypeSymbol* CVariableSymbol::GetType() const
 {
 	return Type;
@@ -589,6 +813,11 @@ CFunctionSymbol::~CFunctionSymbol()
 	delete Type;
 }
 
+ESymbolType CFunctionSymbol::GetSymbolType() const
+{
+	return SYMBOL_TYPE_FUNCTION;
+}
+
 CTypeSymbol* CFunctionSymbol::GetReturnType() const
 {
 	return ReturnType;
@@ -599,12 +828,9 @@ void CFunctionSymbol::SetReturnType(CTypeSymbol *AReturnType)
 	ReturnType = AReturnType;
 }
 
-void CFunctionSymbol::AddArgument(CSymbol *AArgument)
+void CFunctionSymbol::AddArgument(CVariableSymbol *AArgument)
 {
-	if (Arguments) {
-		Arguments->Add(AArgument);
-		ArgumentsOrder.push_back(AArgument);
-	}
+	ArgumentsOrder.push_back(AArgument);
 }
 
 CArgumentsSymbolTable* CFunctionSymbol::GetArgumentsSymbolTable()

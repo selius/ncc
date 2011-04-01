@@ -3,9 +3,7 @@
 #include "scanner.h"
 #include "parser.h"
 #include "codegen.h"
-#include "optimization.h"
 #include "prettyprinting.h"
-#include "statements.h"
 
 int main(int argc, char *argv[])
 {
@@ -15,7 +13,7 @@ int main(int argc, char *argv[])
 
 	try {
 		Parameters = CLI.ParseArguments();
-	} catch (CFatalException e) {
+	} catch (CFatalException &e) {
 		if (!e.GetMessage().empty()) {
 			CLI.Error(e.GetMessage(), e.GetExitCode());
 		}
@@ -25,7 +23,10 @@ int main(int argc, char *argv[])
 
 	EExitCode ExitCode = EXIT_CODE_SUCCESS;
 
-	ifstream in(Parameters.InputFilename.c_str());
+	istream *in = &cin;
+	if (Parameters.InputFilename != "-") {
+		in = new ifstream(Parameters.InputFilename.c_str());
+	}
 
 	ostream *out = &cout;
 	if (!Parameters.OutputFilename.empty()) {
@@ -33,112 +34,31 @@ int main(int argc, char *argv[])
 	}
 
 	try {
+		CScanner Scanner(*in);
+
 		if (Parameters.CompilerMode == COMPILER_MODE_SCAN) {
-			CScanner scanner(in);
-			const CToken *token = NULL;
+			CScanPrettyPrinter Printer(Scanner);
+			Printer.Output(*out);
 
-			const streamsize TOKEN_NAME_FIELD_WIDTH = 31;
-			streamsize w = out->width();
-
-			do {
-				token = scanner.Next();
-				*out << token->GetPosition().Line << '\t' << token->GetPosition().Column << '\t';
-				out->width(TOKEN_NAME_FIELD_WIDTH);
-				*out << left << token->GetStringifiedType();
-				out->width(w);
-				*out << '\t' << token->GetText() << endl;
-
-			} while (token->GetType() != TOKEN_TYPE_EOF);
 		} else if (Parameters.CompilerMode == COMPILER_MODE_PARSE) {
-			CScanner scanner(in);
-			CParser parser(scanner, Parameters.ParserMode);
+			CParser Parser(Scanner, Parameters.ParserMode);
+			CParsePrettyPrinter Printer(Parser, Parameters);
+			Printer.Output(*out);
 
-			CStatementVisitor *vis;
-
-			if (Parameters.ParserOutputMode == PARSER_OUTPUT_MODE_TREE) {
-				vis = new CStatementTreePrintVisitor(*out);
-			} else {
-				vis = new CStatementLinearPrintVisitor(*out);
-			}
-
-			if (Parameters.ParserMode == PARSER_MODE_EXPRESSION) {
-				CExpression *expr = parser.ParseExpression();
-
-				if (scanner.GetToken()->GetType() != TOKEN_TYPE_EOF) {
-					throw CException("trailing characters", scanner.GetToken()->GetPosition());
-				}
-
-				expr->Accept(*vis);
-			} else {
-				CSymbolTable *SymTable = parser.ParseTranslationUnit();
-
-				CFunctionSymbol *FuncSym = NULL;
-
-				for (CSymbolTable::SymbolsIterator it = SymTable->Begin(); it != SymTable->End(); ++it) {
-					FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
-					if (FuncSym && !FuncSym->GetBuiltIn()) {
-						*out << FuncSym->GetName() << ":" << endl;
-						if (!FuncSym->GetBody()) {
-							*out << "\t(declared, but not defined)" << endl;
-						}
-
-						CSymbolTable *FSST = FuncSym->GetArgumentsSymbolTable();
-						for (CSymbolTable::SymbolsIterator it = FSST->Begin(); it != FSST->End(); ++it) {
-							*out << "\t" << it->second->GetName() <<": " << dynamic_cast<CVariableSymbol *>(it->second)->GetType()->GetName() << endl;
-						}
-
-						if (FuncSym->GetBody()) {
-							FuncSym->GetBody()->Accept(*vis);
-						}
-					}
-				}
-			}
-
-			delete vis;
 		} else if (Parameters.CompilerMode == COMPILER_MODE_GENERATE) {
-			CScanner scanner(in);
-			CParser parser(scanner);
-			CAsmCode code;
-			CCodeGenerationVisitor vis(code, Parameters.Optimize);
-
-			CSymbolTable *SymTable = parser.ParseTranslationUnit();
-
-			CFunctionSymbol *FuncSym = NULL;
-			CVariableSymbol *VarSym = NULL;
-
-			for (CSymbolTable::SymbolsIterator it = SymTable->Begin(); it != SymTable->End(); ++it) {
-				FuncSym = dynamic_cast<CFunctionSymbol *>(it->second);
-				VarSym = dynamic_cast<CVariableSymbol *>(it->second);
-				if (FuncSym && FuncSym->GetBody()) {
-					if (Parameters.Optimize) {
-						CUnreachableCodeElimination uce;
-						FuncSym->GetBody()->Accept(uce);
-					}
-
-					code.Add(new CAsmDirective("globl", FuncSym->GetName()));
-					code.Add(FuncSym->GetName());
-
-					vis.SetFunction(FuncSym);
-					FuncSym->GetBody()->Accept(vis);
-
-					code.Add(RET);
-				} else if (VarSym) {
-					code.Add(new CAsmDirective("comm", VarSym->GetName() + "," + ToString(VarSym->GetType()->GetSize())));
-				}
-			}
-
-			if (Parameters.Optimize) {
-				CLowLevelOptimizer optimizer(code);
-				optimizer.Optimize();
-			}
-
-			code.Output(*out);
+			CParser Parser(Scanner, Parameters.ParserMode);
+			CCodeGenerator Generator(Parser, Parameters);
+			Generator.Output(*out);
 		}
+
 	} catch (CException &e) {
 		e.Output(cerr);
 		ExitCode = e.GetExitCode();
 	}
 
+	if (in != &cin) {
+		delete in;
+	}
 	if (out != &cout) {
 		delete out;
 	}

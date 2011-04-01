@@ -47,9 +47,9 @@ float CToken::GetFloatValue() const
 	throw logic_error("CToken can't have float value");
 }
 
-char CToken::GetSymbolValue() const
+char CToken::GetCharValue() const
 {
-	throw logic_error("CToken can't have symbol value");
+	throw logic_error("CToken can't have char value");
 }
 
 /******************************************************************************
@@ -95,133 +95,22 @@ float CFloatConstToken::GetFloatValue() const
 }
 
 /******************************************************************************
- * CSymbolConstToken
+ * CCharConstToken
  ******************************************************************************/
 
-CSymbolConstToken::CSymbolConstToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_SYMBOL, AText, APosition)
+CCharConstToken::CCharConstToken(const string &AText, const CPosition &APosition) : CToken(TOKEN_TYPE_CONSTANT_CHAR, AText, APosition)
 {
 	Value = AText[0];
 }
 
-CSymbolConstToken* CSymbolConstToken::Clone() const
+CCharConstToken* CCharConstToken::Clone() const
 {
-	return new CSymbolConstToken(*this);
+	return new CCharConstToken(*this);
 }
 
-char CSymbolConstToken::GetSymbolValue() const
+char CCharConstToken::GetCharValue() const
 {
 	return Value;
-}
-
-/******************************************************************************
- * CTraits
- ******************************************************************************/
-
-bool CTraits::IsWhitespace(char c)
-{
-	return (c == ' ' || c == '\t' || c == '\n' || c == '\r');
-}
-
-bool CTraits::IsDigit(char c)
-{
-	return (c >= '0' && c <= '9');
-}
-
-bool CTraits::IsHexDigit(char c)
-{
-	return ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'));
-}
-
-bool CTraits::IsOctDigit(char c)
-{
-	return (c >= '0' && c <= '7');
-}
-
-bool CTraits::IsValidIdentifierSymbol(char c, bool first /*= false*/)
-{
-	return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' ||
-		(!first && ((c >= '0' && c <= '9'))));
-}
-
-bool CTraits::IsOperationSymbol(char c)
-{
-	return (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '=' || c == '<' || c == '>' ||
-		c == '!' || c == '^' || c == '~' || c == '&' || c == '|' || c == '?' || c == '.');
-}
-
-bool CTraits::IsKeyword(const string &s)
-{
-	// we need something like set<string> Keywords, but there is no suitable way to initialize it now..
-	return (s == "break" || s == "case" || s == "const" || s == "continue" || s == "default" || s == "do" ||
-		s == "else" || s == "for" || s == "goto" || s == "if" || s == "return" || s == "sizeof" ||
-		s == "struct" || s == "switch" || s == "typedef" || s == "while");
-}
-
-bool CTraits::IsComparisonOperation(ETokenType t)
-{
-	static const ETokenType ComparisonOps[] = {
-		TOKEN_TYPE_OPERATION_EQUAL,
-		TOKEN_TYPE_OPERATION_NOT_EQUAL,
-		TOKEN_TYPE_OPERATION_LESS_THAN,
-		TOKEN_TYPE_OPERATION_GREATER_THAN,
-		TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL,
-		TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL,
-		TOKEN_TYPE_INVALID
-		};
-
-	for (int i = 0; ComparisonOps[i] != TOKEN_TYPE_INVALID; i++) {
-		if (t == ComparisonOps[i]) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool CTraits::IsTrivialOperation(ETokenType t)
-{
-	static const ETokenType TrivialOps[] = {
-		TOKEN_TYPE_OPERATION_PLUS,
-		TOKEN_TYPE_OPERATION_MINUS,
-		TOKEN_TYPE_OPERATION_ASTERISK,
-		TOKEN_TYPE_OPERATION_AMPERSAND,
-		TOKEN_TYPE_OPERATION_BITWISE_OR,
-		TOKEN_TYPE_OPERATION_BITWISE_XOR,
-		TOKEN_TYPE_INVALID
-		};
-
-	for (int i = 0; TrivialOps[i] != TOKEN_TYPE_INVALID; i++) {
-		if (t == TrivialOps[i]) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool CTraits::IsCompoundAssignment(ETokenType t)
-{
-	static const ETokenType CompoundAssignments[] = {
-		TOKEN_TYPE_OPERATION_PLUS_ASSIGN,
-		TOKEN_TYPE_OPERATION_MINUS_ASSIGN,
-		TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN,
-		TOKEN_TYPE_OPERATION_SLASH_ASSIGN,
-		TOKEN_TYPE_OPERATION_PERCENT_ASSIGN,
-		TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN,
-		TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN,
-		TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN,
-		TOKEN_TYPE_OPERATION_SHIFT_LEFT_ASSIGN,
-		TOKEN_TYPE_OPERATION_SHIFT_RIGHT_ASSIGN,
-		TOKEN_TYPE_INVALID
-		};
-
-	for (int i = 0; CompoundAssignments[i] != TOKEN_TYPE_INVALID; i++) {
-		if (t == CompoundAssignments[i]) {
-			return true;
-		}
-	}
-
-	return false;
 }
 
 /******************************************************************************
@@ -250,7 +139,7 @@ CScanner::CScanner(istream &AInputStream) : InputStream(AInputStream), LastToken
 		TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET] = "RIGHT_SQUARE_BRACKET";
 		TokenTypesNames[TOKEN_TYPE_CONSTANT_INTEGER] = "CONSTANT_INTEGER";
 		TokenTypesNames[TOKEN_TYPE_CONSTANT_FLOAT] = "CONSTANT_FLOAT";
-		TokenTypesNames[TOKEN_TYPE_CONSTANT_SYMBOL] = "CONSTANT_SYMBOL";
+		TokenTypesNames[TOKEN_TYPE_CONSTANT_CHAR] = "CONSTANT_CHAR";
 		TokenTypesNames[TOKEN_TYPE_CONSTANT_STRING] = "CONSTANT_STRING";
 		TokenTypesNames[TOKEN_TYPE_OPERATION_PLUS] = "OPERATION_PLUS";
 		TokenTypesNames[TOKEN_TYPE_OPERATION_MINUS] = "OPERATION_MINUS";
@@ -317,20 +206,20 @@ const CToken* CScanner::Next()
 	}
 
 	CToken *NewToken = NULL;
-	char symbol = InputStream.peek();
+	char c = InputStream.peek();
 
-	if (CTraits::IsValidIdentifierSymbol(symbol, true)) {
+	if (CharTraits::IsValidIdentifierChar(c, true)) {
 		NewToken = ScanIdentifier();
 	} else if (TryScanNumericalConstant()) {
 		NewToken = ScanNumericalConstant();
-	} else if (CTraits::IsOperationSymbol(symbol)) {
+	} else if (CharTraits::IsOperationChar(c)) {
 		NewToken = ScanOperation();
-	} else if (symbol == '"') {
+	} else if (c == '"') {
 		NewToken = ScanStringConstant();
-	} else if (symbol == '\'') {
-		NewToken = ScanSymbolConstant();
+	} else if (c == '\'') {
+		NewToken = ScanCharConstant();
 	} else {
-		NewToken = ScanSingleSymbol();
+		NewToken = ScanSingleChar();
 	}
 
 	return (LastToken = NewToken);
@@ -341,11 +230,11 @@ CToken* CScanner::ScanIdentifier()
 	CPosition StartPosition = CurrentPosition;
 	string Text;
 
-	while (InputStream.good() && CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
-		Text += AdvanceOneSymbol();
+	while (InputStream.good() && CharTraits::IsValidIdentifierChar(InputStream.peek())) {
+		Text += NextChar();
 	}
 
-	return new CToken(CTraits::IsKeyword(Text) ? TOKEN_TYPE_KEYWORD : TOKEN_TYPE_IDENTIFIER, Text, StartPosition);
+	return new CToken(KeywordTraits::IsKeyword(Text) ? TOKEN_TYPE_KEYWORD : TOKEN_TYPE_IDENTIFIER, Text, StartPosition);
 }
 
 CToken* CScanner::ScanOperation()
@@ -353,7 +242,7 @@ CToken* CScanner::ScanOperation()
 	CPosition StartPosition = CurrentPosition;
 	ETokenType Type;
 
-	char fs = AdvanceOneSymbol();
+	char fs = NextChar();
 	char ss = InputStream.get();
 	char ts = InputStream.peek();
 
@@ -532,25 +421,25 @@ CToken* CScanner::ScanOperation()
 
 	if (OperationLength > 1) {
 		Text += ss;
-		AdvanceOneSymbol();
+		NextChar();
 	}
 
 	if (OperationLength > 2) {
 		Text += ts;
-		AdvanceOneSymbol();
+		NextChar();
 	}
 
 	return new CToken(Type, Text, StartPosition);
 }
 
-CToken* CScanner::ScanSingleSymbol()
+CToken* CScanner::ScanSingleChar()
 {
 	CPosition StartPosition = CurrentPosition;
 	ETokenType Type;
 
-	char symbol = InputStream.peek();
+	char c = InputStream.peek();
 
-	switch (symbol) {
+	switch (c) {
 	case '{':
 		Type = TOKEN_TYPE_BLOCK_START;
 		break;
@@ -579,12 +468,12 @@ CToken* CScanner::ScanSingleSymbol()
 		Type = TOKEN_TYPE_SEPARATOR_COLON;
 		break;
 	default:
-		throw CScannerException(string("invalid symbol '") + symbol + "' encountered", CurrentPosition);
+		throw CScannerException(string("invalid char '") + c + "' encountered", CurrentPosition);
 	}
 
-	AdvanceOneSymbol();
+	NextChar();
 
-	return new CToken(Type, string(1, symbol), StartPosition);
+	return new CToken(Type, string(1, c), StartPosition);
 }
 
 CToken* CScanner::ScanStringConstant()
@@ -592,51 +481,51 @@ CToken* CScanner::ScanStringConstant()
 	CPosition StartPosition = CurrentPosition;
 	string Text;
 
-	AdvanceOneSymbol();
+	NextChar();
 
-	char symbol;
+	char c;
 
-	while (InputStream.good() && ((symbol = AdvanceOneSymbol()) != '\n')) {
-		/*if (symbol == '\\') {
+	while (InputStream.good() && ((c = NextChar()) != '\n')) {
+		/*if (c == '\\') {
 			Text += ProcessEscapeSequence();
 		} else*/
 		
-		if (symbol == '"') {
+		if (c == '"') {
 			return new CToken(TOKEN_TYPE_CONSTANT_STRING, Text, StartPosition);
 		} else {
-			Text += symbol;
+			Text += c;
 		}
 	}
 
 	throw CScannerException("unterminated string constant", StartPosition);
 }
 
-CToken* CScanner::ScanSymbolConstant()
+CToken* CScanner::ScanCharConstant()
 {
 	CPosition StartPosition = CurrentPosition;
 	string Text;
 
-	AdvanceOneSymbol();
+	NextChar();
 
 	if (!InputStream.good()) {
-		throw CScannerException("unterminated symbol constant", StartPosition);
+		throw CScannerException("unterminated char constant", StartPosition);
 	}
 
-	char symbol = InputStream.peek();
+	char c = InputStream.peek();
 
-	if (symbol == '\\') {
-		AdvanceOneSymbol();
+	if (c == '\\') {
+		NextChar();
 		Text = ProcessEscapeSequence();
 	} else {
-		Text = symbol;
-		AdvanceOneSymbol();
+		Text = c;
+		NextChar();
 	}
 
-	if (!InputStream.good() || AdvanceOneSymbol() != '\'') {
-		throw CScannerException("unterminated symbol constant", StartPosition);
+	if (!InputStream.good() || NextChar() != '\'') {
+		throw CScannerException("unterminated char constant", StartPosition);
 	}
 
-	return new CSymbolConstToken(Text, StartPosition);
+	return new CCharConstToken(Text, StartPosition);
 }
 
 CToken* CScanner::ScanNumericalConstant()
@@ -678,16 +567,16 @@ CToken* CScanner::ScanNumericalConstant()
 bool CScanner::TryScanNumericalConstant()
 {
 	bool result = false;
-	char symbol = InputStream.peek();
+	char c = InputStream.peek();
 
-	if (CTraits::IsDigit(symbol)) {
+	if (CharTraits::IsDigit(c)) {
 		result = true;
-	} else if (symbol == '.') {
+	} else if (c == '.') {
 		InputStream.ignore();
-		if (CTraits::IsDigit(InputStream.peek())) {
+		if (CharTraits::IsDigit(InputStream.peek())) {
 			result = true;
 		}
-		InputStream.putback(symbol);
+		InputStream.putback(c);
 	}
 
 	return result;
@@ -698,9 +587,9 @@ string CScanner::ScanHexadecimalInteger()
 	string result;
 	char c;
 
-	while (InputStream.good() && CTraits::IsHexDigit(c = InputStream.peek())) {
+	while (InputStream.good() && CharTraits::IsHexDigit(c = InputStream.peek())) {
 		result += c;
-		AdvanceOneSymbol();
+		NextChar();
 	}
 
 	return result;
@@ -711,9 +600,9 @@ string CScanner::ScanOctalInteger()
 	string result;
 	char c;
 
-	while (InputStream.good() && CTraits::IsOctDigit(c = InputStream.peek())) {
+	while (InputStream.good() && CharTraits::IsOctDigit(c = InputStream.peek())) {
 		result += c;
-		AdvanceOneSymbol();
+		NextChar();
 	}
 
 	return result;
@@ -723,34 +612,34 @@ string CScanner::ScanIntegerPart()
 {
 	string result;
 
-	char c = AdvanceOneSymbol();
+	char c = NextChar();
 	result += c;
 
 	if (c == '0') {
 		c = InputStream.peek();
 		if (c == 'x' || c == 'X') {
 			result += 'x';
-			AdvanceOneSymbol();
-			if (!CTraits::IsHexDigit(InputStream.peek())) {
+			NextChar();
+			if (!CharTraits::IsHexDigit(InputStream.peek())) {
 				throw CScannerException("invalid hexadecimal constant", CurrentPosition);
 			}
 			result += ScanHexadecimalInteger();
 			if (InputStream.peek() == '.') {
 				throw CScannerException("invalid float constant", CurrentPosition);
 			}
-		} else if (CTraits::IsOctDigit(c)) {
+		} else if (CharTraits::IsOctDigit(c)) {
 			result += ScanOctalInteger();
 			if (InputStream.peek() == '.') {
 				throw CScannerException("invalid float constant", CurrentPosition);
 			}
-		} else if (CTraits::IsDigit(c)) {
+		} else if (CharTraits::IsDigit(c)) {
 			throw CScannerException("invalid octal constant", CurrentPosition);
 		}
 
 	} else {
-		while (InputStream.good() && CTraits::IsDigit(c = InputStream.peek())) {
+		while (InputStream.good() && CharTraits::IsDigit(c = InputStream.peek())) {
 			result += c;
-			AdvanceOneSymbol();
+			NextChar();
 		}
 	}
 
@@ -766,11 +655,11 @@ string CScanner::ScanFractionalPart()
 	string result;
 	char c;
 
-	result += AdvanceOneSymbol();
+	result += NextChar();
 
-	while (InputStream.good() && CTraits::IsDigit(c = InputStream.peek())) {
+	while (InputStream.good() && CharTraits::IsDigit(c = InputStream.peek())) {
 		result += c;
-		AdvanceOneSymbol();
+		NextChar();
 	}
 
 	return result;
@@ -785,18 +674,18 @@ string CScanner::ScanExponentPart()
 	}
 
 	string result;
-	result += AdvanceOneSymbol();
+	result += NextChar();
 
 	c = InputStream.peek();
 
 	if (c == '+' || c == '-') {
 		result += c;
-		AdvanceOneSymbol();
+		NextChar();
 	}
 
-	while (InputStream.good() && CTraits::IsDigit(c = InputStream.peek())) {
+	while (InputStream.good() && CharTraits::IsDigit(c = InputStream.peek())) {
 		result += c;
-		AdvanceOneSymbol();
+		NextChar();
 	}
 
 	return result;
@@ -807,13 +696,13 @@ string CScanner::ScanFloatSuffix()
 	char c = InputStream.peek();
 
 	if (c == 'f' || c == 'F' || c == 'l' || c == 'L') {
-		AdvanceOneSymbol();
-		if (!CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
+		NextChar();
+		if (!CharTraits::IsValidIdentifierChar(InputStream.peek())) {
 			return string(1, c);
 		} else {
 			throw CScannerException("invalid suffix on float constant", CurrentPosition);
 		}
-	} else if (CTraits::IsValidIdentifierSymbol(c)) {
+	} else if (CharTraits::IsValidIdentifierChar(c)) {
 		throw CScannerException("invalid suffix on float constant", CurrentPosition);
 	}
 
@@ -827,8 +716,8 @@ string CScanner::ScanIntegerSuffix()
 
 	if (fc == 'u' || fc == 'U' || fc == 'l' || fc == 'L') {
 		result += fc;
-		AdvanceOneSymbol();
-	} else if (CTraits::IsValidIdentifierSymbol(fc)) {
+		NextChar();
+	} else if (CharTraits::IsValidIdentifierChar(fc)) {
 		throw CScannerException("invalid suffix on integer constant", CurrentPosition);
 	}
 
@@ -836,12 +725,12 @@ string CScanner::ScanIntegerSuffix()
 
 	if (((sc == 'u' || sc == 'U') && (fc != 'u' && fc != 'U')) || ((sc == 'l' || sc == 'L') && (fc != 'l' && fc != 'L'))) {
 		result += fc;
-		AdvanceOneSymbol();
-	} else if (CTraits::IsValidIdentifierSymbol(sc)) {
+		NextChar();
+	} else if (CharTraits::IsValidIdentifierChar(sc)) {
 		throw CScannerException("invalid suffix on integer constant", CurrentPosition);
 	}
 
-	if (CTraits::IsValidIdentifierSymbol(InputStream.peek())) {
+	if (CharTraits::IsValidIdentifierChar(InputStream.peek())) {
 		throw CScannerException("invalid suffix on integer constant", CurrentPosition);
 	}
 
@@ -855,15 +744,15 @@ char CScanner::ProcessEscapeSequence()
 		return 0;
 	}
 
-	char symbol = AdvanceOneSymbol();
+	char c = NextChar();
 	char result;
 
-	switch (symbol) {
+	switch (c) {
 	case '\'':
 	case '"':
 	case '\\':
 	case '?':	// used for trigraphs only..
-		result = symbol;
+		result = c;
 		break;
 	case 'a':
 		result = '\a';
@@ -897,18 +786,18 @@ bool CScanner::SkipComment()
 {
 	bool EndMatchState = false;
 	bool end = false;
-	char symbol;
+	char c;
 
 	if (!InputStream.good()) {
 		return false;
 	}
 
-	symbol = InputStream.peek();
-	if (symbol == '/') {
+	c = InputStream.peek();
+	if (c == '/') {
 		InputStream.ignore();
-		symbol = InputStream.peek();
+		c = InputStream.peek();
 		InputStream.putback('/');
-		if (symbol != '*') {
+		if (c != '*') {
 			return false;
 		}
 	} else {
@@ -918,11 +807,11 @@ bool CScanner::SkipComment()
 	CPosition start = CurrentPosition;
 
 	while (InputStream.good() && !end) {
-		symbol = AdvanceOneSymbol();
+		c = NextChar();
 
-		if (symbol == '*') {
+		if (c == '*') {
 			EndMatchState = true;
-		} else if (EndMatchState && symbol == '/') {
+		} else if (EndMatchState && c == '/') {
 			end = true;
 		} else {
 			EndMatchState = false;
@@ -938,12 +827,12 @@ bool CScanner::SkipComment()
 
 bool CScanner::SkipWhitespace()
 {
-	if (!InputStream.good() || !CTraits::IsWhitespace(InputStream.peek())) {
+	if (!InputStream.good() || !CharTraits::IsWhitespace(InputStream.peek())) {
 		return false;
 	}
 
-	while (InputStream.good() && CTraits::IsWhitespace(InputStream.peek())) {
-		AdvanceOneSymbol();
+	while (InputStream.good() && CharTraits::IsWhitespace(InputStream.peek())) {
+		NextChar();
 	}
 
 	return true;
@@ -954,16 +843,16 @@ void CScanner::SkipWhitespaceAndComments()
 	while (InputStream.good() && (SkipWhitespace() || SkipComment()));
 }
 
-char CScanner::AdvanceOneSymbol()
+char CScanner::NextChar()
 {
-	char symbol = InputStream.get();
+	char c = InputStream.get();
 
-	if (symbol == '\n') {
+	if (c == '\n') {
 		CurrentPosition.Line++;
 		CurrentPosition.Column = 1;
 	} else {
 		CurrentPosition.Column++;
 	}
 
-	return symbol;
+	return c;
 }

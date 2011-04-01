@@ -61,7 +61,7 @@ CParser::CLabelInfo::CLabelInfo(CLabel *ALabel /*= NULL*/, CPosition APosition /
  * CParser::CDeclarationSpecifier
  ******************************************************************************/
 
-CParser::CDeclarationSpecifier::CDeclarationSpecifier() : Type(NULL), Typedef(false)
+CParser::CDeclarationSpecifier::CDeclarationSpecifier() : Type(NULL), Typedef(false), Const(false)
 {
 }
 
@@ -73,14 +73,14 @@ CParser::CParser(CScanner &AScanner, EParserMode AMode /*= PARSER_MODE_NORMAL*/)
 {
 	NextToken();
 
-	CSymbolTable *GlobalSymTable = new CSymbolTable;
+	CGlobalSymbolTable *GlobalSymTable = new CGlobalSymbolTable;
 
-	SymbolTableStack.Push(GlobalSymTable);
+	SymbolTableStack.SetGlobal(GlobalSymTable);
 
-	GlobalSymTable->Add(new CIntegerSymbol);
-	GlobalSymTable->Add(new CFloatSymbol);
-	GlobalSymTable->Add(new CVoidSymbol);
-	GlobalSymTable->Add(new CPointerSymbol(SymbolTableStack.Lookup<CTypeSymbol>("int")));
+	GlobalSymTable->AddType(new CIntegerSymbol);
+	GlobalSymTable->AddType(new CFloatSymbol);
+	GlobalSymTable->AddType(new CVoidSymbol);
+	GlobalSymTable->AddType(new CPointerSymbol(GlobalSymTable->GetType("int")));
 
 	AddBuiltIn("__print_int", "void", 1, "int");
 	AddBuiltIn("__print_float", "void", 1, "float");
@@ -94,82 +94,63 @@ CParser::~CParser()
 	delete SymbolTableStack.Pop();
 }
 
-CSymbolTable* CParser::ParseTranslationUnit()
+CGlobalSymbolTable* CParser::ParseTranslationUnit()
 {
-	CDeclarationSpecifier DeclSpec;
 	CSymbol *Sym = NULL;
 
 	while (Token->GetType() != TOKEN_TYPE_EOF) {
 		CPosition DeclPos = Token->GetPosition();
 
-		DeclSpec = ParseDeclarationSpecifier();
+		CDeclarationSpecifier DeclSpec;
 
-		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_SEMICOLON && DeclSpec.Type && DeclSpec.Type->IsStruct()) {
+		ParseDeclarationSpecifiers(DeclSpec);
+		if ((Sym = ParseInitDeclaratorList(DeclSpec))->GetSymbolType() != SYMBOL_TYPE_FUNCTION) {
+			if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+				throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
+					+ " after declaration, got " + Token->GetStringifiedType(), Token->GetPosition());
+			}
+
 			NextToken();
 			continue;
 		}
 
-		Sym = ParseDeclarator(DeclSpec, false);
-		if (!Sym) {
-			throw CParserException("expected declaration or function definition, got " + Token->GetStringifiedType(), Token->GetPosition());
+		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+			NextToken();
+			continue;
 		}
 
-		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_SEMICOLON) {
-			if (SymbolTableStack.GetGlobal()->Exists(Sym->GetName())) {
-				throw CParserException("identifier redeclared: `" + Sym->GetName() + "`", DeclPos);
-			}
-
-			SymbolTableStack.GetGlobal()->Add(Sym);
-
-			if (CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Sym)) {
-				VarSym->SetGlobal(true);
-			}
-			NextToken();
-		} else if (Token->GetType() == TOKEN_TYPE_BLOCK_START) {
-			CFunctionSymbol *FuncSym = dynamic_cast<CFunctionSymbol *>(Sym);
-			if (!FuncSym) {
-				throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-					+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
-			}
-
-			if (SymbolTableStack.GetTop()->Exists(FuncSym->GetName())) {
-				FuncSym = dynamic_cast<CFunctionSymbol *>(SymbolTableStack.GetTop()->Get(Sym->GetName()));
-				if (!FuncSym) {
-					throw CParserException("identifier redeclared as different kind of symbol: `" + Sym->GetName() + "`", DeclPos);
-				}
-
-				// TODO: check declaration and definition types equality
-
-				delete Sym;
-			} else {
-				SymbolTableStack.GetGlobal()->Add(FuncSym);
-			}
-
-			ScopeType.push(SCOPE_TYPE_FUNCTION);
-			SymbolTableStack.Push(FuncSym->GetArgumentsSymbolTable());
-
-			CurrentFunction = FuncSym;
-
-			FuncSym->SetBody(ParseBlock());
-
-			SymbolTableStack.Pop();
-			ScopeType.pop();
-
-			for (map<string, CLabelInfo>::iterator it = LabelTable.begin(); it != LabelTable.end(); ++it) {
-				if (!it->second.Label) {
-					throw CParserException("label `" + it->first + "` used but not defined", it->second.Position);
-				}
-			}
-
-			LabelTable.clear();
-		} else {
+		if (Token->GetType() != TOKEN_TYPE_BLOCK_START) {
 			throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_START]
 				+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
 
+		CFunctionSymbol *FuncSym = SymbolTableStack.GetGlobal()->GetFunction(Sym->GetName());
+
+		if (FuncSym->GetType()->GetComplete()) {
+			throw CParserException("function redefined: `" + FuncSym->GetName() + "`", Token->GetPosition());
+		}
+
+		ScopeType.push(SCOPE_TYPE_FUNCTION);
+		SymbolTableStack.Push(FuncSym->GetArgumentsSymbolTable());
+
+		CurrentFunction = FuncSym;
+
+		FuncSym->SetBody(ParseBlock());
+
+		SymbolTableStack.Pop();
+		ScopeType.pop();
+
+		for (map<string, CLabelInfo>::iterator it = LabelTable.begin(); it != LabelTable.end(); ++it) {
+			if (!it->second.Label) {
+				throw CParserException("label `" + it->first + "` used but not defined", it->second.Position);
+			}
+		}
+
+		LabelTable.clear();
+
 	}
 
-	return SymbolTableStack.GetTop();
+	return SymbolTableStack.GetGlobal();
 }
 
 CExpression* CParser::ParseExpression()
@@ -192,253 +173,322 @@ CExpression* CParser::ParseExpression()
 	return Expr;
 }
 
-bool IsTypeKeyword(const string &s)
+const CToken* CParser::GetToken() const
 {
-	return (s == "const"|| s == "struct" || s == "typedef");
+	return Token;
 }
 
-bool CParser::ParseDeclaration()
+bool CParser::TryParseDeclaration()
 {
-	CDeclarationSpecifier DeclSpec = ParseDeclarationSpecifier();
-	if (!DeclSpec.Type) {
-		return false;
-	}
+	return (KeywordTraits::IsTypeKeyword(Token->GetText()) || SymbolTableStack.LookupType(Token->GetText()));
+}
 
-	CSymbol *Sym;
+void CParser::ParseDeclaration()
+{
+	CDeclarationSpecifier DeclSpec;
 
-	ETokenType type = Token->GetType();
-	CPosition pos;
+	ParseDeclarationSpecifiers(DeclSpec);
 
-	if (type != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
-		do {
-			Sym = ParseDeclarator(DeclSpec);
-			SymbolTableStack.GetTop()->Add(Sym);
+	ParseInitDeclaratorList(DeclSpec);
 
-			// TODO: add initialization support - add a pointer to the corresponding block somewhere and add assignment statements to it..
-
-			type = Token->GetType();
-			pos = Token->GetPosition();
-			NextToken();
-		} while (type == TOKEN_TYPE_SEPARATOR_COMMA);
-	} else {
-		NextToken();
-	}
-
-	if (type != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+	if (Token->GetType() != TOKEN_TYPE_SEPARATOR_SEMICOLON) {
 		throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_SEPARATOR_SEMICOLON]
-			+ " after declaration, got " + CScanner::TokenTypesNames[type], pos);
+			+ " after declaration, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
-	return true;
+	NextToken();
 }
 
-CParser::CDeclarationSpecifier CParser::ParseDeclarationSpecifier()
+void CParser::ParseTypedefSpecifier(CDeclarationSpecifier &DeclSpec)
 {
-	CDeclarationSpecifier Result;
-
-	ETokenType type = Token->GetType();
-	string text = Token->GetText();
-	CPosition pos = Token->GetPosition();
-
-
-	if (type == TOKEN_TYPE_KEYWORD) {
-		if (!IsTypeKeyword(text)) {
-			return Result;
-		}
-	} else {
-		if (!SymbolTableStack.Lookup<CTypeSymbol>(text)) {
-			return Result;
-		}
+	if (DeclSpec.Typedef) {
+		throw CParserException("duplicate `typedef` specifier", Token->GetPosition());
 	}
 
-	bool Const = false;
+	DeclSpec.Typedef = true;
 
-	while (true) {
+	NextToken();
+}
+
+void CParser::ParseStructSpecifier(CDeclarationSpecifier &DeclSpec)
+{
+	CheckMultipleTypeSpecifiers(DeclSpec);
+
+	NextToken();
+
+	string Tag;
+
+	if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
+		Tag = Token->GetText();
+		NextToken();
+	} else {
+		if (Token->GetType() != TOKEN_TYPE_BLOCK_START) {
+			throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_START] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+				+ " after `struct`, got " + Token->GetStringifiedType(), Token->GetPosition());
+		}
+
+		// TODO: generate anonymous tag
+	}
+
+	if (Token->GetType() != TOKEN_TYPE_BLOCK_START) {
+		DeclSpec.Type = SymbolTableStack.LookupTag(Tag);
+		if (!DeclSpec.Type) {
+			throw CParserException("undeclared struct tag", Token->GetPosition());
+		}
+		return;
+	}
+
+	NextToken();
+
+	CStructSymbol *StructSym = new CStructSymbol;
+	StructSym->SetName(Tag);
+	SymbolTableStack.GetTop()->AddTag(StructSym);
+
+	CStructSymbolTable *StructSymTable = new CStructSymbolTable;
+	StructSym->SetSymbolTable(StructSymTable);
+
+	SymbolTableStack.Push(StructSymTable);
+	ScopeType.push(SCOPE_TYPE_STRUCT);
+
+	do {
+		ParseDeclaration();
+	} while (Token->GetType() != TOKEN_TYPE_BLOCK_END);
+
+	NextToken();
+
+	ScopeType.pop();
+	SymbolTableStack.Pop();
+
+	StructSym->SetComplete(true);
+
+	DeclSpec.Type = StructSym;
+}
+
+void CParser::CheckMultipleTypeSpecifiers(CDeclarationSpecifier &DeclSpec)
+{
+	if (DeclSpec.Type) {
+		throw CParserException("multiple data types in declaration specifiers", Token->GetPosition());
+	}
+}
+
+void CParser::ParseDeclarationSpecifiers(CDeclarationSpecifier &DeclSpec)
+{
+	ETokenType type;
+	string text;
+	CPosition pos;
+	CTypeSymbol *TypeSym = NULL;
+
+	bool IdentFound = false;
+
+	while (!TryParseDeclarator() && !IdentFound) {
 		type = Token->GetType();
 		text = Token->GetText();
 		pos = Token->GetPosition();
 
 		if (type == TOKEN_TYPE_KEYWORD) {
-			if (text == "const") {
-				if (Const) {
-					throw CParserException("duplicate specifier: `" + text + "`", pos);
-				}
-
-				Const = true;
-			} else if (text == "typedef") {
-				if (Result.Typedef) {
-					throw CParserException("duplicate specifier: `" + text + "`", pos);
-				}
-
-				Result.Typedef = true;
+			if (text == "typedef") {
+				ParseTypedefSpecifier(DeclSpec);
 			} else if (text == "struct") {
-				if (Result.Type) {
-					throw CParserException("multiple data types in declaration", pos);
-				}
-
-				Result.Type = ParseStruct();
+				ParseStructSpecifier(DeclSpec);
+			} else if (text == "const") {
+				DeclSpec.Const = true;
+				NextToken();
 			} else {
 				throw CParserException("unexpected `" + text + "` in declaration", pos);
 			}
+
 		} else if (type == TOKEN_TYPE_IDENTIFIER) {
-			CTypeSymbol *IdentSym = SymbolTableStack.Lookup<CTypeSymbol>(text);
-			if (IdentSym) {
-				if (Result.Type) {
-					throw CParserException("multiple data types in declaration", pos);
-				}
+			if (TypeSym = SymbolTableStack.LookupType(text)) {
+				CheckMultipleTypeSpecifiers(DeclSpec);
+				DeclSpec.Type = TypeSym;
 
-				Result.Type = IdentSym;
+				NextToken();
+
 			} else {
-				if (!Result.Type) {
-					throw CParserException("expected type specifier, got undeclared identifier: `" + text + "`", pos);
-				}
-
-				Result.Type->SetConst(Const);
-				return Result;
+				IdentFound = true;
 			}
-		} else if (type == TOKEN_TYPE_OPERATION_ASTERISK) {
-			if (!Result.Type) {
-				throw CParserException("expected type specifier, got " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_ASTERISK], pos);
-			}
-
-			Result.Type->SetConst(Const);
-			return Result;
 		} else {
-			if (type == TOKEN_TYPE_SEPARATOR_SEMICOLON && Result.Type && Result.Type->IsStruct()) {
-				return Result;
-			}
-
-			throw CParserException("unexpected " + CScanner::TokenTypesNames[type] + " in declaration", pos);
+			throw CParserException("unexpected " + Token->GetStringifiedType() + " in declaration", pos);
 		}
+	}
 
-		NextToken();
+	if (!DeclSpec.Type) {	// FIXME: standard behvaiour for C compilers is to default type to int, if it's missing.. encountering ';' without a type isn't an error either, just a warning "useless declaration"..
+		throw CParserException("expected declaration specifier, got " + Token->GetStringifiedType(), pos);
+	} else {
+		DeclSpec.Type->SetConst(DeclSpec.Const);
 	}
 }
 
-CSymbol* CParser::ParseDeclarator(CParser::CDeclarationSpecifier DeclSpec, bool CheckExistense /*= true*/)
+bool CParser::TryParseDeclarator()
 {
-	if (!DeclSpec.Type) {
-		return NULL;
+	ETokenType t = Token->GetType();
+	return (t == TOKEN_TYPE_OPERATION_ASTERISK || t == TOKEN_TYPE_LEFT_PARENTHESIS || t == TOKEN_TYPE_SEPARATOR_SEMICOLON);
+}
+
+CSymbol* CParser::ParseInitDeclaratorList(CDeclarationSpecifier &DeclSpec)
+{
+	if (Token->GetType() == TOKEN_TYPE_SEPARATOR_SEMICOLON) {
+		return DeclSpec.Type; // FIXME: we can return NULL... or add separate function for parsing this shit.. or something else..
 	}
 
-	/*if (CTypeSymbol *ExistingSym = SymbolTableStack.Lookup<CTypeSymbol>(DeclSpec.Type->GetName())) {
-		delete DeclSpec.Type;
-		DeclSpec.Type = ExistingSym;
-	} else {
-		SymbolTableStack.GetTop()->Add(DeclSpec.Type);
-	}*/
+	CSymbol *LastDeclared;
 
-	CSymbol *Result = NULL;
-	bool IdentifierFound = false;
-	string text;
+	ETokenType type;
 
-	while (!IdentifierFound) {
-		text = Token->GetText();
+	do {
+		LastDeclared = ParseInitDeclarator(DeclSpec);
+		type = Token->GetType();
+		NextToken();
+	} while (type == TOKEN_TYPE_SEPARATOR_COMMA);
 
-		if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
-			if (CheckExistense && SymbolTableStack.GetTop()->Exists(text)) {
-				throw CParserException("identifier redeclared: `" + text + "`", Token->GetPosition());
-			}
+	PreviousToken();
 
-			IdentifierFound = true;
+	return LastDeclared;
+}
 
-		} else if (Token->GetType() == TOKEN_TYPE_OPERATION_ASTERISK) {
-			DeclSpec.Type = ParsePointer(DeclSpec.Type);
-			// TODO: add this pointer type to global symbol table with name like "type***"...
+CSymbol* CParser::ParseInitDeclarator(CDeclarationSpecifier &DeclSpec)
+{
+	CSymbol *Result = ParseDeclarator(DeclSpec);
+
+	if (Token->GetType() == TOKEN_TYPE_OPERATION_ASSIGN) {
+		if (Result->GetSymbolType() != SYMBOL_TYPE_VARIABLE) {
+			throw CParserException("can't initialize this kind of symbol", Token->GetPosition());
 		}
 
-		NextToken();
+		ParseInitializer(static_cast<CVariableSymbol *>(Result));
 	}
+
+	return Result;
+}
+
+void CParser::CheckUniqueness(const string &Ident, CTypeSymbol *Type)
+{
+	if (SymbolTableStack.LookupAll(Ident)->GetSymbolType() != Type->GetSymbolType()) {
+		throw CParserException("identifier redeclared as different kind of symbol: `" + Ident + "`", Token->GetPosition());
+	}
+}
+
+CVariableSymbol* CParser::AddVariable(const string &Ident, CTypeSymbol *Type)
+{
+	if (SymbolTableStack.GetTop()->Exists(Ident)) {
+		throw CParserException("identifier redeclared: `" + Ident + "`", Token->GetPosition());
+	}
+
+	CVariableSymbol *VarSym = new CVariableSymbol(Ident, Type);
+
+	if (ScopeType.top() == SCOPE_TYPE_GLOBAL) {
+		VarSym->SetGlobal(true);
+	}
+
+	SymbolTableStack.GetTop()->AddVariable(VarSym);
+
+	return VarSym;
+}
+
+CFunctionSymbol* CParser::AddFunction(const string &Ident, CTypeSymbol *RetType)
+{
+	if (ScopeType.top() != SCOPE_TYPE_GLOBAL) {
+		throw CParserException("function declaration is allowed only in global scope", Token->GetPosition());
+	}
+	if (RetType->IsArray()) {
+		throw CParserException("can't declare array of functions", Token->GetPosition());
+	}
+
+	CSymbol *OldDecl = SymbolTableStack.GetGlobal()->Get(Ident);
+
+	if (OldDecl) {
+		if (OldDecl->GetSymbolType() != SYMBOL_TYPE_FUNCTION) {
+			throw CParserException("identifier redeclared as different kind of symbol: `" + Ident + "`", Token->GetPosition());
+		}
+
+		// TODO: reparse parameter list and check type compatibility
+
+		return static_cast<CFunctionSymbol *>(OldDecl);
+	} else {
+		CFunctionSymbol *FuncSym = new CFunctionSymbol(Ident, RetType);
+		ParseParameterList(FuncSym);
+		SymbolTableStack.GetGlobal()->AddFunction(FuncSym);
+
+		return FuncSym;
+	}
+}
+
+CTypedefSymbol* CParser::AddTypedef(const string &Ident, CTypeSymbol *RefType)
+{
+	if (ScopeType.top() != SCOPE_TYPE_GLOBAL && ScopeType.top() != SCOPE_TYPE_FUNCTION) {
+		throw CParserException("typedef is not allowed here", Token->GetPosition());
+	}
+
+	if (SymbolTableStack.GetTop()->Exists(Ident)) {
+		throw CParserException("identifier redeclared: `" + Ident + "`", Token->GetPosition());
+	}
+
+	CTypedefSymbol *TypedefSym = new CTypedefSymbol(Ident, RefType);
+	SymbolTableStack.GetTop()->AddType(TypedefSym);
+
+	return TypedefSym;
+}
+
+CSymbol* CParser::ParseDeclarator(CDeclarationSpecifier &DeclSpec)
+{
+	CTypeSymbol *DeclType = DeclSpec.Type;
+
+	if (Token->GetType() == TOKEN_TYPE_OPERATION_ASTERISK) {
+		DeclType = ParsePointer(DeclType);
+	}
+
+	if (Token->GetType() != TOKEN_TYPE_IDENTIFIER) {
+		throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+			+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
+	}
+
+	string Ident = Token->GetText();
+	NextToken();
+
+	if (Token->GetType() == TOKEN_TYPE_LEFT_SQUARE_BRACKET) {
+		DeclType = ParseArray(DeclType);
+	}
+
+	CSymbol *Result;
 
 	if (Token->GetType() == TOKEN_TYPE_LEFT_PARENTHESIS) {
-		if (ScopeType.top() != SCOPE_TYPE_GLOBAL) {
-			throw CParserException("function declaration is allowed only in global scope", Token->GetPosition());
-		}
-
-		CFunctionSymbol *FuncSym = new CFunctionSymbol(text, DeclSpec.Type);
-		ParseParameterList(FuncSym);
-		Result = FuncSym;
-	} else {
-		if (Token->GetType() == TOKEN_TYPE_LEFT_SQUARE_BRACKET) {
-			if (ScopeType.top() == SCOPE_TYPE_PARAMETERS || ScopeType.top() == SCOPE_TYPE_STRUCT) {
-				throw CParserException("array declaration is not allowed here", Token->GetPosition());
-			}
-
-			DeclSpec.Type = ParseArray(DeclSpec.Type);
-		}
-
 		if (DeclSpec.Typedef) {
-			if (ScopeType.top() == SCOPE_TYPE_PARAMETERS || ScopeType.top() == SCOPE_TYPE_STRUCT) {
-				throw CParserException("typedef is not allowed here", Token->GetPosition());
-			}
+			throw CParserException("typedef of functions is not supported", Token->GetPosition());
+		}
 
-			Result = new CTypedefSymbol(text, DeclSpec.Type);
+		Result = AddFunction(Ident, DeclType);
+	} else {
+		if (DeclSpec.Typedef) {
+			Result = AddTypedef(Ident, DeclType);
 		} else {
-			Result = new CVariableSymbol(text, DeclSpec.Type);
+			Result = AddVariable(Ident, DeclType);
 		}
 	}
 
 	return Result;
 }
 
-void CParser::ParseParameterList(CFunctionSymbol *Func)
+CTypeSymbol* CParser::ParsePointer(CTypeSymbol *ARefType)
 {
 	NextToken();
 
-	CArgumentsSymbolTable *FuncArgs = new CArgumentsSymbolTable;
-	SymbolTableStack.Push(FuncArgs);
-	Func->SetArgumentsSymbolTable(FuncArgs);
+	CTypeSymbol *PointerSym = new CPointerSymbol(ARefType);
 
-	ScopeType.push(SCOPE_TYPE_PARAMETERS);
-
-	while (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
-		Func->AddArgument(ParseDeclarator(ParseDeclarationSpecifier()));
-
-		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA) {
-			NextToken();
-		}
+	while (Token->GetText() == "const") {
+		PointerSym->SetConst(true);
+		NextToken();
 	}
 
-	ScopeType.pop();
-
-	SymbolTableStack.Pop();
-
-	NextToken();
-}
-
-CPointerSymbol* CParser::ParsePointer(CTypeSymbol *ARefType)
-{
-	NextToken();
-
-	CPointerSymbol *Sym = new CPointerSymbol;
+	PointerSym = FilterDuplicates(PointerSym);
 
 	if (Token->GetType() == TOKEN_TYPE_OPERATION_ASTERISK) {
-		Sym->SetRefType(ParsePointer(ARefType));
-	} else {
-		Sym->SetRefType(ARefType);
-		PreviousToken();
+		return ParsePointer(PointerSym);
 	}
 
-	SymbolTableStack.GetGlobal()->Add(Sym);
-
-	return Sym;
-
-	// TODO: possibly add support of const pointers..
-	/*if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
-		Sym->SetRefType(ARefType);
-		PreviousToken();
-		return Sym;
-	} else if (Token->GetType() == TOKEN_TYPE_OPERATION_ASTERISK) {
-		CPointerSymbol *PointerSym = ParsePointer(ARefType);
-		PointerSym->SetRefType(Sym);
-		return PointerSym;
-	}
-
-	throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_OPERATION_ASTERISK] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
-		+ ", got " + Token->GetStringifiedType(), Token->GetPosition());*/
+	return PointerSym;
 }
 
-CArraySymbol* CParser::ParseArray(CTypeSymbol *AElemType)
+CTypeSymbol* CParser::ParseArray(CTypeSymbol *AElemType)
 {
 	NextToken();
 
@@ -462,75 +512,88 @@ CArraySymbol* CParser::ParseArray(CTypeSymbol *AElemType)
 		Sym->SetElementsType(ParseArray(AElemType));
 	}
 
-	//SymbolTableStack.GetGlobal()->Add(Sym);
-
-	return Sym;
+	return FilterDuplicates(Sym);
 }
 
-CStructSymbol* CParser::ParseStruct()
+void CParser::ParseParameterList(CFunctionSymbol *Func)
 {
 	NextToken();
 
-	CStructSymbol *Sym = NULL;
+	CArgumentsSymbolTable *FuncArgs = new CArgumentsSymbolTable;
+	Func->SetArgumentsSymbolTable(FuncArgs);
 
-	string StructName;
+	SymbolTableStack.Push(FuncArgs);
+	ScopeType.push(SCOPE_TYPE_PARAMETERS);
 
-	if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
-		StructName = Token->GetText();
-		NextToken();
+	while (Token->GetType() != TOKEN_TYPE_RIGHT_PARENTHESIS) {
+		CDeclarationSpecifier DeclSpec;
+		ParseDeclarationSpecifiers(DeclSpec);
+		Func->AddArgument(SymbolTableStack.GetTop()->GetVariable(ParseDeclarator(DeclSpec)->GetName()));
 
-		if (Token->GetType() != TOKEN_TYPE_BLOCK_START) {
-			Sym = SymbolTableStack.Lookup<CStructSymbol>(StructName);
-			if (!Sym) {
-				throw CParserException("undeclared identifier `" + StructName + "`", Token->GetPosition());
-			}
-
-			PreviousToken();
-
-			return Sym;
+		if (Token->GetType() == TOKEN_TYPE_SEPARATOR_COMMA) {
+			NextToken();
 		}
-
-		if (SymbolTableStack.GetTop()->Get(StructName)) {
-			throw CParserException("identifier redeclared: `" + StructName + "`", Token->GetPosition());
-		}
-
-	} else  if (Token->GetType() != TOKEN_TYPE_BLOCK_START) {
-		throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_START] + " or " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
-			+ " after `struct`, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 
-	Sym = new CStructSymbol;
+	ScopeType.pop();
+	SymbolTableStack.Pop();
 
-	if (!StructName.empty()) {
-		Sym->SetName(StructName);
-		SymbolTableStack.GetTop()->Add(Sym);
+	NextToken();
+}
+
+CTypeSymbol* CParser::FilterDuplicates(CTypeSymbol *AType)
+{
+	CTypeSymbol *OldSym = NULL;
+	if (OldSym = SymbolTableStack.GetGlobal()->GetType(AType->GetName())) {
+		delete AType;
+		return OldSym;
 	}
+
+	SymbolTableStack.GetGlobal()->AddType(AType);
+	return AType;
+}
+
+void CParser::ParseInitializer(CVariableSymbol *ASymbol)
+{
+	if (!ASymbol->GetType()->IsScalar()) {
+		throw CParserException("can't initialize this kind of symbol", Token->GetPosition());
+	}
+
+	if (Blocks.size() == 0) {
+		// TODO: add support for initialization of global variables with const expressions, like:
+		// 	x:
+		// 		.long	24
+		// 	y:
+		// 		.float	56.42
+		// or something like this
+		throw CParserException("initialization of global variables is not implemented yet", Token->GetPosition());
+	}
+
+	CBinaryOp *Op = new CBinaryOp(CToken(TOKEN_TYPE_OPERATION_ASSIGN, "=", Token->GetPosition()));
 
 	NextToken();
 
-	CStructSymbolTable *StructSymTable = new CStructSymbolTable;
+	Op->SetLeft(new CVariable(CToken(TOKEN_TYPE_IDENTIFIER, ASymbol->GetName(), CPosition()), static_cast<CVariableSymbol *>(ASymbol)));
+	Op->SetRight(ParseConditional());
 
-	SymbolTableStack.Push(StructSymTable);
-
-	ScopeType.push(SCOPE_TYPE_STRUCT);
-
-	while (ParseDeclaration());
-
-	ScopeType.pop();
-
-	SymbolTableStack.Pop();
-
-	Sym->SetSymbolTable(StructSymTable);
-
-	if (Token->GetType() != TOKEN_TYPE_BLOCK_END) {
-		throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_BLOCK_END]
-			+ " after struct-declaration-list, got " + Token->GetStringifiedType(), Token->GetPosition());
-	}
-
-	//NextToken();
-
-	return Sym;
+	Blocks.top()->Add(Op);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 CStatement* CParser::ParseStatement()
 {
@@ -599,14 +662,19 @@ CBlockStatement* CParser::ParseBlock()
 	CBlockStatement *Stmt = new CBlockStatement;
 
 	CSymbolTable *BlockSymTable = new CSymbolTable;
+	Stmt->SetSymbolTable(BlockSymTable);
 
 	if (typeid(*SymbolTableStack.GetTop()) != typeid(CArgumentsSymbolTable)) {
 		BlockSymTable->SetCurrentOffset(SymbolTableStack.GetTop()->GetCurrentOffset());
 	}
 
 	SymbolTableStack.Push(BlockSymTable);
+	Blocks.push(Stmt);
 
-	while (ParseDeclaration());
+	while (TryParseDeclaration())
+	{
+		ParseDeclaration();
+	}
 
 	while (Token->GetType() != TOKEN_TYPE_BLOCK_END) {
 		if (Token->GetType() == TOKEN_TYPE_EOF) {
@@ -617,7 +685,8 @@ CBlockStatement* CParser::ParseBlock()
 		Stmt->Add(ParseStatement());
 	}
 
-	Stmt->SetSymbolTable(SymbolTableStack.Pop());
+	Blocks.pop();
+	SymbolTableStack.Pop();
 
 	NextToken();
 
@@ -967,108 +1036,11 @@ CStatement* CParser::ParseSwitch()
 	return Stmt;
 }
 
-bool IsAssignment(const CToken &Token)
-{
-	static const ETokenType Assignments[] = {
-		TOKEN_TYPE_OPERATION_ASSIGN,
-		TOKEN_TYPE_OPERATION_PLUS_ASSIGN,
-		TOKEN_TYPE_OPERATION_MINUS_ASSIGN,
-		TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN,
-		TOKEN_TYPE_OPERATION_SLASH_ASSIGN,
-		TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN,
-		TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN,
-		TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN,
-		TOKEN_TYPE_OPERATION_PERCENT_ASSIGN,
-		TOKEN_TYPE_OPERATION_SHIFT_LEFT_ASSIGN,
-		TOKEN_TYPE_OPERATION_SHIFT_RIGHT_ASSIGN,
-		TOKEN_TYPE_INVALID
-		};
-
-	ETokenType t = Token.GetType();
-
-	for (int i = 0; Assignments[i] != TOKEN_TYPE_INVALID; i++) {
-		if (t == Assignments[i]) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool IsRelational(const CToken &Token)
-{
-	static const ETokenType RelationalOps[] = {
-		TOKEN_TYPE_OPERATION_LESS_THAN,
-		TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL,
-		TOKEN_TYPE_OPERATION_GREATER_THAN,
-		TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL,
-		TOKEN_TYPE_INVALID
-		};
-
-	ETokenType t = Token.GetType();
-
-	for (int i = 0; RelationalOps[i] != TOKEN_TYPE_INVALID; i++) {
-		if (t == RelationalOps[i]) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool IsUnaryOp(const CToken &Token)
-{
-	static const ETokenType UnaryOps[] = {
-		TOKEN_TYPE_OPERATION_PLUS,
-		TOKEN_TYPE_OPERATION_MINUS,
-		TOKEN_TYPE_OPERATION_BITWISE_NOT,
-		TOKEN_TYPE_OPERATION_LOGIC_NOT,
-		TOKEN_TYPE_OPERATION_AMPERSAND,
-		TOKEN_TYPE_OPERATION_ASTERISK,
-		TOKEN_TYPE_OPERATION_INCREMENT,
-		TOKEN_TYPE_OPERATION_DECREMENT,
-		TOKEN_TYPE_INVALID
-		};
-
-	ETokenType t = Token.GetType();
-
-	for (int i = 0; UnaryOps[i] != TOKEN_TYPE_INVALID; i++) {
-		if (t == UnaryOps[i]) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool IsPostfix(const CToken &Token)
-{
-	static const ETokenType PostfixOps[] = {
-		TOKEN_TYPE_LEFT_SQUARE_BRACKET,
-		TOKEN_TYPE_LEFT_PARENTHESIS,
-		TOKEN_TYPE_OPERATION_DOT,
-		TOKEN_TYPE_OPERATION_INDIRECT_ACCESS,
-		TOKEN_TYPE_OPERATION_INCREMENT,
-		TOKEN_TYPE_OPERATION_DECREMENT,
-		TOKEN_TYPE_INVALID
-		};
-
-	ETokenType t = Token.GetType();
-
-	for (int i = 0; PostfixOps[i] != TOKEN_TYPE_INVALID; i++) {
-		if (t == PostfixOps[i]) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 CExpression* CParser::ParseAssignment()
 {
 	CExpression *Expr = ParseConditional();
 
-	if (IsAssignment(*Token)) {
+	if (TokenTraits::IsAssignment(Token->GetType())) {
 		CBinaryOp *Op = new CBinaryOp(*Token);
 
 		NextToken();
@@ -1135,7 +1107,7 @@ CExpression* CParser::ParseLogicalOr()
 			Op->CheckTypes();
 		}
 
-		Op->SetResultType(SymbolTableStack.Lookup<CTypeSymbol>("int"));
+		Op->SetResultType(SymbolTableStack.GetGlobal()->GetType("int"));
 
 		Expr = Op;
 	}
@@ -1161,7 +1133,7 @@ CExpression* CParser::ParseLogicalAnd()
 			Op->CheckTypes();
 		}
 
-		Op->SetResultType(SymbolTableStack.Lookup<CTypeSymbol>("int"));
+		Op->SetResultType(SymbolTableStack.GetGlobal()->GetType("int"));
 
 		Expr = Op;
 	}
@@ -1259,7 +1231,7 @@ CExpression* CParser::ParseEqualityExpression()
 			Op->CheckTypes();
 		}
 
-		Op->SetResultType(SymbolTableStack.Lookup<CTypeSymbol>("int"));
+		Op->SetResultType(SymbolTableStack.GetGlobal()->GetType("int"));
 
 		Expr = Op;
 	}
@@ -1273,7 +1245,7 @@ CExpression* CParser::ParseRelationalExpression()
 
 	CBinaryOp *Op;
 
-	while (IsRelational(*Token)) {
+	while (TokenTraits::IsRelational(Token->GetType())) {
 		Op = new CBinaryOp(*Token);
 
 		NextToken();
@@ -1285,7 +1257,7 @@ CExpression* CParser::ParseRelationalExpression()
 			Op->CheckTypes();
 		}
 
-		Op->SetResultType(SymbolTableStack.Lookup<CTypeSymbol>("int"));
+		Op->SetResultType(SymbolTableStack.GetGlobal()->GetType("int"));
 
 		Expr = Op;
 	}
@@ -1392,7 +1364,7 @@ CExpression* CParser::ParseCastExpression()
 
 CExpression* CParser::ParseUnaryExpression()
 {
-	if (!IsUnaryOp(*Token) && Token->GetText() != "sizeof") {
+	if (!TokenTraits::IsUnaryOp(Token->GetType()) && Token->GetText() != "sizeof") {
 		return ParsePostfixExpression();
 	}
 
@@ -1427,7 +1399,7 @@ CExpression* CParser::ParseUnaryExpression()
 	}
 
 	if (type == TOKEN_TYPE_OPERATION_LOGIC_NOT) {
-		Op->SetResultType(SymbolTableStack.Lookup<CTypeSymbol>("int"));
+		Op->SetResultType(SymbolTableStack.GetGlobal()->GetType("int"));
 	}
 
 	return Op;
@@ -1438,7 +1410,7 @@ CExpression* CParser::ParsePostfixExpression()
 	CExpression *Expr = ParsePrimaryExpression();
 	CExpression *Op;
 
-	while (IsPostfix(*Token)) {
+	while (TokenTraits::IsPostfix(Token->GetType())) {
 		switch (Token->GetType()) {
 		case TOKEN_TYPE_OPERATION_DOT:
 			{
@@ -1497,13 +1469,21 @@ CExpression* CParser::ParsePostfixExpression()
 			break;
 		case TOKEN_TYPE_LEFT_PARENTHESIS:
 			{
-				CVariable *VarExpr = dynamic_cast<CVariable *>(Expr);
-				if (!VarExpr) {
-					throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
-						+ " before function call operator", Token->GetPosition());
+				CFunctionSymbol *FuncSym;
+
+				if (CFunction *FuncExpr = dynamic_cast<CFunction *>(Expr)) {
+					FuncSym = FuncExpr->GetSymbol();
+				} else {
+					if (Mode == PARSER_MODE_EXPRESSION && Expr->GetType() == TOKEN_TYPE_IDENTIFIER) {
+						FuncSym = new CFunctionSymbol(Expr->GetName(), SymbolTableStack.GetGlobal()->GetType("int"));
+					} else {
+						throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
+							+ " before function call operator", Token->GetPosition());
+					}
 				}
 
-				CFunctionCall *FuncCall = new CFunctionCall(*Token, VarExpr->GetSymbol());
+				CFunctionCall *FuncCall = new CFunctionCall(*Token, FuncSym);
+
 				Op = FuncCall;
 
 				NextToken();
@@ -1521,7 +1501,7 @@ CExpression* CParser::ParsePostfixExpression()
 						+ " after function arguments list, got " + Token->GetStringifiedType(), Token->GetPosition());
 				}
 
-				delete VarExpr;
+				delete Expr;
 			}
 			break;
 		}
@@ -1549,30 +1529,34 @@ CExpression* CParser::ParsePrimaryExpression()
 				+ ", got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_INTEGER) {
-		Expr = new CIntegerConst(*Token, SymbolTableStack.Lookup<CTypeSymbol>("int"));
+		Expr = new CIntegerConst(*Token, SymbolTableStack.GetGlobal()->GetType("int"));
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_FLOAT) {
-		Expr = new CFloatConst(*Token, SymbolTableStack.Lookup<CTypeSymbol>("float"));
-	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_SYMBOL) {
-		Expr = new CSymbolConst(*Token, SymbolTableStack.Lookup<CTypeSymbol>("int"));
+		Expr = new CFloatConst(*Token, SymbolTableStack.GetGlobal()->GetType("float"));
+	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_CHAR) {
+		Expr = new CCharConst(*Token, SymbolTableStack.GetGlobal()->GetType("int"));
 	} else if (Token->GetType() == TOKEN_TYPE_CONSTANT_STRING) {
-		Expr = new CStringConst(*Token, SymbolTableStack.Lookup<CTypeSymbol>("int*"));
+		Expr = new CStringConst(*Token, SymbolTableStack.GetGlobal()->GetType("int*"));
 	} else if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
-		CSymbol *Sym = SymbolTableStack.Lookup<CSymbol>(Token->GetText());
+		CSymbol *Sym = SymbolTableStack.LookupAll(Token->GetText());
 
 		if (!Sym) {
 			if (Mode == PARSER_MODE_EXPRESSION) {
-				Sym = new CVariableSymbol(Token->GetText(), SymbolTableStack.Lookup<CTypeSymbol>("int"));
-				SymbolTableStack.GetTop()->Add(Sym);
+				// FIXME FFFFUUUUU~~~
+				CVariableSymbol *VarSym = new CVariableSymbol(Token->GetText(), SymbolTableStack.GetGlobal()->GetType("int"));
+				SymbolTableStack.GetTop()->AddVariable(VarSym);
+				Sym = VarSym;
 			} else {
 				throw CParserException("undeclared identifier `" + Token->GetText() + "`", Token->GetPosition());
 			}
 		}
 
-		if (dynamic_cast<CTypeSymbol *>(Sym)) {
+		if (Sym->GetSymbolType() == SYMBOL_TYPE_TYPE) {
 			throw CParserException("declaration is not allowed here", Token->GetPosition());
+		} else if (Sym->GetSymbolType() == SYMBOL_TYPE_VARIABLE) {
+			Expr = new CVariable(*Token, static_cast<CVariableSymbol *>(Sym));
+		} else if (Sym->GetSymbolType() == SYMBOL_TYPE_FUNCTION) {
+			Expr = new CFunction(*Token, static_cast<CFunctionSymbol *>(Sym));
 		}
-
-		Expr = new CVariable(*Token, Sym);
 	} else {
 		throw CParserException("expected primary-expression, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
@@ -1594,14 +1578,22 @@ void CParser::PreviousToken()
 
 void CParser::AddBuiltIn(const string &AName, const string &AReturnType, int AArgumentsCount, ...)
 {
-	CFunctionSymbol *fs = new CFunctionSymbol(AName, SymbolTableStack.Lookup<CTypeSymbol>(AReturnType));
-	fs->SetArgumentsSymbolTable(new CArgumentsSymbolTable);
-	fs->SetBuiltIn(true);
+	CFunctionSymbol *FuncSym = new CFunctionSymbol(AName, SymbolTableStack.LookupType(AReturnType));
+	FuncSym->SetArgumentsSymbolTable(new CArgumentsSymbolTable);
+	FuncSym->SetBuiltIn(true);
+
 	va_list vl;
 	va_start(vl, AArgumentsCount);
+
+	CVariableSymbol *Arg;
+
 	for (int i = 0; i < AArgumentsCount; i++) {
-		fs->AddArgument(new CVariableSymbol("", SymbolTableStack.Lookup<CTypeSymbol>(va_arg(vl, const char *))));
+		Arg = new CVariableSymbol("", SymbolTableStack.LookupType(va_arg(vl, const char *)));
+		FuncSym->GetArgumentsSymbolTable()->AddVariable(Arg);
+		FuncSym->AddArgument(Arg);
 	}
+
 	va_end(vl);
-	SymbolTableStack.GetGlobal()->Add(fs);
+
+	SymbolTableStack.GetGlobal()->AddFunction(FuncSym);
 }

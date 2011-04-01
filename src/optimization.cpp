@@ -251,7 +251,7 @@ void CUnreachableCodeElimination::Visit(CFloatConst &AStmt)
 {
 }
 
-void CUnreachableCodeElimination::Visit(CSymbolConst &AStmt)
+void CUnreachableCodeElimination::Visit(CCharConst &AStmt)
 {
 }
 
@@ -260,6 +260,10 @@ void CUnreachableCodeElimination::Visit(CStringConst &AStmt)
 }
 
 void CUnreachableCodeElimination::Visit(CVariable &AStmt)
+{
+}
+
+void CUnreachableCodeElimination::Visit(CFunction &AStmt)
 {
 }
 

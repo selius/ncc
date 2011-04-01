@@ -3,18 +3,6 @@
 
 #include "common.h"
 
-struct CCompilerParameters
-{
-	CCompilerParameters();
-
-	string InputFilename;
-	string OutputFilename;
-	ECompilerMode CompilerMode;
-	EParserOutputMode ParserOutputMode;
-	EParserMode ParserMode;
-	bool Optimize;
-};
-
 class CCommandLineInterface
 {
 public:

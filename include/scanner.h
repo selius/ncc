@@ -3,82 +3,6 @@
 
 #include "common.h"
 
-enum ETokenType
-{
-	TOKEN_TYPE_INVALID,
-
-	TOKEN_TYPE_IDENTIFIER,
-	TOKEN_TYPE_KEYWORD,
-	TOKEN_TYPE_BLOCK_START,
-	TOKEN_TYPE_BLOCK_END,
-
-	TOKEN_TYPE_LEFT_PARENTHESIS,
-	TOKEN_TYPE_RIGHT_PARENTHESIS,
-
-	TOKEN_TYPE_LEFT_SQUARE_BRACKET,
-	TOKEN_TYPE_RIGHT_SQUARE_BRACKET,
-
-	TOKEN_TYPE_CONSTANT_INTEGER,
-	TOKEN_TYPE_CONSTANT_FLOAT,
-	TOKEN_TYPE_CONSTANT_SYMBOL,
-	TOKEN_TYPE_CONSTANT_STRING,
-
-	TOKEN_TYPE_OPERATION_PLUS,
-	TOKEN_TYPE_OPERATION_MINUS,
-	TOKEN_TYPE_OPERATION_ASTERISK,
-	TOKEN_TYPE_OPERATION_SLASH,
-	TOKEN_TYPE_OPERATION_PERCENT,
-
-	TOKEN_TYPE_OPERATION_ASSIGN,
-	TOKEN_TYPE_OPERATION_PLUS_ASSIGN,
-	TOKEN_TYPE_OPERATION_MINUS_ASSIGN,
-	TOKEN_TYPE_OPERATION_ASTERISK_ASSIGN,
-	TOKEN_TYPE_OPERATION_SLASH_ASSIGN,
-	TOKEN_TYPE_OPERATION_PERCENT_ASSIGN,
-
-	TOKEN_TYPE_OPERATION_EQUAL,
-	TOKEN_TYPE_OPERATION_NOT_EQUAL,
-	TOKEN_TYPE_OPERATION_LESS_THAN,
-	TOKEN_TYPE_OPERATION_GREATER_THAN,
-	TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL,
-	TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL,
-
-	TOKEN_TYPE_OPERATION_LOGIC_AND,
-	TOKEN_TYPE_OPERATION_LOGIC_OR,
-	TOKEN_TYPE_OPERATION_LOGIC_NOT,
-
-	TOKEN_TYPE_OPERATION_AMPERSAND,
-
-	TOKEN_TYPE_OPERATION_BITWISE_OR,
-	TOKEN_TYPE_OPERATION_BITWISE_NOT,
-	TOKEN_TYPE_OPERATION_BITWISE_XOR,
-
-	TOKEN_TYPE_OPERATION_AMPERSAND_ASSIGN,
-	TOKEN_TYPE_OPERATION_BITWISE_OR_ASSIGN,
-	TOKEN_TYPE_OPERATION_BITWISE_XOR_ASSIGN,
-
-	TOKEN_TYPE_OPERATION_SHIFT_LEFT,
-	TOKEN_TYPE_OPERATION_SHIFT_RIGHT,
-
-	TOKEN_TYPE_OPERATION_SHIFT_LEFT_ASSIGN,
-	TOKEN_TYPE_OPERATION_SHIFT_RIGHT_ASSIGN,
-
-	TOKEN_TYPE_OPERATION_DOT,
-	TOKEN_TYPE_OPERATION_INDIRECT_ACCESS,
-
-	TOKEN_TYPE_OPERATION_INCREMENT,
-	TOKEN_TYPE_OPERATION_DECREMENT,
-
-	TOKEN_TYPE_OPERATION_CONDITIONAL,
-
-	TOKEN_TYPE_SEPARATOR_COMMA,
-	TOKEN_TYPE_SEPARATOR_SEMICOLON,
-	TOKEN_TYPE_SEPARATOR_COLON,
-
-	TOKEN_TYPE_EOF,
-};
-
-
 class CToken
 {
 public:
@@ -94,7 +18,7 @@ public:
 
 	virtual int GetIntegerValue() const;
 	virtual float GetFloatValue() const;
-	virtual char GetSymbolValue() const;
+	virtual char GetCharValue() const;
 
 protected:
 	ETokenType Type;
@@ -132,34 +56,18 @@ protected:
 
 };
 
-class CSymbolConstToken : public CToken
+class CCharConstToken : public CToken
 {
 public:
-	CSymbolConstToken(const string &AText, const CPosition &APosition);
+	CCharConstToken(const string &AText, const CPosition &APosition);
 
-	CSymbolConstToken* Clone() const;
+	CCharConstToken* Clone() const;
 
-	char GetSymbolValue() const;
+	char GetCharValue() const;
 
 protected:
 	char Value;
 
-};
-
-class CTraits
-{
-public:
-	static bool IsWhitespace(char c);
-	static bool IsDigit(char c);
-	static bool IsHexDigit(char c);
-	static bool IsOctDigit(char c);
-	static bool IsValidNumericalConstantSymbol(char c);
-	static bool IsValidIdentifierSymbol(char c, bool first = false);
-	static bool IsOperationSymbol(char c);
-	static bool IsKeyword(const string &s);
-	static bool IsComparisonOperation(ETokenType t);
-	static bool IsTrivialOperation(ETokenType t);
-	static bool IsCompoundAssignment(ETokenType t);
 };
 
 class CScanner
@@ -176,9 +84,9 @@ public:
 private:
 	CToken* ScanIdentifier();
 	CToken* ScanOperation();
-	CToken* ScanSingleSymbol();
+	CToken* ScanSingleChar();
 	CToken* ScanStringConstant();
-	CToken* ScanSymbolConstant();
+	CToken* ScanCharConstant();
 	CToken* ScanNumericalConstant();
 
 	bool TryScanNumericalConstant();
@@ -196,7 +104,7 @@ private:
 	bool SkipWhitespace();
 	void SkipWhitespaceAndComments();
 
-	char AdvanceOneSymbol();
+	char NextChar();
 
 	istream &InputStream;
 	CToken *LastToken;

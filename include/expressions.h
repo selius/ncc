@@ -154,10 +154,10 @@ private:
 
 };
 
-class CSymbolConst : public CConst
+class CCharConst : public CConst
 {
 public:
-	CSymbolConst(const CToken &AToken, CTypeSymbol *AType);
+	CCharConst(const CToken &AToken, CTypeSymbol *AType);
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -185,7 +185,7 @@ private:
 class CVariable : public CExpression
 {
 public:
-	CVariable(const CToken &AToken, CSymbol *ASymbol = NULL);
+	CVariable(const CToken &AToken, CVariableSymbol *ASymbol = NULL);
 
 	void Accept(CStatementVisitor &AVisitor);
 
@@ -197,8 +197,23 @@ public:
 	bool IsLValue() const;
 
 private:
-	CSymbol *Symbol;
+	CVariableSymbol *Symbol;
+};
 
+class CFunction : public CExpression
+{
+public:
+	CFunction(const CToken &AToken, CFunctionSymbol *ASymbol = NULL);
+
+	void Accept(CStatementVisitor &AVisitor);
+
+	CFunctionSymbol* GetSymbol() const;
+	void SetSymbol(CFunctionSymbol *ASymbol);
+
+	CTypeSymbol* GetResultType() const;
+
+private:
+	CFunctionSymbol *Symbol;
 };
 
 class CPostfixOp : public CUnaryOp
@@ -219,7 +234,7 @@ public:
 	typedef ArgumentsContainer::const_iterator ArgumentsIterator;
 	typedef ArgumentsContainer::reverse_iterator ArgumentsReverseIterator;
 
-	CFunctionCall(const CToken &AToken, CSymbol *AFunction);
+	CFunctionCall(const CToken &AToken, CFunctionSymbol *AFunction);
 	~CFunctionCall();
 
 	void Accept(CStatementVisitor &AVisitor);

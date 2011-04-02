@@ -54,6 +54,8 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 				} else if (CurArg == "-G" || CurArg == "--generate") {
 					Parameters.CompilerMode = COMPILER_MODE_GENERATE;
 				}
+			} else if (CurArg == "-T" || CurArg == "--symbol-tables") {
+				Parameters.SymbolTables = true;
 			} else if (CurArg == "-O" || CurArg == "--optimize") {
 				Parameters.Optimize = true;
 			} else if (CurArg == "--parser-output-mode") {
@@ -101,6 +103,10 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 
 	if (Parameters.ParserMode == PARSER_MODE_EXPRESSION && Parameters.CompilerMode != COMPILER_MODE_PARSE) {
 		throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "expressions-only parser mode can only be selected when compiler mode is parsing");
+	}
+
+	if (Parameters.SymbolTables && (Parameters.CompilerMode != COMPILER_MODE_PARSE || Parameters.ParserMode != PARSER_MODE_NORMAL)) {
+		throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "symbol tables printing can only be enabled when compiler mode is parsing and parser mode is normal");
 	}
 
 	if (Parameters.Optimize && Parameters.CompilerMode != COMPILER_MODE_GENERATE) {
@@ -181,6 +187,7 @@ void CCommandLineInterface::PopulateHelp()
 
 	Help.AddSeparator();
 
+	Help.Add("-T", "--symbol-tables", "Print symbol tables");
 	Help.Add("-O", "--optimize", "Perform optimizations");
 
 	Help.AddSeparator();

@@ -167,6 +167,7 @@ private:
 	stack<EScopeType> ScopeType;
 	stack<CSwitchStatement *> SwitchesStack;
 	CFunctionSymbol *CurrentFunction;
+	unsigned int AnonymousTagCounter;
 
 	EParserMode Mode;
 };

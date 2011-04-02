@@ -277,7 +277,7 @@ private:
 
 	map<string, string> StringLiterals;
 
-	int LabelsCount;
+	unsigned int LabelsCount;
 
 };
 

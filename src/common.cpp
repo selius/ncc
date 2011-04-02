@@ -7,7 +7,7 @@
  * CCompilerParameters
  ******************************************************************************/
 
-CCompilerParameters::CCompilerParameters() : CompilerMode(COMPILER_MODE_UNDEFINED), ParserOutputMode(PARSER_OUTPUT_MODE_TREE), ParserMode(PARSER_MODE_NORMAL), Optimize(false)
+CCompilerParameters::CCompilerParameters() : CompilerMode(COMPILER_MODE_UNDEFINED), ParserOutputMode(PARSER_OUTPUT_MODE_TREE), ParserMode(PARSER_MODE_NORMAL), SymbolTables(false), Optimize(false)
 {
 }
 

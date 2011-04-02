@@ -8,8 +8,9 @@ enum ESymbolType
 	SYMBOL_TYPE_VARIABLE,
 	SYMBOL_TYPE_FUNCTION,
 	SYMBOL_TYPE_TYPE,
-
 };
+
+class CSymbolsPrettyPrinter;
 
 class CSymbol
 {
@@ -21,6 +22,8 @@ public:
 	void SetName(const string &AName);
 
 	virtual ESymbolType GetSymbolType() const = 0;
+
+	virtual void Accept(CSymbolsPrettyPrinter &AVisitor) = 0;
 
 protected:
 	string Name;
@@ -63,7 +66,12 @@ public:
 	VariablesIterator VariablesBegin() const;
 	VariablesIterator VariablesEnd() const;
 
+	TypesIterator TypesBegin() const;
+	TypesIterator TypesEnd() const;
+
 	unsigned int GetSize() const;
+
+	unsigned int VariablesSize() const;
 
 	size_t GetElementsSize() const;
 
@@ -173,6 +181,10 @@ public:
 
 	virtual bool CompatibleWith(CTypeSymbol *ASymbol);
 
+	void Accept(CSymbolsPrettyPrinter &AVisitor);
+
+	virtual CTypeSymbol* ConstClone() const;
+
 protected:
 	bool Const;
 	bool Complete;
@@ -184,12 +196,9 @@ public:
 	CIntegerSymbol();
 
 	size_t GetSize() const;
-
 	bool IsInt() const;
 
-private:
-	
-
+	CIntegerSymbol* ConstClone() const;
 };
 
 class CFloatSymbol : public CTypeSymbol
@@ -198,11 +207,9 @@ public:
 	CFloatSymbol();
 
 	size_t GetSize() const;
-
 	bool IsFloat() const;
 
-private:
-
+	CFloatSymbol* ConstClone() const;
 };
 
 class CVoidSymbol : public CTypeSymbol
@@ -211,12 +218,9 @@ public:
 	CVoidSymbol();
 
 	size_t GetSize() const;
-
 	bool IsVoid() const;
 
-	// TODO: make void symbol incomplete
-private:
-
+	CVoidSymbol* ConstClone() const;
 };
 
 class CArraySymbol : public CTypeSymbol
@@ -236,6 +240,8 @@ public:
 	bool IsArray() const;
 
 	bool CompatibleWith(CTypeSymbol *ASymbol);
+
+	CArraySymbol* ConstClone() const;
 
 private:
 	void UpdateName();
@@ -268,10 +274,12 @@ public:
 
 	bool CompatibleWith(CTypeSymbol *ASymbol);
 
+	void Accept(CSymbolsPrettyPrinter &AVisitor);
+
+	CStructSymbol* ConstClone() const;
+
 private:
 	CStructSymbolTable *Fields;
-	// TODO: struct can also have internal tags..
-
 };
 
 class CPointerSymbol : public CTypeSymbol
@@ -289,6 +297,8 @@ public:
 	bool IsPointer() const;
 
 	bool CompatibleWith(CTypeSymbol *ASymbol);
+
+	CPointerSymbol* ConstClone() const;
 
 private:
 	CTypeSymbol *RefType;
@@ -312,6 +322,8 @@ public:
 
 	bool CompatibleWith(CTypeSymbol *ASymbol);
 
+	void Accept(CSymbolsPrettyPrinter &AVisitor);
+
 private:
 	CTypeSymbol *RefType;
 
@@ -320,6 +332,8 @@ private:
 class CFunctionTypeSymbol : public CTypeSymbol
 {
 public:
+	CFunctionTypeSymbol();
+
 	size_t GetSize() const;
 
 	bool IsFunction() const;
@@ -340,6 +354,8 @@ public:
 
 	bool GetGlobal() const;
 	void SetGlobal(bool AGlobal);
+
+	void Accept(CSymbolsPrettyPrinter &AVisitor);
 
 private:
 	CTypeSymbol *Type;
@@ -376,6 +392,8 @@ public:
 
 	bool GetBuiltIn() const;
 	void SetBuiltIn(bool ABuiltIn);
+
+	void Accept(CSymbolsPrettyPrinter &AVisitor);
 
 	// TODO: add possibility to check equality of function types
 	// 	a function is characterized by return type and number and type of arguments

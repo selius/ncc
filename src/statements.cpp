@@ -68,6 +68,21 @@ CBlockStatement::StatementsIterator CBlockStatement::End()
 	return Statements.end();
 }
 
+CBlockStatement::NestedBlocksIterator CBlockStatement::NestedBlocksBegin()
+{
+	return NestedBlocks.begin();
+}
+
+CBlockStatement::NestedBlocksIterator CBlockStatement::NestedBlocksEnd()
+{
+	return NestedBlocks.end();
+}
+
+void CBlockStatement::AddNestedBlock(CBlockStatement *ABlock)
+{
+	NestedBlocks.push_back(ABlock);
+}
+
 unsigned int CBlockStatement::GetStatementsCount() const
 {
 	return Statements.size();

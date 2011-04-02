@@ -141,6 +141,7 @@ struct CCompilerParameters
 	ECompilerMode CompilerMode;
 	EParserOutputMode ParserOutputMode;
 	EParserMode ParserMode;
+	bool SymbolTables;
 	bool Optimize;
 };
 

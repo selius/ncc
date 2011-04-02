@@ -36,6 +36,9 @@ class CBlockStatement : public CStatement
 public:
 	typedef vector<CStatement *> StatementsContainer;
 	typedef StatementsContainer::iterator StatementsIterator;
+	
+	typedef vector<CBlockStatement *> NestedBlocksContainer;
+	typedef NestedBlocksContainer::iterator NestedBlocksIterator;
 
 	CBlockStatement();
 	~CBlockStatement();
@@ -44,6 +47,11 @@ public:
 
 	StatementsIterator Begin();
 	StatementsIterator End();
+
+	NestedBlocksIterator NestedBlocksBegin();
+	NestedBlocksIterator NestedBlocksEnd();
+
+	void AddNestedBlock(CBlockStatement *ABlock);
 
 	unsigned int GetStatementsCount() const;
 
@@ -56,8 +64,8 @@ public:
 
 private:
 	StatementsContainer Statements;
+	NestedBlocksContainer NestedBlocks;
 	CSymbolTable *SymbolTable;
-	// TODO: add separate symbol table for tags
 };
 
 class CIfStatement : public CStatement

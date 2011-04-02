@@ -734,7 +734,7 @@ void CFunctionCall::CheckTypes() const
 	ArgumentsIterator ait;
 	CFunctionSymbol::ArgumentsOrderIterator fit;
 
-	if (Arguments.size() != Function->GetArgumentsSymbolTable()->GetSize()) {
+	if (Arguments.size() != Function->GetArgumentsSymbolTable()->VariablesSize()) {
 		throw CException("number of actual and formal parameters don't match", Position);
 	}
 

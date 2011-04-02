@@ -1,6 +1,7 @@
 #include "symbols.h"
 
 #include "statements.h"
+#include "prettyprinting.h"
 
 /******************************************************************************
  * CSymbol
@@ -38,9 +39,10 @@ CSymbolTable::~CSymbolTable()
 		delete it->second;
 	}
 
-	for (TagsIterator it = Tags.begin(); it != Tags.end(); ++it) {
+	// all structs are contained in Types too, so we shouldn't delete them here
+	/*for (TagsIterator it = Tags.begin(); it != Tags.end(); ++it) {
 		delete it->second;
-	}
+	}*/
 
 	for (TypesIterator it = Types.begin(); it != Types.end(); ++it) {
 		delete it->second;
@@ -58,8 +60,12 @@ void CSymbolTable::AddVariable(CVariableSymbol *ASymbol)
 void CSymbolTable::AddType(CTypeSymbol *ASymbol)
 {
 	assert(ASymbol != NULL);
-
-	Types[ASymbol->GetName()] = ASymbol;
+	
+	if (ASymbol->IsStruct()) {
+		Types["struct " + ASymbol->GetName()] = ASymbol;
+	} else {
+		Types[ASymbol->GetQualifiedName()] = ASymbol;
+	}
 }
 
 void CSymbolTable::AddTag(CStructSymbol *ASymbol)
@@ -133,9 +139,24 @@ CSymbolTable::VariablesIterator CSymbolTable::VariablesEnd() const
 	return Variables.end();
 }
 
+CSymbolTable::TypesIterator CSymbolTable::TypesBegin() const
+{
+	return Types.begin();
+}
+
+CSymbolTable::TypesIterator CSymbolTable::TypesEnd() const
+{
+	return Types.end();
+}
+
 unsigned int CSymbolTable::GetSize() const
 {
 	return Variables.size() + Types.size() + Tags.size();
+}
+
+unsigned int CSymbolTable::VariablesSize() const
+{
+	return Variables.size();
 }
 
 unsigned int CSymbolTable::GetElementsSize() const
@@ -339,7 +360,7 @@ CSymbol* CSymbolTableStack::LookupAll(const string &AName) const
  * CTypeSymbol
  ******************************************************************************/
 
-CTypeSymbol::CTypeSymbol(const string &AName /*= ""*/) : CSymbol(AName), Const(false)
+CTypeSymbol::CTypeSymbol(const string &AName /*= ""*/) : CSymbol(AName), Const(false), Complete(true)
 {
 }
 
@@ -436,6 +457,16 @@ bool CTypeSymbol::CompatibleWith(CTypeSymbol *ASymbol)
 	}
 }
 
+void CTypeSymbol::Accept(CSymbolsPrettyPrinter &AVisitor)
+{
+	AVisitor.Visit(*this);
+}
+
+CTypeSymbol* CTypeSymbol::ConstClone() const
+{
+	throw logic_error("can't const-clone this kind of symbol");
+}
+
 /******************************************************************************
  * CIntegerSymbol
  ******************************************************************************/
@@ -453,6 +484,14 @@ size_t CIntegerSymbol::GetSize() const
 bool CIntegerSymbol::IsInt() const
 {
 	return true;
+}
+
+CIntegerSymbol* CIntegerSymbol::ConstClone() const
+{
+	CIntegerSymbol *result = new CIntegerSymbol;
+	*result = *this;
+	result->SetConst(true);
+	return result;
 }
 
 /******************************************************************************
@@ -474,6 +513,14 @@ bool CFloatSymbol::IsFloat() const
 	return true;
 }
 
+CFloatSymbol* CFloatSymbol::ConstClone() const
+{
+	CFloatSymbol *result = new CFloatSymbol;
+	*result = *this;
+	result->SetConst(true);
+	return result;
+}
+
 /******************************************************************************
  * CVoidSymbol
  ******************************************************************************/
@@ -481,6 +528,7 @@ bool CFloatSymbol::IsFloat() const
 CVoidSymbol::CVoidSymbol()
 {
 	Name = "void";
+	Complete = false;
 }
 
 size_t CVoidSymbol::GetSize() const
@@ -491,6 +539,14 @@ size_t CVoidSymbol::GetSize() const
 bool CVoidSymbol::IsVoid() const
 {
 	return true;
+}
+
+CVoidSymbol* CVoidSymbol::ConstClone() const
+{
+	CVoidSymbol *result = new CVoidSymbol;
+	*result = *this;
+	result->SetConst(true);
+	return result;
 }
 
 /******************************************************************************
@@ -561,13 +617,21 @@ void CArraySymbol::UpdateName()
 	Name = ElementsType->GetName() + "[" + ToString(Length) + "]";
 }
 
+CArraySymbol* CArraySymbol::ConstClone() const
+{
+	CArraySymbol *result = new CArraySymbol;
+	*result = *this;
+	result->SetConst(true);
+	return result;
+}
+
 /******************************************************************************
  * CStructSymbol
  ******************************************************************************/
 
 CStructSymbol::CStructSymbol() : Fields(NULL)
 {
-
+	Complete = false;
 }
 
 CStructSymbol::~CStructSymbol()
@@ -618,7 +682,7 @@ void CStructSymbol::SetSymbolTable(CStructSymbolTable *ASymbolTable)
 
 unsigned int CStructSymbol::GetFieldsCount() const
 {
-	return (Fields ? Fields->GetSize() : 0);
+	return (Fields ? Fields->VariablesSize() : 0);
 }
 
 bool CStructSymbol::IsStruct() const
@@ -635,6 +699,19 @@ bool CStructSymbol::CompatibleWith(CTypeSymbol *ASymbol)
 	} else {
 		return false;
 	}
+}
+
+void CStructSymbol::Accept(CSymbolsPrettyPrinter &AVisitor)
+{
+	AVisitor.Visit(*this);
+}
+
+CStructSymbol* CStructSymbol::ConstClone() const
+{
+	CStructSymbol *result = new CStructSymbol;
+	*result = *this;
+	result->SetConst(true);
+	return result;
 }
 
 /******************************************************************************
@@ -689,6 +766,14 @@ bool CPointerSymbol::CompatibleWith(CTypeSymbol *ASymbol)
 	}
 }
 
+CPointerSymbol* CPointerSymbol::ConstClone() const
+{
+	CPointerSymbol *result = new CPointerSymbol;
+	*result = *this;
+	result->SetConst(true);
+	return result;
+}
+
 /******************************************************************************
  * CTypedefSymbol
  ******************************************************************************/
@@ -741,9 +826,19 @@ bool CTypedefSymbol::CompatibleWith(CTypeSymbol *ASymbol)
 	}
 }
 
+void CTypedefSymbol::Accept(CSymbolsPrettyPrinter &AVisitor)
+{
+	AVisitor.Visit(*this);
+}
+
 /******************************************************************************
  * CFunctionTypeSymbol
  ******************************************************************************/
+
+CFunctionTypeSymbol::CFunctionTypeSymbol()
+{
+	Complete = false;
+}
 
 size_t CFunctionTypeSymbol::GetSize() const
 {
@@ -796,6 +891,11 @@ bool CVariableSymbol::GetGlobal() const
 void CVariableSymbol::SetGlobal(bool AGlobal)
 {
 	Global = AGlobal;
+}
+
+void CVariableSymbol::Accept(CSymbolsPrettyPrinter &AVisitor)
+{
+	AVisitor.Visit(*this);
 }
 
 /******************************************************************************
@@ -871,4 +971,9 @@ bool CFunctionSymbol::GetBuiltIn() const
 void CFunctionSymbol::SetBuiltIn(bool ABuiltIn)
 {
 	BuiltIn = ABuiltIn;
+}
+
+void CFunctionSymbol::Accept(CSymbolsPrettyPrinter &AVisitor)
+{
+	AVisitor.Visit(*this);
 }

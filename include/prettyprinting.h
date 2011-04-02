@@ -29,6 +29,31 @@ private:
 	const CCompilerParameters &Parameters;
 };
 
+class CSymbolsPrettyPrinter
+{
+public:
+	CSymbolsPrettyPrinter(CGlobalSymbolTable &ASymbolTable, ostream &AStream);
+
+	void Output();
+	
+	void Visit(CTypeSymbol &ASymbol);
+	void Visit(CTypedefSymbol &ASymbol);
+	void Visit(CFunctionSymbol &ASymbol);
+	void Visit(CStructSymbol &ASymbol);
+	void Visit(CVariableSymbol &ASymbol);
+
+	void VisitBlock(CBlockStatement *AStmt);
+
+private:
+	void PrintNesting();
+
+	CGlobalSymbolTable &SymbolTable;
+	ostream &Stream;
+
+	unsigned int Nesting;
+
+};
+
 class CStatementLinearPrintVisitor : public CStatementVisitor
 {
 public:

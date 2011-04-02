@@ -20,7 +20,7 @@ x% means x ("," x)* -- that is, a non-null comma-separated list of x's.
 
 
 Terminals:
-	typedef-name integer-constant character-constant floating-constant enumeration-constant identifier
+	typedef-name integer-constant character-constant floating-constant identifier
 
 translation-unit: (function-definition | declaration)+
 
@@ -132,4 +132,4 @@ postfix-expression:
 		"++" | "--"
 	)*
 
-constant: integer-constant | character-constant | floating-constant | enumeration-constant
+constant: integer-constant | character-constant | floating-constant

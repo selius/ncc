@@ -69,7 +69,7 @@ CParser::CDeclarationSpecifier::CDeclarationSpecifier() : Type(NULL), Typedef(fa
  * CParser
  ******************************************************************************/
 
-CParser::CParser(CScanner &AScanner, EParserMode AMode /*= PARSER_MODE_NORMAL*/) : TokenStream(AScanner), CurrentFunction(NULL), Mode(AMode)
+CParser::CParser(CScanner &AScanner, EParserMode AMode /*= PARSER_MODE_NORMAL*/) : TokenStream(AScanner), CurrentFunction(NULL), AnonymousTagCounter(0), Mode(AMode)
 {
 	NextToken();
 
@@ -227,7 +227,7 @@ void CParser::ParseStructSpecifier(CDeclarationSpecifier &DeclSpec)
 				+ " after `struct`, got " + Token->GetStringifiedType(), Token->GetPosition());
 		}
 
-		// TODO: generate anonymous tag
+		Tag = "<anonymous_struct_" + ToString(++AnonymousTagCounter) + ">";
 	}
 
 	if (Token->GetType() != TOKEN_TYPE_BLOCK_START) {
@@ -243,6 +243,7 @@ void CParser::ParseStructSpecifier(CDeclarationSpecifier &DeclSpec)
 	CStructSymbol *StructSym = new CStructSymbol;
 	StructSym->SetName(Tag);
 	SymbolTableStack.GetTop()->AddTag(StructSym);
+	SymbolTableStack.GetTop()->AddType(StructSym);
 
 	CStructSymbolTable *StructSymTable = new CStructSymbolTable;
 	StructSym->SetSymbolTable(StructSymTable);
@@ -315,7 +316,10 @@ void CParser::ParseDeclarationSpecifiers(CDeclarationSpecifier &DeclSpec)
 	if (!DeclSpec.Type) {	// FIXME: standard behvaiour for C compilers is to default type to int, if it's missing.. encountering ';' without a type isn't an error either, just a warning "useless declaration"..
 		throw CParserException("expected declaration specifier, got " + Token->GetStringifiedType(), pos);
 	} else {
-		DeclSpec.Type->SetConst(DeclSpec.Const);
+		if (DeclSpec.Const) {
+			DeclSpec.Type = DeclSpec.Type->ConstClone();
+			SymbolTableStack.GetTop()->AddType(DeclSpec.Type);
+		}
 	}
 }
 
@@ -559,7 +563,7 @@ void CParser::ParseInitializer(CVariableSymbol *ASymbol)
 		throw CParserException("can't initialize this kind of symbol", Token->GetPosition());
 	}
 
-	if (Blocks.size() == 0) {
+	if (Blocks.empty()) {
 		// TODO: add support for initialization of global variables with const expressions, like:
 		// 	x:
 		// 		.long	24
@@ -687,6 +691,10 @@ CBlockStatement* CParser::ParseBlock()
 
 	Blocks.pop();
 	SymbolTableStack.Pop();
+
+	if (!Blocks.empty()) {
+		Blocks.top()->AddNestedBlock(Stmt);
+	}
 
 	NextToken();
 

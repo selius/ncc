@@ -55,29 +55,172 @@ void CParsePrettyPrinter::Output(ostream &Stream)
 	} else {
 		CGlobalSymbolTable *SymTable = Parser.ParseTranslationUnit();
 
+		if (Parameters.SymbolTables) {
+			CSymbolsPrettyPrinter SymbolsPrinter(*SymTable, Stream);
+			SymbolsPrinter.Output();
+		}
+
 		CFunctionSymbol *FuncSym = NULL;
 
 		for (CGlobalSymbolTable::FunctionsIterator it = SymTable->FunctionsBegin(); it != SymTable->FunctionsEnd(); ++it) {
 			FuncSym = it->second;
-			if (FuncSym && !FuncSym->GetBuiltIn()) {
+			if (FuncSym && !FuncSym->GetBuiltIn() && FuncSym->GetBody()) {
 				Stream << FuncSym->GetName() << ":" << endl;
-				if (!FuncSym->GetBody()) {
-					Stream << "\t(declared, but not defined)" << endl;
-				}
-
-				CSymbolTable *FSST = FuncSym->GetArgumentsSymbolTable();
-				for (CSymbolTable::VariablesIterator it = FSST->VariablesBegin(); it != FSST->VariablesEnd(); ++it) {
-					Stream << "\t" << it->second->GetName() <<": " << it->second->GetType()->GetName() << endl;
-				}
-
-				if (FuncSym->GetBody()) {
-					FuncSym->GetBody()->Accept(*vis);
-				}
+				FuncSym->GetBody()->Accept(*vis);
 			}
 		}
 	}
 
 	delete vis;
+}
+
+/******************************************************************************
+ * CSymbolsPrettyPrinter
+ ******************************************************************************/
+
+CSymbolsPrettyPrinter::CSymbolsPrettyPrinter(CGlobalSymbolTable &ASymbolTable, ostream &AStream) : SymbolTable(ASymbolTable), Stream(AStream), Nesting(0)
+{
+}
+
+void CSymbolsPrettyPrinter::Output()
+{
+	Stream << "Global types:" << endl;
+
+	Nesting++;
+	for (CGlobalSymbolTable::TypesIterator it = SymbolTable.TypesBegin(); it != SymbolTable.TypesEnd(); ++it) {
+		PrintNesting();
+		it->second->Accept(*this);
+		Stream << endl;
+	}
+	Nesting--;
+	
+	Stream << endl;
+
+	Stream << "Global variables:" << endl;
+
+	Nesting++;
+	for (CGlobalSymbolTable::VariablesIterator it = SymbolTable.VariablesBegin(); it != SymbolTable.VariablesEnd(); ++it) {
+		PrintNesting();
+		it->second->Accept(*this);
+	}
+	Nesting--;
+
+	Stream << endl;
+	
+	Stream << "Functions:" << endl;
+
+	Nesting++;
+	for (CGlobalSymbolTable::FunctionsIterator it = SymbolTable.FunctionsBegin(); it != SymbolTable.FunctionsEnd(); ++it) {
+		if (!it->second->GetBuiltIn()) {
+			PrintNesting();
+			it->second->Accept(*this);
+		}
+	}
+	Nesting--;
+
+	Stream << endl;
+}
+
+void CSymbolsPrettyPrinter::Visit(CTypeSymbol &ASymbol)
+{
+	Stream << ASymbol.GetQualifiedName();
+}
+
+void CSymbolsPrettyPrinter::Visit(CTypedefSymbol &ASymbol)
+{
+	Stream << ASymbol.GetName() << ": " << ASymbol.GetRefType()->GetQualifiedName();
+}
+
+void CSymbolsPrettyPrinter::Visit(CFunctionSymbol &ASymbol)
+{
+	Stream << ASymbol.GetName() << ": " << ASymbol.GetReturnType()->GetQualifiedName() << endl;
+
+	Nesting++;
+	for (CFunctionSymbol::ArgumentsOrderIterator it = ASymbol.GetArgumentsOrderedList()->begin(); it != ASymbol.GetArgumentsOrderedList()->end(); ++it) {
+		PrintNesting();
+		(*it)->Accept(*this);
+	}
+	Stream << endl;
+
+	if (ASymbol.GetBody()) {
+		VisitBlock(ASymbol.GetBody());
+	}
+
+	Nesting--;
+
+}
+
+void CSymbolsPrettyPrinter::Visit(CStructSymbol &ASymbol)
+{
+	CStructSymbolTable *SST = ASymbol.GetSymbolTable();
+
+	Stream << ASymbol.GetQualifiedName() << ": struct {" << endl;
+	Nesting++;
+
+	for (CStructSymbolTable::TypesIterator it = SST->TypesBegin(); it != SST->TypesEnd(); ++it) {
+		PrintNesting();
+		it->second->Accept(*this);
+		Stream << endl;
+	}
+
+	for (CStructSymbolTable::VariablesIterator it = SST->VariablesBegin(); it != SST->VariablesEnd(); ++it) {
+		PrintNesting();
+		it->second->Accept(*this);
+	}
+
+	Nesting--;
+	PrintNesting();
+	Stream << "};";
+}
+
+void CSymbolsPrettyPrinter::Visit(CVariableSymbol &ASymbol)
+{
+	Stream << ASymbol.GetName() << ": " << ASymbol.GetType()->GetQualifiedName() << endl;
+}
+
+void CSymbolsPrettyPrinter::VisitBlock(CBlockStatement *AStmt)
+{
+	CSymbolTable *BST = AStmt->GetSymbolTable();
+
+
+	PrintNesting();
+	Stream << "{" << endl;
+	PrintNesting();
+	Stream << "Block types:" << endl;
+
+	Nesting++;
+	for (CSymbolTable::TypesIterator it = BST->TypesBegin(); it != BST->TypesEnd(); ++it) {
+		PrintNesting();
+		it->second->Accept(*this);
+		Stream << endl;
+	}
+	Nesting--;
+	
+	Stream << endl;
+
+	PrintNesting();
+	Stream << "Block variables:" << endl;
+
+	Nesting++;
+	for (CSymbolTable::VariablesIterator it = BST->VariablesBegin(); it != BST->VariablesEnd(); ++it) {
+		PrintNesting();
+		it->second->Accept(*this);
+	}
+
+	Stream << endl;
+
+	for (CBlockStatement::NestedBlocksIterator it = AStmt->NestedBlocksBegin(); it != AStmt->NestedBlocksEnd(); ++it) {
+		VisitBlock(*it);
+	}
+	Nesting--;
+
+	PrintNesting();
+	Stream << "}" << endl;
+}
+
+void CSymbolsPrettyPrinter::PrintNesting()
+{
+	Stream << string(Nesting, '\t');
 }
 
 /******************************************************************************

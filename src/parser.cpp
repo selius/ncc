@@ -317,8 +317,16 @@ void CParser::ParseDeclarationSpecifiers(CDeclarationSpecifier &DeclSpec)
 		throw CParserException("expected declaration specifier, got " + Token->GetStringifiedType(), pos);
 	} else {
 		if (DeclSpec.Const) {
-			DeclSpec.Type = DeclSpec.Type->ConstClone();
-			SymbolTableStack.GetTop()->AddType(DeclSpec.Type);
+			CTypeSymbol *ConstType = DeclSpec.Type->ConstClone();
+
+			if (CTypeSymbol *OldType = SymbolTableStack.LookupType(ConstType->GetQualifiedName())) {
+				delete ConstType;
+				ConstType = OldType;
+			} else {
+				SymbolTableStack.GetTop()->AddType(ConstType);
+			}
+
+			DeclSpec.Type = ConstType;
 		}
 	}
 }
@@ -548,7 +556,7 @@ void CParser::ParseParameterList(CFunctionSymbol *Func)
 CTypeSymbol* CParser::FilterDuplicates(CTypeSymbol *AType)
 {
 	CTypeSymbol *OldSym = NULL;
-	if (OldSym = SymbolTableStack.GetGlobal()->GetType(AType->GetName())) {
+	if (OldSym = SymbolTableStack.GetGlobal()->GetType(AType->GetQualifiedName())) {
 		delete AType;
 		return OldSym;
 	}

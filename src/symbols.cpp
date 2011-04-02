@@ -614,7 +614,7 @@ void CArraySymbol::UpdateName()
 		return;
 	}
 
-	Name = ElementsType->GetName() + "[" + ToString(Length) + "]";
+	Name = ElementsType->GetQualifiedName() + "[" + ToString(Length) + "]";
 }
 
 CArraySymbol* CArraySymbol::ConstClone() const
@@ -743,7 +743,7 @@ void CPointerSymbol::SetRefType(CTypeSymbol *ARefType)
 	RefType = ARefType;
 
 	if (RefType) {
-		Name = RefType->GetName() + "*";
+		Name = RefType->GetQualifiedName() + "*";
 
 	}
 }

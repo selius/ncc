@@ -52,6 +52,8 @@ void CParsePrettyPrinter::Output(ostream &Stream)
 		}
 
 		expr->Accept(*vis);
+
+		delete expr;
 	} else {
 		CGlobalSymbolTable *SymTable = Parser.ParseTranslationUnit();
 

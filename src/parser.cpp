@@ -373,13 +373,6 @@ CSymbol* CParser::ParseInitDeclarator(CDeclarationSpecifier &DeclSpec)
 	return Result;
 }
 
-void CParser::CheckUniqueness(const string &Ident, CTypeSymbol *Type)
-{
-	if (SymbolTableStack.LookupAll(Ident)->GetSymbolType() != Type->GetSymbolType()) {
-		throw CParserException("identifier redeclared as different kind of symbol: `" + Ident + "`", Token->GetPosition());
-	}
-}
-
 CVariableSymbol* CParser::AddVariable(const string &Ident, CTypeSymbol *Type)
 {
 	if (SymbolTableStack.GetTop()->Exists(Ident)) {
@@ -1491,7 +1484,10 @@ CExpression* CParser::ParsePostfixExpression()
 					FuncSym = FuncExpr->GetSymbol();
 				} else {
 					if (Mode == PARSER_MODE_EXPRESSION && Expr->GetType() == TOKEN_TYPE_IDENTIFIER) {
-						FuncSym = new CFunctionSymbol(Expr->GetName(), SymbolTableStack.GetGlobal()->GetType("int"));
+						if (!(FuncSym = SymbolTableStack.GetGlobal()->GetFunction(Expr->GetName()))) {
+							FuncSym = new CFunctionSymbol(Expr->GetName(), SymbolTableStack.GetGlobal()->GetType("int"));
+							SymbolTableStack.GetGlobal()->AddFunction(FuncSym);
+						}
 					} else {
 						throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_IDENTIFIER]
 							+ " before function call operator", Token->GetPosition());
@@ -1557,7 +1553,7 @@ CExpression* CParser::ParsePrimaryExpression()
 
 		if (!Sym) {
 			if (Mode == PARSER_MODE_EXPRESSION) {
-				// FIXME FFFFUUUUU~~~
+				// FIXME FFFFUUUUU~~~... well, this is not SO bad.. leaks are fixed now, and no crashes happen.. so may be i'll left it as is.
 				CVariableSymbol *VarSym = new CVariableSymbol(Token->GetText(), SymbolTableStack.GetGlobal()->GetType("int"));
 				SymbolTableStack.GetTop()->AddVariable(VarSym);
 				Sym = VarSym;

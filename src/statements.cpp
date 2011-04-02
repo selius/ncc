@@ -445,7 +445,7 @@ void CReturnStatement::SetReturnExpression(CExpression *AReturnExpression)
  * CSwitchStatement
  ******************************************************************************/
 
-CSwitchStatement::CSwitchStatement(CExpression *ATestExpression /*= NULL*/, CStatement *ABody /*= NULL*/) : TestExpression(ATestExpression), Body(ABody)
+CSwitchStatement::CSwitchStatement(CExpression *ATestExpression /*= NULL*/, CStatement *ABody /*= NULL*/) : TestExpression(ATestExpression), Body(ABody), DefaultCase(NULL)
 {
 	Name = "switch";
 }

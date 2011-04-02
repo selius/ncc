@@ -86,18 +86,13 @@ private:
 
 	CSymbol* ParseInitDeclarator(CDeclarationSpecifier &DeclSpec);
 
-	void CheckUniqueness(const string &Ident, CTypeSymbol *Type);
-
 	CVariableSymbol* AddVariable(const string &Ident, CTypeSymbol *Type);
-
 	CFunctionSymbol* AddFunction(const string &Ident, CTypeSymbol *RetType);
-
 	CTypedefSymbol* AddTypedef(const string &Ident, CTypeSymbol *RefType);
 
 	CSymbol* ParseDeclarator(CDeclarationSpecifier &DeclSpec);
 
 	CTypeSymbol* ParsePointer(CTypeSymbol *ARefType);
-
 	CTypeSymbol* ParseArray(CTypeSymbol *AElemType);
 
 	void ParseParameterList(CFunctionSymbol *Func);

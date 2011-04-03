@@ -89,7 +89,7 @@ bool CSuperfluousInstructionsRemoval::Optimize()
 				Optimized = true;
 
 			} else if (cmd1->GetName() == "pop" && cmd2->GetName() == "push" && cmd1->GetOp()->IsReg() && cmd1->GetOp()->GetText() == cmd2->GetOp()->GetText()) {
-				Asm.Insert(it1, new CAsmCmd2("mov", mem(0, ESP), cmd2->GetOp()));
+				Asm.Insert(it1, MOV, mem(0, ESP), cmd2->GetOp());
 
 				cmd2->SetOp(NULL);
 				Asm.Erase(it1);
@@ -99,7 +99,7 @@ bool CSuperfluousInstructionsRemoval::Optimize()
 				Optimized = true;
 			} else if (cmd1->GetName() == "push" && cmd2->GetName() == "pop") {
 				if (!cmd1->GetOp()->IsMem() || !cmd2->GetOp()->IsMem()) {
-					Asm.Insert(it1, new CAsmCmd2("mov", cmd1->GetOp(), cmd2->GetOp()));
+					Asm.Insert(it1, MOV, cmd1->GetOp(), cmd2->GetOp());
 
 					cmd1->SetOp(NULL);
 					cmd2->SetOp(NULL);
@@ -148,7 +148,7 @@ bool CArithmeticInstructionsOptimization::Optimize()
 					Asm.Erase(cur);
 					Optimized = true;
 				} else if (cmd2->GetName() == "imul") {
-					Asm.Insert(cur, new CAsmCmd2("mov", imm, cmd2->GetOp2()));
+					Asm.Insert(cur, MOV, imm, cmd2->GetOp2());
 
 					cmd2->SetOp1(NULL);
 					cmd2->SetOp2(NULL);
@@ -157,7 +157,7 @@ bool CArithmeticInstructionsOptimization::Optimize()
 				} else if (cmd2->GetName() == "mov" && cmd2->GetOp2()->IsReg()) {
 					CAsmReg *reg = dynamic_cast<CAsmReg *>(cmd2->GetOp2());
 
-					Asm.Insert(cur, new CAsmCmd2("xor", reg, new CAsmReg(*reg)));
+					Asm.Insert(cur, XOR, reg, new CAsmReg(*reg));
 
 					cmd2->SetOp2(NULL);
 					Asm.Erase(cur);
@@ -171,13 +171,13 @@ bool CArithmeticInstructionsOptimization::Optimize()
 			}
 		} else if (cmd1 && cmd1->GetOp()->IsReg()) {
 			if (cmd1->GetName() == "inc") {
-				Asm.Insert(cur, new CAsmCmd2("add", new CAsmImm(1), cmd1->GetOp()));
+				Asm.Insert(cur, ADD, 1, cmd1->GetOp());
 
 				cmd1->SetOp(NULL);
 				Asm.Erase(cur);
 				Optimized = true;
 			} else if (cmd1->GetName() == "dec") {
-				Asm.Insert(cur, new CAsmCmd2("sub", new CAsmImm(1), cmd1->GetOp()));
+				Asm.Insert(cur, SUB, 1, cmd1->GetOp());
 
 				cmd1->SetOp(NULL);
 				Asm.Erase(cur);
@@ -370,4 +370,161 @@ void CUnreachableCodeElimination::Visit(CReturnStatement &AStmt)
 void CUnreachableCodeElimination::Visit(CSwitchStatement &AStmt)
 {
 	Visit(static_cast<CBlockStatement &>(AStmt));
+}
+
+/******************************************************************************
+ * CConstantExpressionComputer
+ ******************************************************************************/
+
+void CConstantExpressionComputer::Visit(CUnaryOp &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CBinaryOp &AStmt)
+{
+	AStmt.GetLeft()->Accept(*this);
+	float LHS = Result;
+	AStmt.GetRight()->Accept(*this);
+	float RHS = Result;
+
+	ETokenType t = AStmt.GetType();
+
+	if (t == TOKEN_TYPE_OPERATION_PLUS) {
+		Result = LHS + RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_MINUS) {
+		Result = LHS - RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_ASTERISK) {
+		Result = LHS * RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_SLASH || t == TOKEN_TYPE_OPERATION_PERCENT) {
+		if (RHS == 0) {
+			throw CParserException("division by zero in constant expression", AStmt.GetPosition());
+		}
+
+		if (t == TOKEN_TYPE_OPERATION_SLASH) {
+			Result = LHS / RHS;
+		} else {
+			Result = (int) LHS % (int) RHS;
+		}
+	} else if (t == TOKEN_TYPE_OPERATION_SHIFT_LEFT) {
+		Result = (int) LHS << (int) RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_SHIFT_RIGHT) {
+		Result = (int) LHS >> (int) RHS;
+	}
+	// TODO: add more
+}
+
+void CConstantExpressionComputer::Visit(CConditionalOp &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CIntegerConst &AStmt)
+{
+	Result = AStmt.GetValue();
+}
+
+void CConstantExpressionComputer::Visit(CFloatConst &AStmt)
+{
+	Result = AStmt.GetValue();
+}
+
+void CConstantExpressionComputer::Visit(CCharConst &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CStringConst &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CVariable &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CFunction &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CPostfixOp &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CFunctionCall &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CStructAccess &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CIndirectAccess &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CArrayAccess &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CNullStatement &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CBlockStatement &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CIfStatement &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CForStatement &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CWhileStatement &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CDoStatement &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CLabel &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CCaseLabel &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CDefaultCaseLabel &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CGotoStatement &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CBreakStatement &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CContinueStatement &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CReturnStatement &AStmt)
+{
+}
+
+void CConstantExpressionComputer::Visit(CSwitchStatement &AStmt)
+{
+}
+
+int CConstantExpressionComputer::GetIntResult()
+{
+	return Result;
+}
+
+float CConstantExpressionComputer::GetFloatResult()
+{
+	return Result;
 }

@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 	}
 
 	ostream *out = &cout;
-	if (!Parameters.OutputFilename.empty()) {
+	if (!Parameters.OutputFilename.empty() && Parameters.OutputFilename != "-") {
 		out = new ofstream(Parameters.OutputFilename.c_str());
 	}
 

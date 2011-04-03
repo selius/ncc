@@ -1,4 +1,5 @@
 #include "prettyprinting.h"
+#include "optimization.h" // TEMP
 
 /******************************************************************************
  * CScanPrettyPrinter
@@ -51,6 +52,11 @@ void CParsePrettyPrinter::Output(ostream &Stream)
 			throw CParserException("trailing characters", Parser.GetToken()->GetPosition());
 		}
 
+		/*CConstantExpressionComputer cecomp;
+		expr->Accept(cecomp);
+		CExpression *old = expr;
+		expr = new CIntegerConst(CIntegerConstToken(ToString(cecomp.GetIntResult()), CPosition()), new CIntegerSymbol);
+		delete old;*/
 		expr->Accept(*vis);
 
 		delete expr;

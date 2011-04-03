@@ -565,6 +565,8 @@ void CParser::ParseInitializer(CVariableSymbol *ASymbol)
 	}
 
 	if (Blocks.empty()) {
+		NextToken();
+
 		// TODO: add support for initialization of global variables with const expressions, like:
 		// 	x:
 		// 		.long	24
@@ -580,6 +582,8 @@ void CParser::ParseInitializer(CVariableSymbol *ASymbol)
 
 	Op->SetLeft(new CVariable(CToken(TOKEN_TYPE_IDENTIFIER, ASymbol->GetName(), CPosition()), static_cast<CVariableSymbol *>(ASymbol)));
 	Op->SetRight(ParseConditional());
+
+	Op->CheckTypes();
 
 	Blocks.top()->Add(Op);
 }

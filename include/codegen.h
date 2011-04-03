@@ -258,19 +258,22 @@ public:
 	void Add(EMnemonic ACmd, CAsmMem *AOp1, ERegister AOp2);
 	void Add(const string &ALabel);
 
-	string AddStringLiteral(const string &ALiteral);
-	void AddGlobalVariable(CVariableSymbol *AVariable);
-
-	void Output(ostream &Stream);
-
 	CodeIterator Insert(CodeIterator APosition, CAsmCmd *ACmd);
+
+	CodeIterator Insert(CodeIterator APosition, EMnemonic ACmd, CAsmOp *AOp1, CAsmOp *AOp2);
+	CodeIterator Insert(CodeIterator APosition, EMnemonic ACmd, int AOp1, CAsmOp *AOp2);
 
 	CodeIterator Begin();
 	CodeIterator End();
 
 	CodeIterator Erase(CodeIterator APosition);
 
+	string AddStringLiteral(const string &ALiteral);
+	void AddGlobalVariable(CVariableSymbol *AVariable);
+
 	string GenerateLabel();
+
+	void Output(ostream &Stream);
 
 private:
 	CodeContainer Code;

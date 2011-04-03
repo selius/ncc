@@ -398,44 +398,19 @@ void CAsmCode::Add(const string &ALabel)
 	Code.push_back(new CAsmLabel(ALabel));
 }
 
-string CAsmCode::AddStringLiteral(const string &ALiteral)
-{
-	if (StringLiterals.count(ALiteral)) {
-		return StringLiterals[ALiteral];
-	}
-
-	string NewLiteralLabel = ".SL" + ToString(StringLiterals.size() + 1);
-
-	StringLiterals[ALiteral] = NewLiteralLabel;
-
-	return NewLiteralLabel;
-}
-
-void CAsmCode::AddGlobalVariable(CVariableSymbol *AVariable)
-{
-	Code.push_back(new CAsmDirective("comm", AVariable->GetName() + "," + ToString(AVariable->GetType()->GetSize())));
-}
-
-void CAsmCode::Output(ostream &Stream)
-{
-	Stream << ".data" << endl;
-	for (map<string, string>::iterator it = StringLiterals.begin(); it != StringLiterals.end(); ++it) {
-		Stream << it->second << ":" << endl;
-		Stream << "\t.string\t\"" << it->first << "\"" << endl;
-	}
-
-	Stream << ".text" << endl;
-
-	for (CodeIterator it = Code.begin(); it != Code.end(); ++it) {
-		Stream << (*it)->GetText() << endl;
-	}
-
-	Stream << ".end" << endl;
-}
-
-CAsmCode::CodeIterator CAsmCode::Insert(CodeIterator APosition, CAsmCmd *ACmd)
+CAsmCode::CodeIterator CAsmCode::Insert(CAsmCode::CodeIterator APosition, CAsmCmd *ACmd)
 {
 	return Code.insert(APosition, ACmd);
+}
+
+CAsmCode::CodeIterator CAsmCode::Insert(CAsmCode::CodeIterator APosition, EMnemonic ACmd, CAsmOp *AOp1, CAsmOp *AOp2)
+{
+	return Code.insert(APosition, new CAsmCmd2(MnemonicsText[ACmd], AOp1, AOp2));
+}
+
+CAsmCode::CodeIterator CAsmCode::Insert(CAsmCode::CodeIterator APosition, EMnemonic ACmd, int AOp1, CAsmOp *AOp2)
+{
+	return Code.insert(APosition, new CAsmCmd2(MnemonicsText[ACmd], new CAsmImm(AOp1), AOp2));
 }
 
 CAsmCode::CodeIterator CAsmCode::Begin()
@@ -457,9 +432,44 @@ CAsmCode::CodeIterator CAsmCode::Erase(CAsmCode::CodeIterator APosition)
 	return Code.erase(APosition);
 }
 
+string CAsmCode::AddStringLiteral(const string &ALiteral)
+{
+	if (StringLiterals.count(ALiteral)) {
+		return StringLiterals[ALiteral];
+	}
+
+	string NewLiteralLabel = ".SL" + ToString(StringLiterals.size() + 1);
+
+	StringLiterals[ALiteral] = NewLiteralLabel;
+
+	return NewLiteralLabel;
+}
+
+void CAsmCode::AddGlobalVariable(CVariableSymbol *AVariable)
+{
+	Code.push_back(new CAsmDirective("comm", AVariable->GetName() + "," + ToString(AVariable->GetType()->GetSize())));
+}
+
 string CAsmCode::GenerateLabel()
 {
 	return ".L" + ToString(++LabelsCount);
+}
+
+void CAsmCode::Output(ostream &Stream)
+{
+	Stream << ".data" << endl;
+	for (map<string, string>::iterator it = StringLiterals.begin(); it != StringLiterals.end(); ++it) {
+		Stream << it->second << ":" << endl;
+		Stream << "\t.string\t\"" << it->first << "\"" << endl;
+	}
+
+	Stream << ".text" << endl;
+
+	for (CodeIterator it = Code.begin(); it != Code.end(); ++it) {
+		Stream << (*it)->GetText() << endl;
+	}
+
+	Stream << ".end" << endl;
 }
 
 /******************************************************************************

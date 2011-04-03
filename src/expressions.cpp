@@ -320,7 +320,7 @@ void CBinaryOp::CheckTypes() const
 	case TOKEN_TYPE_OPERATION_ASSIGN:
 		CheckTypes::LValue(this);
 
-		if (!(L->IsArithmetic() && R->IsArithmetic() || L->IsStruct() && R->IsStruct() && L->CompatibleWith(R) || !L->IsArray() && L->IsPointer() && R->IsPointer() && (L->CompatibleWith(R)
+		if (!(L->IsArithmetic() && R->IsArithmetic() ||/* L->IsStruct() && R->IsStruct() && L->CompatibleWith(R) ||*/ !L->IsArray() && L->IsPointer() && R->IsPointer() && (L->CompatibleWith(R)
 			|| dynamic_cast<CPointerSymbol *>(L)->GetRefType()->IsVoid() || dynamic_cast<CPointerSymbol *>(R)->GetRefType()->IsVoid()))) {
 			throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
 		}

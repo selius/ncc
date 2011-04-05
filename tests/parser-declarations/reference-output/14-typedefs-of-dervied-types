@@ -1,0 +1,21 @@
+Global types:
+	abc: float[8][3][6]
+	bar: float***
+	baz: int[5]
+	float
+	float*
+	float**
+	float***
+	float[8]
+	float[8][3]
+	float[8][3][6]
+	foo: int*
+	int
+	int*
+	int[5]
+	void
+
+Global variables:
+
+Functions:
+

@@ -1,0 +1,18 @@
+Global types:
+	float
+	float*
+	float**
+	float***
+	int
+	int*
+	int**
+	void
+
+Global variables:
+	abc: int*
+	def: float*
+	ghi: int**
+	jkl: float***
+
+Functions:
+

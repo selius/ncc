@@ -1,0 +1,22 @@
+Global types:
+	float
+	float[20]
+	float[20][3]
+	float[20][3][4]
+	float[20][3][4][6]
+	float[7]
+	int
+	int*
+	int[10]
+	int[10][2]
+	int[5]
+	void
+
+Global variables:
+	a: int[5]
+	b: float[7]
+	m: int[10][2]
+	n: float[20][3][4][6]
+
+Functions:
+

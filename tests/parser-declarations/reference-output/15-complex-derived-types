@@ -1,0 +1,25 @@
+Global types:
+	bar[20]
+	float
+	float*
+	float*[2]
+	float*[2][3]
+	float*[5]
+	foo: float*[5]
+	int
+	int*
+	int*[5]
+	bar: struct {
+		x: int
+		y: int
+	};
+	void
+
+Global variables:
+	a: int*[5]
+	abc: foo
+	b: float*[2][3]
+	c: bar[20]
+
+Functions:
+

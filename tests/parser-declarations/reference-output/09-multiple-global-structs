@@ -1,0 +1,26 @@
+Global types:
+	float
+	int
+	int*
+	<anonymous_struct_1>: struct {
+		baz: float
+	};
+	<anonymous_struct_2>: struct {
+		a: int
+		b: int
+	};
+	first: struct {
+		x: float
+		y: float
+		z: float
+	};
+	second: struct {
+		bar: float
+		foo: int
+	};
+	void
+
+Global variables:
+
+Functions:
+

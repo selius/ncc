@@ -1,0 +1,13 @@
+Global types:
+	float
+	int
+	int*
+	void
+
+Global variables:
+	bar: float
+	baz: float
+	foo: int
+
+Functions:
+

@@ -1,0 +1,16 @@
+Global types:
+	float
+	int
+	int*
+	MyStruct: struct {
+		abc: int
+		def: int
+		ghi: float
+		jkl: int
+	};
+	void
+
+Global variables:
+
+Functions:
+

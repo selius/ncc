@@ -47,6 +47,7 @@ TOTAL_FAILED=0
 TestMode scanner -S
 TestMode parser-simple-expressions "-P --parser-mode expression"
 TestMode parser-arbitrary-expressions "-P --parser-mode expression"
+TestMode parser-declarations "-P -T"
 TestMode parser-statements -P
 cd tests/codegen/ && ./run-tests && cd ./../
 

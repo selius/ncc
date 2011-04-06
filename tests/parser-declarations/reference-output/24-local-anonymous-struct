@@ -1,0 +1,24 @@
+Global types:
+	float
+	int
+	int*
+	void
+
+Global variables:
+
+Functions:
+	f: void
+
+		{
+		Block types:
+			<anonymous_struct_1>: struct {
+				a: int
+				b: float
+			};
+
+		Block variables:
+
+		}
+
+f:
+{ }

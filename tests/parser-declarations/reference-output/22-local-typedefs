@@ -1,0 +1,22 @@
+Global types:
+	float
+	int
+	int*
+	void
+
+Global variables:
+
+Functions:
+	f: void
+
+		{
+		Block types:
+			bar: float
+			foo: int
+
+		Block variables:
+
+		}
+
+f:
+{ }

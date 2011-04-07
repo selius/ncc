@@ -27,7 +27,7 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 
 	for (ArgumentsIterator it = ++Args.begin(); it != Args.end(); ++it) {
 		CurArg = *it;
-		if (!OptionsEnd && CurArg[0] == '-') {
+		if (!OptionsEnd && CurArg[0] == '-' && CurArg.length() > 1) {
 			if (CurArg == "-v" || CurArg == "--version") {
 				PrintVersion();
 				throw CFatalException(EXIT_CODE_SUCCESS);

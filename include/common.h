@@ -306,6 +306,7 @@ namespace KeywordTraits
 {
 	bool IsKeyword(const string &s);
 	bool IsTypeKeyword(const string &s);
+	bool IsInternalType(const string &s);
 };
 
 #endif // _COMMON_H_

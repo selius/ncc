@@ -948,7 +948,7 @@ CTypeSymbol* CArrayAccess::GetResultType() const
 
 bool CArrayAccess::IsLValue() const
 {
-	return true;
+	return !GetResultType()->GetConst();
 }
 
 void CArrayAccess::CheckTypes() const

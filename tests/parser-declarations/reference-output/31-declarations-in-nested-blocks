@@ -1,0 +1,60 @@
+Global types:
+	float
+	int
+	int*
+	void
+
+Global variables:
+
+Functions:
+	f: void
+
+		{
+		Block types:
+			foo: int
+
+		Block variables:
+			a: int
+
+			{
+			Block types:
+
+			Block variables:
+				b: int
+
+			}
+			{
+			Block types:
+
+			Block variables:
+				a: int
+				b: foo
+
+				{
+				Block types:
+					foo: float
+
+				Block variables:
+					a: float
+					c: foo
+
+				}
+			}
+		}
+	g: void
+
+		{
+		Block types:
+
+		Block variables:
+			a: int*
+
+		}
+
+f:
+{ }
+|- { }
+`- { }
+   `- { }
+g:
+{ }

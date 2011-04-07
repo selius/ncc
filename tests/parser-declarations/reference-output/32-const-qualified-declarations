@@ -1,0 +1,33 @@
+Global types:
+	const int
+	const int*
+	const int* const
+	const int[5]
+	float
+	int
+	int*
+	int* const
+	void
+
+Global variables:
+	a: const int
+
+Functions:
+	f: void
+
+		{
+		Block types:
+			foo: const int
+
+		Block variables:
+			b: const int
+			c: const int*
+			d: int* const
+			e: const int* const
+			f: foo
+			g: const int[5]
+
+		}
+
+f:
+{ }

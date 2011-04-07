@@ -325,4 +325,9 @@ namespace KeywordTraits
 	{
 		return (s == "const"|| s == "struct" || s == "typedef");
 	}
+
+	bool IsInternalType(const string &s)
+	{
+		return (s == "int" || s == "float" || s == "void");
+	}
 };

@@ -300,11 +300,17 @@ void CParser::ParseDeclarationSpecifiers(CDeclarationSpecifier &DeclSpec)
 
 		} else if (type == TOKEN_TYPE_IDENTIFIER) {
 			if (TypeSym = SymbolTableStack.LookupType(text)) {
-				CheckMultipleTypeSpecifiers(DeclSpec);
-				DeclSpec.Type = TypeSym;
+				if (DeclSpec.Type) {
+					if (KeywordTraits::IsInternalType(text) || SymbolTableStack.GetTop()->GetType(text)) {
+						CheckMultipleTypeSpecifiers(DeclSpec);
+					} else {
+						IdentFound = true;
+					}
+				} else {
+					DeclSpec.Type = TypeSym;
 
-				NextToken();
-
+					NextToken();
+				}
 			} else {
 				IdentFound = true;
 			}

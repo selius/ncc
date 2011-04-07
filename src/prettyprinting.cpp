@@ -51,11 +51,6 @@ void CParsePrettyPrinter::Output(ostream &Stream)
 			throw CParserException("trailing characters", Parser.GetToken()->GetPosition());
 		}
 
-		/*CConstantExpressionComputer cecomp;
-		expr->Accept(cecomp);
-		CExpression *old = expr;
-		expr = new CIntegerConst(CIntegerConstToken(ToString(cecomp.GetIntResult()), CPosition()), new CIntegerSymbol);
-		delete old;*/
 		expr->Accept(*vis);
 
 		delete expr;
@@ -410,7 +405,7 @@ void CStatementLinearPrintVisitor::Visit(CLabel &AStmt)
 void CStatementLinearPrintVisitor::Visit(CCaseLabel &AStmt)
 {
 	Stream << AStmt.GetName() << LEFT_ENCLOSING;
-	TryVisit(AStmt.GetCaseExpression());
+	Stream << AStmt.GetValue();
 	Stream << DELIMITER;
 	TryVisit(AStmt.GetNext());
 	Stream << RIGHT_ENCLOSING;
@@ -687,7 +682,8 @@ void CStatementTreePrintVisitor::Visit(CCaseLabel &AStmt)
 	PrintName(AStmt);
 
 	Nesting++;
-	TryVisit(AStmt.GetCaseExpression());
+	PrintTreeDecoration();
+	Stream << AStmt.GetValue() << endl;
 	LastChild[Nesting] = true;
 	TryVisit(AStmt.GetNext());
 	Nesting--;

@@ -323,13 +323,12 @@ void CLabel::SetNext(CStatement *ANext)
  * CCaseLabel
  ******************************************************************************/
 
-CCaseLabel::CCaseLabel(CExpression *ACaseExpression /*= NULL*/, CStatement *ANext /*= NULL*/) : CLabel("case", ANext), CaseExpression(ACaseExpression)
+CCaseLabel::CCaseLabel() : CLabel("case", NULL)
 {
 }
 
 CCaseLabel::~CCaseLabel()
 {
-	delete CaseExpression;
 }
 
 void CCaseLabel::Accept(CStatementVisitor &AVisitor)
@@ -337,14 +336,14 @@ void CCaseLabel::Accept(CStatementVisitor &AVisitor)
 	AVisitor.Visit(*this);
 }
 
-CExpression* CCaseLabel::GetCaseExpression() const
+int CCaseLabel::GetValue() const
 {
-	return CaseExpression;
+	return Value;
 }
 
-void CCaseLabel::SetCaseExpression(CExpression *ACaseExpression)
+void CCaseLabel::SetValue(int AValue)
 {
-	CaseExpression = ACaseExpression;
+	Value = AValue;
 }
 
 /******************************************************************************
@@ -484,7 +483,7 @@ void CSwitchStatement::SetBody(CStatement *ABody)
 void CSwitchStatement::AddCase(CCaseLabel *ACase)
 {
 	if (ACase) {
-		Cases[ACase->GetCaseExpression()] = ACase;
+		Cases[ACase->GetValue()] = ACase;
 	}
 }
 
@@ -494,7 +493,7 @@ bool CSwitchStatement::Exists(CCaseLabel *ACase)
 		return false;
 	}
 
-	return Cases.count(ACase->GetCaseExpression());
+	return Cases.count(ACase->GetValue());
 }
 
 CSwitchStatement::CasesIterator CSwitchStatement::Begin()

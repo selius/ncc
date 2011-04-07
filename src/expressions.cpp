@@ -299,7 +299,6 @@ void CBinaryOp::CheckTypes() const
 			|| dynamic_cast<CPointerSymbol *>(L)->GetRefType()->IsVoid() || dynamic_cast<CPointerSymbol *>(R)->GetRefType()->IsVoid()))) {
 			throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
 		}
-		// TODO: add support for null pointer constant, maybe?..
 		break;
 	case TOKEN_TYPE_OPERATION_ASTERISK:
 	case TOKEN_TYPE_OPERATION_SLASH:
@@ -324,7 +323,6 @@ void CBinaryOp::CheckTypes() const
 			|| dynamic_cast<CPointerSymbol *>(L)->GetRefType()->IsVoid() || dynamic_cast<CPointerSymbol *>(R)->GetRefType()->IsVoid()))) {
 			throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
 		}
-		// TODO: add support for null pointer constant, maybe?..
 		break;
 	case TOKEN_TYPE_OPERATION_PLUS_ASSIGN:
 	case TOKEN_TYPE_OPERATION_MINUS_ASSIGN:

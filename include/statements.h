@@ -168,16 +168,16 @@ protected:
 class CCaseLabel : public CLabel
 {
 public:
-	CCaseLabel(CExpression *ACaseExpression = NULL, CStatement *ANext = NULL);
+	CCaseLabel();
 	~CCaseLabel();
 
 	void Accept(CStatementVisitor &AVisitor);
 
-	CExpression* GetCaseExpression() const;
-	void SetCaseExpression(CExpression *ACaseExpression);
+	int GetValue() const;
+	void SetValue(int AValue);
 
 private:
-	CExpression *CaseExpression;
+	int Value;
 };
 
 class CDefaultCaseLabel : public CLabel
@@ -233,9 +233,7 @@ private:
 class CSwitchStatement : public CBlockStatement
 {
 public:
-	typedef map<CExpression *, CCaseLabel *> CasesContainer;	// TODO: replace by list of pairs.. or something like this..
-									//	i don't know what exactly it means..
-									//	i'll decide when i implement or fail to implement constant-folding..
+	typedef map<int, CCaseLabel *> CasesContainer;
 	typedef CasesContainer::iterator CasesIterator;
 
 	CSwitchStatement(CExpression *ATestExpression = NULL, CStatement *ABody = NULL);

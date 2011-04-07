@@ -208,19 +208,27 @@ bool CJumpsOptimization::Optimize()
 	CAsmCode::CodeIterator it2;
 
 	CAsmCmd1 *cmd1;
-	CAsmLabel *cmd2;
+	CAsmLabel *cmd2l;
+	CAsmCmd1 *cmd2j;
 
 	while (nit2 != Asm.End()) {
 		it1 = nit1++;
 		it2 = nit2++;
 
 		cmd1 = dynamic_cast<CAsmCmd1 *>(*it1);
-		cmd2 = dynamic_cast<CAsmLabel *>(*it2);
+		cmd2l = dynamic_cast<CAsmLabel *>(*it2);
+		cmd2j = dynamic_cast<CAsmCmd1 *>(*it2);
 
-		if (cmd1 && cmd2 && cmd1->GetName() == "jmp" && cmd1->GetOp()->GetText() == cmd2->GetName()) {
-			Asm.Erase(it1);
-			nit1 = nit2++;
-			Optimized = true;
+		if (cmd1 && cmd1->GetName() == "jmp") {
+			if (cmd2l && cmd1->GetOp()->GetText() == cmd2l->GetName()) {
+				Asm.Erase(it1);
+				nit1 = nit2++;
+				Optimized = true;
+			} else if (cmd2j && cmd2j->GetName() == "jmp") {
+				Asm.Erase(it2);
+				nit1 = it1;
+				Optimized = true;
+			}
 		}
 	}
 
@@ -387,7 +395,7 @@ void CConstantExpressionComputer::Visit(CUnaryOp &AStmt)
 	} else if (t == TOKEN_TYPE_OPERATION_LOGIC_NOT) {
 		Result = !Result;
 	} else if (t == TOKEN_TYPE_OPERATION_BITWISE_NOT) {
-		Result = ~(int)Result; // FIXME
+		Result = ~(int)Result;
 	}
 }
 
@@ -414,14 +422,37 @@ void CConstantExpressionComputer::Visit(CBinaryOp &AStmt)
 		if (t == TOKEN_TYPE_OPERATION_SLASH) {
 			Result = LHS / RHS;
 		} else {
-			Result = (int) LHS % (int) RHS; // FIXME
+			Result = (int) LHS % (int) RHS;
 		}
 	} else if (t == TOKEN_TYPE_OPERATION_SHIFT_LEFT) {
-		Result = (int) LHS << (int) RHS; // FIXME
+		Result = (int) LHS << (int) RHS;
 	} else if (t == TOKEN_TYPE_OPERATION_SHIFT_RIGHT) {
-		Result = (int) LHS >> (int) RHS; // FIXME
+		Result = (int) LHS >> (int) RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_LESS_THAN) {
+		Result = LHS < RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_LESS_THAN_OR_EQUAL) {
+		Result = LHS <= RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_GREATER_THAN) {
+		Result = LHS > RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_GREATER_THAN_OR_EQUAL) {
+		Result = LHS >= RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_EQUAL) {
+		Result = LHS == RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_NOT_EQUAL) {
+		Result = LHS != RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_LOGIC_AND) {
+		Result = LHS && RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_LOGIC_OR) {
+		Result = LHS || RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_BITWISE_OR) {
+		Result = (int) LHS | (int) RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_BITWISE_XOR) {
+		Result = (int) LHS ^ (int) RHS;
+	} else if (t == TOKEN_TYPE_OPERATION_AMPERSAND) {
+		Result = (int) LHS & (int) RHS;
+	} else if (t == TOKEN_TYPE_SEPARATOR_COMMA) {
+		Result = RHS;
 	}
-	// TODO: add more
 }
 
 void CConstantExpressionComputer::Visit(CConditionalOp &AStmt)
@@ -544,5 +575,167 @@ int CConstantExpressionComputer::GetIntResult()
 
 float CConstantExpressionComputer::GetFloatResult()
 {
+	return Result;
+}
+
+/******************************************************************************
+ * CConstantFolding
+ ******************************************************************************/
+
+void CConstantFolding::Visit(CUnaryOp &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CBinaryOp &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CConditionalOp &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CIntegerConst &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CFloatConst &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CCharConst &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CStringConst &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CVariable &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CFunction &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CPostfixOp &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CFunctionCall &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CStructAccess &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CIndirectAccess &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CArrayAccess &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CNullStatement &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CBlockStatement &AStmt)
+{
+	for (CBlockStatement::StatementsIterator it = AStmt.Begin(); it != AStmt.End(); ++it) {
+		*it = TryFold(*it);
+	}
+}
+
+void CConstantFolding::Visit(CIfStatement &AStmt)
+{
+	AStmt.SetCondition(TryFold(AStmt.GetCondition()));
+	AStmt.SetThenStatement(TryFold(AStmt.GetThenStatement()));
+	AStmt.SetElseStatement(TryFold(AStmt.GetElseStatement()));
+}
+
+void CConstantFolding::Visit(CForStatement &AStmt)
+{
+	AStmt.SetInit(TryFold(AStmt.GetInit()));
+	AStmt.SetCondition(TryFold(AStmt.GetCondition()));
+	AStmt.SetUpdate(TryFold(AStmt.GetUpdate()));
+	AStmt.SetBody(TryFold(AStmt.GetBody()));
+}
+
+void CConstantFolding::Visit(CWhileStatement &AStmt)
+{
+	AStmt.SetCondition(TryFold(AStmt.GetCondition()));
+	AStmt.SetBody(TryFold(AStmt.GetBody()));
+}
+
+void CConstantFolding::Visit(CDoStatement &AStmt)
+{
+	AStmt.SetCondition(TryFold(AStmt.GetCondition()));
+	AStmt.SetBody(TryFold(AStmt.GetBody()));
+}
+
+void CConstantFolding::Visit(CLabel &AStmt)
+{
+	AStmt.SetNext(TryFold(AStmt.GetNext()));
+}
+
+void CConstantFolding::Visit(CCaseLabel &AStmt)
+{
+	Visit(static_cast<CLabel &>(AStmt));
+}
+
+void CConstantFolding::Visit(CDefaultCaseLabel &AStmt)
+{
+	Visit(static_cast<CLabel &>(AStmt));
+}
+
+void CConstantFolding::Visit(CGotoStatement &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CBreakStatement &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CContinueStatement &AStmt)
+{
+}
+
+void CConstantFolding::Visit(CReturnStatement &AStmt)
+{
+	AStmt.SetReturnExpression(TryFold(AStmt.GetReturnExpression()));
+}
+
+void CConstantFolding::Visit(CSwitchStatement &AStmt)
+{
+	AStmt.SetTestExpression(TryFold(AStmt.GetTestExpression()));
+	AStmt.SetBody(TryFold(AStmt.GetBody()));
+}
+
+CExpression* CConstantFolding::TryFold(CStatement *AStmt)
+{
+	CExpression *Expr = static_cast<CExpression *>(AStmt);
+
+	if (!AStmt || !AStmt->IsExpression() || !Expr->IsConst()) {
+		if (AStmt && !AStmt->IsExpression()) {
+			AStmt->Accept(*this);
+		}
+
+		return Expr;
+	}
+
+	Expr->Accept(ConstExprComp);
+
+	CExpression *Result;
+
+	if (Expr->GetResultType()->IsFloat()) {
+		Result = new CFloatConst(CFloatConstToken(ToString(ConstExprComp.GetFloatResult()), Expr->GetPosition()), Expr->GetResultType());
+	} else {
+		Result = new CIntegerConst(CIntegerConstToken(ToString(ConstExprComp.GetIntResult()), Expr->GetPosition()), Expr->GetResultType());
+	}
+	
+	delete AStmt;
 	return Result;
 }

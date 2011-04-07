@@ -1,5 +1,7 @@
 #include "parser.h"
 
+#include "optimization.h"
+
 /******************************************************************************
  * CTokenStream
  ******************************************************************************/
@@ -505,15 +507,22 @@ CTypeSymbol* CParser::ParseArray(CTypeSymbol *AElemType)
 
 	CArraySymbol *Sym = new CArraySymbol;
 
-	if (Token->GetType() != TOKEN_TYPE_CONSTANT_INTEGER) { // FIXME: const expression, probably, eh?..
-		throw CParserException("expected array length integer constant, got " + Token->GetStringifiedType(), Token->GetPosition());
-	}
-	Sym->SetLength(Token->GetIntegerValue());
+	CConstantExpressionComputer ConstExprComp;
 
-	NextToken();
+	CExpression *LengthExpr = ParseConditional();
+
+	if (!LengthExpr->IsConst() || !LengthExpr->GetResultType()->IsInt()) {
+		throw CParserException("constant integer expression required as array length", Token->GetPosition());
+	}
+
+	LengthExpr->Accept(ConstExprComp);
+	delete LengthExpr;
+
+	Sym->SetLength(ConstExprComp.GetIntResult());
+
 	if (Token->GetType() != TOKEN_TYPE_RIGHT_SQUARE_BRACKET) {
 		throw CParserException("expected " + CScanner::TokenTypesNames[TOKEN_TYPE_RIGHT_SQUARE_BRACKET]
-			+ "after array length, got " + Token->GetStringifiedType(), Token->GetPosition());
+			+ " after array length, got " + Token->GetStringifiedType(), Token->GetPosition());
 	}
 	NextToken();
 
@@ -570,16 +579,26 @@ void CParser::ParseInitializer(CVariableSymbol *ASymbol)
 		throw CParserException("can't initialize this kind of symbol", Token->GetPosition());
 	}
 
-	if (Blocks.empty()) {
+	if (ASymbol->GetGlobal()) {
 		NextToken();
 
-		// TODO: add support for initialization of global variables with const expressions, like:
-		// 	x:
-		// 		.long	24
-		// 	y:
-		// 		.float	56.42
-		// or something like this
-		throw CParserException("initialization of global variables is not implemented yet", Token->GetPosition());
+		CConstantExpressionComputer ConstExprComp;
+
+		CExpression *Expr = ParseConditional();
+		if (!Expr->IsConst()) {
+			throw CParserException("const expression required as initializer of global variable", Token->GetPosition());
+		}
+
+		Expr->Accept(ConstExprComp);
+		delete Expr;
+
+		if (ASymbol->GetType()->IsFloat()) {
+			ASymbol->SetInitValue(ConstExprComp.GetFloatResult());
+		} else {
+			ASymbol->SetInitValue(ConstExprComp.GetIntResult());
+		}
+
+		return;
 	}
 
 	CBinaryOp *Op = new CBinaryOp(CToken(TOKEN_TYPE_OPERATION_ASSIGN, "=", Token->GetPosition()));
@@ -866,13 +885,21 @@ CStatement* CParser::ParseCase()
 	NextToken();
 	CPosition ExprPos = Token->GetPosition();
 
-	CCaseLabel *CaseLabel = new CCaseLabel(ParseExpression());
+	CCaseLabel *CaseLabel = new CCaseLabel;
 
-	if (!(CaseLabel->GetCaseExpression()->GetResultType()->IsInt() && CaseLabel->GetCaseExpression()->IsConst())) {
+	CExpression *CaseExpr = ParseConditional();
+
+	if (!CaseExpr->IsConst() || !CaseExpr->GetResultType()->IsInt()) {
 		throw CParserException("expected constant integer expression after `case`", ExprPos);
 	}
 
-	// FIXME: check _values_, not pointers to expressions... OMG OMG, compute expressions at compile-time?!.. CCompileTimeComputerVisitor comes to imagination, LOL..
+	CConstantExpressionComputer ConstExprComp;
+
+	CaseExpr->Accept(ConstExprComp);
+	delete CaseExpr;
+
+	CaseLabel->SetValue(ConstExprComp.GetIntResult());
+
 	if (SwitchesStack.top()->Exists(CaseLabel)) {
 		throw CParserException("duplicate case-expression", ExprPos);
 	}

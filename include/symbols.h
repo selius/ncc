@@ -355,12 +355,16 @@ public:
 	bool GetGlobal() const;
 	void SetGlobal(bool AGlobal);
 
+	float GetInitValue() const;
+	void SetInitValue(float AInitValue);
+
 	void Accept(CSymbolsPrettyPrinter &AVisitor);
 
 private:
 	CTypeSymbol *Type;
 	int Offset;
 	bool Global;
+	float InitValue;
 };
 
 class CFunctionSymbol : public CSymbol

@@ -447,7 +447,7 @@ string CAsmCode::AddStringLiteral(const string &ALiteral)
 
 void CAsmCode::AddGlobalVariable(CVariableSymbol *AVariable)
 {
-	Code.push_back(new CAsmDirective("comm", AVariable->GetName() + "," + ToString(AVariable->GetType()->GetSize())));
+	GlobalVariables.push_back(AVariable);
 }
 
 string CAsmCode::GenerateLabel()
@@ -461,6 +461,27 @@ void CAsmCode::Output(ostream &Stream)
 	for (map<string, string>::iterator it = StringLiterals.begin(); it != StringLiterals.end(); ++it) {
 		Stream << it->second << ":" << endl;
 		Stream << "\t.string\t\"" << it->first << "\"" << endl;
+	}
+
+	CVariableSymbol *Var;
+
+	for (list<CVariableSymbol *>::iterator it = GlobalVariables.begin(); it != GlobalVariables.end(); ++it) {
+		Var = *it;
+		if (!Var->GetType()->IsScalar()) {
+			Stream << ".comm\t" << Var->GetName() + "," + ToString(Var->GetType()->GetSize());
+		} else {
+			Stream << Var->GetName() << ":" << endl << "\t";
+
+			if (Var->GetType()->IsFloat()) {
+				Stream << ".float";
+			} else {
+				Stream << ".long";
+			}
+
+			Stream << "\t" << Var->GetInitValue();
+		}
+
+		Stream << endl;
 	}
 
 	Stream << ".text" << endl;
@@ -1398,12 +1419,11 @@ void CCodeGenerationVisitor::Visit(CSwitchStatement &AStmt)
 	string CaseLabelName;
 
 	for (CSwitchStatement::CasesIterator it = AStmt.Begin(); it != AStmt.End(); ++it) {
-		it->second->GetCaseExpression()->Accept(*this);
+		Asm.Add(MOV, it->second->GetValue(), EAX);
 
 		CaseLabelName = Asm.GenerateLabel();
 		it->second->SetName(CaseLabelName);
 
-		Asm.Add(POP, EAX);
 		Asm.Add(CMP, EAX, EDX);
 		Asm.Add(JE, CaseLabelName);
 	}
@@ -1492,6 +1512,10 @@ void CCodeGenerator::Output(ostream &Stream)
 {
 	CGlobalSymbolTable *SymTable = Parser.ParseTranslationUnit();
 
+	for (CGlobalSymbolTable::VariablesIterator it = SymTable->VariablesBegin(); it != SymTable->VariablesEnd(); ++it) {
+		Code.AddGlobalVariable(it->second);
+	}
+
 	CFunctionSymbol *FuncSym = NULL;
 
 	for (CGlobalSymbolTable::FunctionsIterator it = SymTable->FunctionsBegin(); it != SymTable->FunctionsEnd(); ++it) {
@@ -1499,6 +1523,9 @@ void CCodeGenerator::Output(ostream &Stream)
 
 		if (FuncSym->GetBody()) {
 			if (Parameters.Optimize) {
+				CConstantFolding cf;
+				FuncSym->GetBody()->Accept(cf);
+
 				CUnreachableCodeElimination uce;
 				FuncSym->GetBody()->Accept(uce);
 			}
@@ -1506,10 +1533,6 @@ void CCodeGenerator::Output(ostream &Stream)
 			Visitor.SetFunction(FuncSym);
 			FuncSym->GetBody()->Accept(Visitor);
 		}
-	}
-
-	for (CGlobalSymbolTable::VariablesIterator it = SymTable->VariablesBegin(); it != SymTable->VariablesEnd(); ++it) {
-		Code.AddGlobalVariable(it->second);
 	}
 
 	if (Parameters.Optimize) {

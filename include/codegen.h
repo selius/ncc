@@ -277,6 +277,7 @@ private:
 	CodeContainer Code;
 
 	map<string, string> StringLiterals;
+	list<CVariableSymbol *> GlobalVariables;
 
 	unsigned int LabelsCount;
 

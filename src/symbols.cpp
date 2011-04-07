@@ -436,7 +436,7 @@ bool CTypeSymbol::IsFunction() const
 
 bool CTypeSymbol::IsScalar() const
 {
-	return IsArithmetic() || IsPointer();
+	return IsArithmetic() || (IsPointer() && !IsArray());
 }
 
 bool CTypeSymbol::CompatibleWith(CTypeSymbol *ASymbol)
@@ -849,7 +849,7 @@ bool CFunctionTypeSymbol::IsFunction() const
  * CVariableSymbol
  ******************************************************************************/
 
-CVariableSymbol::CVariableSymbol(const string &AName /*= ""*/, CTypeSymbol *AType /*= NULL*/) : CSymbol(AName), Type(AType), Offset(0), Global(false)
+CVariableSymbol::CVariableSymbol(const string &AName /*= ""*/, CTypeSymbol *AType /*= NULL*/) : CSymbol(AName), Type(AType), Offset(0), Global(false), InitValue(0.0f)
 {
 }
 
@@ -886,6 +886,16 @@ bool CVariableSymbol::GetGlobal() const
 void CVariableSymbol::SetGlobal(bool AGlobal)
 {
 	Global = AGlobal;
+}
+
+float CVariableSymbol::GetInitValue() const
+{
+	return InitValue;
+}
+
+void CVariableSymbol::SetInitValue(float AInitValue)
+{
+	InitValue = AInitValue;
 }
 
 void CVariableSymbol::Accept(CSymbolsPrettyPrinter &AVisitor)

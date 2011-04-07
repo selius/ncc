@@ -20,7 +20,6 @@ enum ERegister
 	CL,
 	ST0,
 	INVALID_REGISTER,
-	// possibly add FPU registers
 };
 
 enum EMnemonic
@@ -74,7 +73,6 @@ enum EMnemonic
 	FCOMP,
 	FCOMPP,
 	FSTSW,
-	// to be continued
 };
 
 static map<EMnemonic, string> MnemonicsText;

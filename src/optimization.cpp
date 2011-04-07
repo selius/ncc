@@ -378,6 +378,17 @@ void CUnreachableCodeElimination::Visit(CSwitchStatement &AStmt)
 
 void CConstantExpressionComputer::Visit(CUnaryOp &AStmt)
 {
+	AStmt.GetArgument()->Accept(*this);
+
+	ETokenType t = AStmt.GetType();
+
+	if (t == TOKEN_TYPE_OPERATION_MINUS) {
+		Result = -Result;
+	} else if (t == TOKEN_TYPE_OPERATION_LOGIC_NOT) {
+		Result = !Result;
+	} else if (t == TOKEN_TYPE_OPERATION_BITWISE_NOT) {
+		Result = ~(int)Result; // FIXME
+	}
 }
 
 void CConstantExpressionComputer::Visit(CBinaryOp &AStmt)
@@ -403,18 +414,24 @@ void CConstantExpressionComputer::Visit(CBinaryOp &AStmt)
 		if (t == TOKEN_TYPE_OPERATION_SLASH) {
 			Result = LHS / RHS;
 		} else {
-			Result = (int) LHS % (int) RHS;
+			Result = (int) LHS % (int) RHS; // FIXME
 		}
 	} else if (t == TOKEN_TYPE_OPERATION_SHIFT_LEFT) {
-		Result = (int) LHS << (int) RHS;
+		Result = (int) LHS << (int) RHS; // FIXME
 	} else if (t == TOKEN_TYPE_OPERATION_SHIFT_RIGHT) {
-		Result = (int) LHS >> (int) RHS;
+		Result = (int) LHS >> (int) RHS; // FIXME
 	}
 	// TODO: add more
 }
 
 void CConstantExpressionComputer::Visit(CConditionalOp &AStmt)
 {
+	AStmt.GetCondition()->Accept(*this);
+	if (Result) {
+		AStmt.GetTrueExpr()->Accept(*this);
+	} else {
+		AStmt.GetFalseExpr()->Accept(*this);
+	}
 }
 
 void CConstantExpressionComputer::Visit(CIntegerConst &AStmt)
@@ -429,6 +446,7 @@ void CConstantExpressionComputer::Visit(CFloatConst &AStmt)
 
 void CConstantExpressionComputer::Visit(CCharConst &AStmt)
 {
+	Result = AStmt.GetValue();
 }
 
 void CConstantExpressionComputer::Visit(CStringConst &AStmt)

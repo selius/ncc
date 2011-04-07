@@ -39,11 +39,6 @@ CSymbolTable::~CSymbolTable()
 		delete it->second;
 	}
 
-	// all structs are contained in Types too, so we shouldn't delete them here
-	/*for (TagsIterator it = Tags.begin(); it != Tags.end(); ++it) {
-		delete it->second;
-	}*/
-
 	for (TypesIterator it = Types.begin(); it != Types.end(); ++it) {
 		delete it->second;
 	}
@@ -232,7 +227,7 @@ void CArgumentsSymbolTable::InitOffset(CVariableSymbol *ASymbol)
 {
 	ElementsSize += ASymbol->GetType()->GetSize();
 	CurrentOffset += ASymbol->GetType()->GetSize();
-	ASymbol->SetOffset(4 + CurrentOffset);	// FIXME: magic number: 4 - old EBP register value size
+	ASymbol->SetOffset(TypeSize::Pointer + CurrentOffset);
 }
 
 /******************************************************************************

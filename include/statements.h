@@ -3,7 +3,6 @@
 
 #include "common.h"
 #include "symbols.h"
-//#include "expressions.h"
 
 class CExpression;
 
@@ -235,6 +234,8 @@ class CSwitchStatement : public CBlockStatement
 {
 public:
 	typedef map<CExpression *, CCaseLabel *> CasesContainer;	// TODO: replace by list of pairs.. or something like this..
+									//	i don't know what exactly it means..
+									//	i'll decide when i implement or fail to implement constant-folding..
 	typedef CasesContainer::iterator CasesIterator;
 
 	CSwitchStatement(CExpression *ATestExpression = NULL, CStatement *ABody = NULL);

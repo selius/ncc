@@ -319,21 +319,21 @@ void CParser::ParseDeclarationSpecifiers(CDeclarationSpecifier &DeclSpec)
 		}
 	}
 
-	if (!DeclSpec.Type) {	// FIXME: standard behvaiour for C compilers is to default type to int, if it's missing.. encountering ';' without a type isn't an error either, just a warning "useless declaration"..
-		throw CParserException("expected declaration specifier, got " + Token->GetStringifiedType(), pos);
-	} else {
-		if (DeclSpec.Const) {
-			CTypeSymbol *ConstType = DeclSpec.Type->ConstClone();
+	if (!DeclSpec.Type) {
+		// type defaults to int when no type specifier is given
+		DeclSpec.Type = SymbolTableStack.GetGlobal()->GetType("int");
+	}
+	if (DeclSpec.Const) {
+		CTypeSymbol *ConstType = DeclSpec.Type->ConstClone();
 
-			if (CTypeSymbol *OldType = SymbolTableStack.LookupType(ConstType->GetQualifiedName())) {
-				delete ConstType;
-				ConstType = OldType;
-			} else {
-				SymbolTableStack.GetTop()->AddType(ConstType);
-			}
-
-			DeclSpec.Type = ConstType;
+		if (CTypeSymbol *OldType = SymbolTableStack.LookupType(ConstType->GetQualifiedName())) {
+			delete ConstType;
+			ConstType = OldType;
+		} else {
+			SymbolTableStack.GetTop()->AddType(ConstType);
 		}
+
+		DeclSpec.Type = ConstType;
 	}
 }
 
@@ -346,7 +346,7 @@ bool CParser::TryParseDeclarator()
 CSymbol* CParser::ParseInitDeclaratorList(CDeclarationSpecifier &DeclSpec)
 {
 	if (Token->GetType() == TOKEN_TYPE_SEPARATOR_SEMICOLON) {
-		return DeclSpec.Type; // FIXME: we can return NULL... or add separate function for parsing this shit.. or something else..
+		return DeclSpec.Type;
 	}
 
 	CSymbol *LastDeclared;
@@ -594,22 +594,6 @@ void CParser::ParseInitializer(CVariableSymbol *ASymbol)
 	Blocks.top()->Add(Op);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 CStatement* CParser::ParseStatement()
 {
 	if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
@@ -627,7 +611,6 @@ CStatement* CParser::ParseStatement()
 
 	ETokenType type = Token->GetType();
 	if (type == TOKEN_TYPE_KEYWORD && Token->GetText() != "sizeof") {
-		// possibly remove this temp 'result' var..
 		CStatement *result = NULL;
 		string text = Token->GetText();
 		if (text == "if") {
@@ -1334,7 +1317,7 @@ CExpression* CParser::ParseAdditiveExpression()
 
 CExpression* CParser::ParseMultiplicativeExpression()
 {
-	CExpression *Expr = ParseCastExpression();
+	CExpression *Expr = ParseUnaryExpression();
 
 	CBinaryOp *Op;
 
@@ -1344,7 +1327,7 @@ CExpression* CParser::ParseMultiplicativeExpression()
 		NextToken();
 
 		Op->SetLeft(Expr);
-		Op->SetRight(ParseCastExpression());
+		Op->SetRight(ParseUnaryExpression());
 
 		if (Mode != PARSER_MODE_EXPRESSION) {
 			Op->CheckTypes();
@@ -1354,31 +1337,6 @@ CExpression* CParser::ParseMultiplicativeExpression()
 	}
 
 	return Expr;
-}
-
-CExpression* CParser::ParseCastExpression()
-{
-	if (Token->GetType() == TOKEN_TYPE_LEFT_PARENTHESIS) {
-		NextToken();
-		if (Token->GetType() == TOKEN_TYPE_IDENTIFIER) {
-			// parse type..
-			//CSymbol *CastType = NULL;
-			CExpression *CastType = NULL;
-			//CastType = ParseType();
-			if (CastType) {
-				/*if (Token->GetType() == TOKEN_TYPE_RIGHT_PARENTHESIS) {
-					CCastOperator *Op = new CCastOperator(CastType);
-					Op->SetArgument(ParseCastExpression());
-					return Op;
-				} else {
-					throw CParserException("expected RIGHT_PARENTHESIS, got " + Token->GetStringifiedType(), Token->GetPosition());
-				}*/
-			}
-		}
-		PreviousToken();
-	}
-
-	return ParseUnaryExpression();
 }
 
 CExpression* CParser::ParseUnaryExpression()
@@ -1401,17 +1359,7 @@ CExpression* CParser::ParseUnaryExpression()
 
 	CPosition ArgPos = Token->GetPosition();
 
-	if (type == TOKEN_TYPE_OPERATION_INCREMENT || type == TOKEN_TYPE_OPERATION_DECREMENT) {
-		Op->SetArgument(ParseUnaryExpression());
-	} else  if (type == TOKEN_TYPE_KEYWORD) {
-		// TODO: handle sizeof somehow..
-		/*if (Token->GetType() == TOKEN_TYPE_LEFT_PARENTHESIS) {
-			//ParseTypeName();
-		}*/
-		Op->SetArgument(ParseUnaryExpression());
-	} else {
-		Op->SetArgument(ParseCastExpression());
-	}
+	Op->SetArgument(ParseUnaryExpression());
 
 	if (Mode != PARSER_MODE_EXPRESSION) {
 		Op->CheckTypes();

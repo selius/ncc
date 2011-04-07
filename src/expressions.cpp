@@ -405,7 +405,7 @@ void CConditionalOp::SetFalseExpr(CExpression *AFalseExpr)
 
 CTypeSymbol* CConditionalOp::GetResultType() const
 {
-	return TrueExpr->GetResultType();	// types of TrueExpr and FalseExpr must match..
+	return TrueExpr->GetResultType();
 }
 
 bool CConditionalOp::IsConst() const
@@ -424,8 +424,10 @@ void CConditionalOp::CheckTypes() const
 	CTypeSymbol *TE = TrueExpr->GetResultType();
 	CTypeSymbol *FE = FalseExpr->GetResultType();
 
-	if (!(TE->IsArithmetic() && FE->IsArithmetic() || TE->IsStruct() && FE->IsStruct() && TE->CompatibleWith(FE) || TE->IsVoid() && FE->IsVoid() || TE->IsPointer() && FE->IsPointer() && (TE->CompatibleWith(FE)
-			|| dynamic_cast<CPointerSymbol *>(TE)->GetRefType()->IsVoid() || dynamic_cast<CPointerSymbol *>(FE)->GetRefType()->IsVoid()))) {
+	if (!(TE->IsArithmetic() && FE->IsArithmetic() ||
+		TE->IsStruct() && FE->IsStruct() && TE->CompatibleWith(FE) ||
+		TE->IsVoid() && FE->IsVoid() || TE->IsPointer() && FE->IsPointer() && (TE->CompatibleWith(FE)
+		|| dynamic_cast<CPointerSymbol *>(TE)->GetRefType()->IsVoid() || dynamic_cast<CPointerSymbol *>(FE)->GetRefType()->IsVoid()))) {
 		throw CException("invalid operands to " + CScanner::TokenTypesNames[Type], Position);
 	}
 }
@@ -555,28 +557,10 @@ CTypeSymbol* CVariable::GetResultType() const
 	}
 
 	return Symbol->GetType();
-
-	/*CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
-	if (!VarSym) {
-		CFunctionSymbol *FuncSym = dynamic_cast<CFunctionSymbol *>(Symbol);
-		if (!FuncSym) {
-			return NULL;
-		}
-
-		return FuncSym->GetType();
-	}
-
-	return VarSym->GetType();*/
 }
 
 bool CVariable::IsLValue() const
 {
-	// this is check for modifiable lvalue, not regular lvalue..
-	/*CVariableSymbol *VarSym = dynamic_cast<CVariableSymbol *>(Symbol);
-	if (!VarSym) {
-		return false;
-	}*/
-
 	if (!Symbol) {
 		return false;
 	}
@@ -658,8 +642,6 @@ CFunctionCall::CFunctionCall(const CToken &AToken, CFunctionSymbol *AFunction) :
 
 CFunctionCall::~CFunctionCall()
 {
-	//delete Function;
-
 	while (!Arguments.empty()) {
 		delete Arguments.back();
 		Arguments.pop_back();

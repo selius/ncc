@@ -1,1 +1,1 @@
-1, 1: error: expected declaration specifier, got IDENTIFIER
+1, 5: error: expected SEPARATOR_SEMICOLON after declaration, got IDENTIFIER

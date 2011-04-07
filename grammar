@@ -8,6 +8,8 @@ Changes:
 	- Removed unions
 	- Removed volatile, auto, extern, static
 	- Left only one integer and floating point types
+	- Removed cast-expression
+	- Removed "sizeof (typename)"
 
 ( ) groups,
 ? means optional,
@@ -110,16 +112,13 @@ shift-expression: additive-expression (("<<" | ">>") additive-expression)*
 
 additive-expression: multiplicative-expression (("+" | "-") multiplicative-expression)*
 
-multiplicative-expression: cast-expression (("*" | "/" | "%") cast-expression)*
+multiplicative-expression: unary-expression (("*" | "/" | "%") unary-expression)*
 
-cast-expression: ("(" type-name ")")* unary-expression
-  
 unary-expression:
 	("++" | "--" | "sizeof")*
 	(
-		"sizeof" "(" type-name ")" |
 		("&" | "*" | "+" | "-" | "~" | "!")
-		cast-expression | postfix-expression
+		unary-expression | postfix-expression
 	)
 
 postfix-expression:

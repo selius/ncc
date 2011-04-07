@@ -1,5 +1,4 @@
 #include "prettyprinting.h"
-#include "optimization.h" // TEMP
 
 /******************************************************************************
  * CScanPrettyPrinter

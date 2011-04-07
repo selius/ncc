@@ -140,7 +140,6 @@ private:
 	CExpression* ParseAdditiveExpression();
 	CExpression* ParseMultiplicativeExpression();
 
-	CExpression* ParseCastExpression();
 	CExpression* ParseUnaryExpression();
 	CExpression* ParsePostfixExpression();
 

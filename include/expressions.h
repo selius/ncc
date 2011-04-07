@@ -13,8 +13,6 @@ public:
 	CExpression(const CToken &AToken);
 	virtual ~CExpression();
 
-	//virtual void Accept(CStatementVisitor &AVisitor) = 0;
-
 	ETokenType GetType() const;
 	CPosition GetPosition() const;
 

@@ -1067,7 +1067,6 @@ void CCodeGenerationVisitor::Visit(CCharConst &AStmt)
 
 void CCodeGenerationVisitor::Visit(CStringConst &AStmt)
 {
-	// FIXME
 	Asm.Add(PUSH, "$" + Asm.AddStringLiteral(AStmt.GetValue()));
 }
 

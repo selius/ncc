@@ -1,0 +1,7 @@
+main:
+{ }
+|- (null statement)
+|- { }
+|  |- (null statement)
+|  `- (null statement)
+`- (null statement)

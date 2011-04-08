@@ -814,54 +814,15 @@ void CCodeGenerationVisitor::Visit(CBinaryOp &AStmt)
 	ETokenType OpType = AStmt.GetType();
 
 	if (OpType == TOKEN_TYPE_OPERATION_ASSIGN) {
-		/*if (AStmt.GetLeft()->GetResultType()->IsStruct() && AStmt.GetRight()->GetResultType()->IsStruct()) {
-			CStructSymbolTable *LSymT = dynamic_cast<CStructSymbol *>(AStmt.GetLeft()->GetResultType())->GetSymbolTable();
-			CStructSymbolTable *RSymT = dynamic_cast<CStructSymbol *>(AStmt.GetRight()->GetResultType())->GetSymbolTable();
+		AStmt.GetLeft()->Accept(Addr);
+		AStmt.GetRight()->Accept(*this);
 
-			CStructSymbolTable::SymbolsIterator lit = LSymT->Begin();
-			CStructSymbolTable::SymbolsIterator rit = RSymT->Begin();
+		PerformConversion(AStmt.GetLeft()->GetResultType(), AStmt.GetRight()->GetResultType());
 
-			CVariableSymbol *LVarSym;
-			CVariableSymbol *RVarSym;
+		Asm.Add(POP, EAX);
+		Asm.Add(POP, EBX);
 
-			for (; lit != LSymT->End() && rit != RSymT->End(); ++lit, ++rit) {
-				LVarSym = dynamic_cast<CVariableSymbol *>(lit->second);
-				RVarSym = dynamic_cast<CVariableSymbol *>(rit->second);
-
-				if (LVarSym && RVarSym) {
-					AStmt.GetRight()->Accept(*this);
-					Asm.Add(POP, EBX);
-
-					Asm.Add(MOV, RVarSym->GetOffset(), EAX);
-
-					Asm.Add(PUSH, mem(0, EBX, EAX, 1));
-
-					AStmt.GetLeft()->Accept(Addr);
-					Asm.Add(POP, EBX);
-
-					Asm.Add(MOV, LVarSym->GetOffset(), EAX);
-
-					Asm.Add(LEA, mem(0, EBX, EAX, 1), EBX);
-					Asm.Add(POP, EAX);
-
-					Asm.Add(MOV, EAX, mem(EBX));
-				}
-			}
-
-			AStmt.GetLeft()->Accept(*this);
-			return;
-
-		} else {*/
-			AStmt.GetLeft()->Accept(Addr);
-			AStmt.GetRight()->Accept(*this);
-
-			PerformConversion(AStmt.GetLeft()->GetResultType(), AStmt.GetRight()->GetResultType());
-
-			Asm.Add(POP, EAX);
-			Asm.Add(POP, EBX);
-
-			Asm.Add(MOV, EAX, mem(EBX));
-		//}
+		Asm.Add(MOV, EAX, mem(EBX));
 	} else if (OpType == TOKEN_TYPE_SEPARATOR_COMMA) {
 		AStmt.GetLeft()->Accept(*this);
 		AStmt.GetRight()->Accept(*this);
@@ -1074,7 +1035,7 @@ void CCodeGenerationVisitor::Visit(CIntegerConst &AStmt)
 
 void CCodeGenerationVisitor::Visit(CFloatConst &AStmt)
 {
-	// DIRTY HACK: probably will not work on other archs..
+	// this dirty hack probably will not work on other archs..
 
 	float value = AStmt.GetValue();
 	int32_t int_rep = *((int32_t *) &value);
@@ -1093,9 +1054,7 @@ void CCodeGenerationVisitor::Visit(CStringConst &AStmt)
 
 void CCodeGenerationVisitor::Visit(CVariable &AStmt)
 {
-	if (AStmt.GetSymbol()->GetType()->IsStruct()) {
-		AStmt.Accept(Addr);
-	} else if (AStmt.GetSymbol()->GetType()->IsArray()) {
+	if (AStmt.GetSymbol()->GetType()->IsArray()) {
 		AStmt.Accept(Addr);
 	} else {
 		if (AStmt.GetSymbol()->GetGlobal()) {
@@ -1466,39 +1425,6 @@ void CCodeGenerationVisitor::PerformConversion(CTypeSymbol *LHS, CTypeSymbol *RH
 		ConvertIntToFloat();
 	}
 }
-
-/*void CCodeGenerationVisitor::CopyStruct(CVariableSymbol *ADest, CVariableSymbol *ASrc)
-{
-	CStructSymbol *DStructSym = dynamic_cast<CStructSymbol *>(ADest->GetType());
-	CStructSymbolTable *SymT = DStructSym->GetSymbolTable();
-
-	CVariableSymbol *VarSym;
-	CStructSymbolTable::SymbolsIterator sit = SymT->Begin();
-
-	for (;sit != SymT->End(); ++sit) {
-		VarSym = dynamic_cast<CVariableSymbol *>(sit->second);
-
-		if (VarSym->GetType()->IsStruct()) {
-			CopyStruct(DStructSym->GetField(VarSym->GetName()), VarSym);
-
-		} else if (VarSym) {
-			Asm.Add(LEA, mem(ASrc->GetOffset(), EBP), EBX);
-			Asm.Add(MOV, VarSym->GetOffset(), EAX);
-
-			Asm.Add(PUSH, mem(0, EBX, EAX, 1));
-
-			Asm.Add(LEA, mem(ADest->GetOffset(), EBP), EBX);
-			Asm.Add(MOV, VarSym->GetOffset(), EAX);
-
-			Asm.Add(LEA, mem(0, EBX, EAX, 1), EBX);
-			Asm.Add(POP, EAX);
-
-			Asm.Add(MOV, EAX, mem(EBX));
-		}
-	}
-
-
-}*/
 
 /******************************************************************************
  * CCodeGenerator

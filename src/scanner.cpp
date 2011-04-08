@@ -486,6 +486,7 @@ CToken* CScanner::ScanStringConstant()
 	char c;
 
 	while (InputStream.good() && ((c = NextChar()) != '\n')) {
+		// we don't have to process escape sequences in strings because all strings are passed to GAS as is
 		/*if (c == '\\') {
 			Text += ProcessEscapeSequence();
 		} else*/
@@ -739,7 +740,6 @@ string CScanner::ScanIntegerSuffix()
 
 char CScanner::ProcessEscapeSequence()
 {
-	// TODO: add numerical (octal and hexadecimal) values of chars escape sequences support
 	if (!InputStream.good()) {
 		return 0;
 	}

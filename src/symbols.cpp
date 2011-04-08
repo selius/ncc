@@ -204,6 +204,16 @@ CFunctionSymbol* CGlobalSymbolTable::GetFunction(const string &AName) const
 	return it->second;
 }
 
+CSymbol* CGlobalSymbolTable::Get(const string &AName) const
+{
+	CSymbol *Result = CSymbolTable::Get(AName);
+	if (Result) {
+		return Result;
+	}
+	
+	return GetFunction(AName);
+}
+
 bool CGlobalSymbolTable::Exists(const string &AName) const
 {
 	return CSymbolTable::Exists(AName) || Functions.count(AName);
@@ -446,9 +456,8 @@ bool CTypeSymbol::CompatibleWith(CTypeSymbol *ASymbol)
 	} else if (CTypedefSymbol *TypedefSym = dynamic_cast<CTypedefSymbol *>(ASymbol)) {
 		return CompatibleWith(TypedefSym->GetRefType());
 	} else {
-		// FIXME: well, i don't know.. it seems that any plain type are compatible with any other plain type..
+		// it seems that any plain type is compatible with any other plain type..
 		return true;
-		//return (Name == ASymbol->GetName());
 	}
 }
 
@@ -688,7 +697,7 @@ bool CStructSymbol::IsStruct() const
 bool CStructSymbol::CompatibleWith(CTypeSymbol *ASymbol)
 {
 	if (ASymbol->IsStruct()) {
-		return (Name == ASymbol->GetName()); // TODO: verify that it's true..
+		return (Name == ASymbol->GetName());
 	} else if (CTypedefSymbol *TypedefSym = dynamic_cast<CTypedefSymbol *>(ASymbol)) {
 		return CompatibleWith(TypedefSym->GetRefType());
 	} else {

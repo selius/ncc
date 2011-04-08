@@ -59,7 +59,7 @@ public:
 	virtual CFunctionSymbol* GetFunction(const string &AName) const;
 	CStructSymbol* GetTag(const string &AName) const;
 
-	CSymbol* Get(const string &AName) const;
+	virtual CSymbol* Get(const string &AName) const;
 
 	virtual bool Exists(const string &AName) const;
 
@@ -100,6 +100,8 @@ public:
 	void AddFunction(CFunctionSymbol *ASymbol);
 
 	CFunctionSymbol* GetFunction(const string &AName) const;
+
+	CSymbol* Get(const string &AName) const;
 
 	bool Exists(const string &AName) const;
 
@@ -398,9 +400,6 @@ public:
 	void SetBuiltIn(bool ABuiltIn);
 
 	void Accept(CSymbolsPrettyPrinter &AVisitor);
-
-	// TODO: add possibility to check equality of function types
-	// 	a function is characterized by return type and number and type of arguments
 
 private:
 	CTypeSymbol *ReturnType;

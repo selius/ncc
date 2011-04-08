@@ -407,6 +407,9 @@ CFunctionSymbol* CParser::AddFunction(const string &Ident, CTypeSymbol *RetType)
 		throw CParserException("can't declare array of functions", Token->GetPosition());
 	}
 
+	CFunctionSymbol *FuncSym = new CFunctionSymbol(Ident, RetType);
+	ParseParameterList(FuncSym);
+
 	CSymbol *OldDecl = SymbolTableStack.GetGlobal()->Get(Ident);
 
 	if (OldDecl) {
@@ -414,16 +417,36 @@ CFunctionSymbol* CParser::AddFunction(const string &Ident, CTypeSymbol *RetType)
 			throw CParserException("identifier redeclared as different kind of symbol: `" + Ident + "`", Token->GetPosition());
 		}
 
-		// TODO: reparse parameter list and check type compatibility
+		CFunctionSymbol *OldFunc = SymbolTableStack.GetGlobal()->GetFunction(Ident);
 
-		return static_cast<CFunctionSymbol *>(OldDecl);
+		CFunctionSymbol::ArgumentsOrderContainer *olist = OldFunc->GetArgumentsOrderedList();
+		CFunctionSymbol::ArgumentsOrderContainer *nlist = FuncSym->GetArgumentsOrderedList();
+	
+		CFunctionSymbol::ArgumentsOrderIterator oit = olist->begin();
+		CFunctionSymbol::ArgumentsOrderIterator nit = nlist->begin();
+
+		if (!FuncSym->GetReturnType()->CompatibleWith(OldFunc->GetReturnType())) {
+			throw CParserException("function declaration or definition differs from previous one", Token->GetPosition());
+		}
+
+		if (olist->size() != nlist->size()) {
+			throw CParserException("function declaration or definition differs from previous one", Token->GetPosition());
+		}
+
+		for (; oit != olist->end() && nit != nlist->end(); ++oit, ++nit) {
+			if (!(*oit)->GetType()->CompatibleWith((*nit)->GetType())) {
+				throw CParserException("function declaration or definition differs from previous one", Token->GetPosition());
+			}
+		}
+
+		delete FuncSym;
+		FuncSym = OldFunc;
+
 	} else {
-		CFunctionSymbol *FuncSym = new CFunctionSymbol(Ident, RetType);
-		ParseParameterList(FuncSym);
 		SymbolTableStack.GetGlobal()->AddFunction(FuncSym);
-
-		return FuncSym;
 	}
+
+	return FuncSym;
 }
 
 CTypedefSymbol* CParser::AddTypedef(const string &Ident, CTypeSymbol *RefType)
@@ -608,7 +631,10 @@ void CParser::ParseInitializer(CVariableSymbol *ASymbol)
 	Op->SetLeft(new CVariable(CToken(TOKEN_TYPE_IDENTIFIER, ASymbol->GetName(), CPosition()), static_cast<CVariableSymbol *>(ASymbol)));
 	Op->SetRight(ParseConditional());
 
+	bool Const = ASymbol->GetType()->GetConst();
+	ASymbol->GetType()->SetConst(false);
 	Op->CheckTypes();
+	ASymbol->GetType()->SetConst(Const);
 
 	Blocks.top()->Add(Op);
 }
@@ -1538,7 +1564,6 @@ CExpression* CParser::ParsePrimaryExpression()
 
 		if (!Sym) {
 			if (Mode == PARSER_MODE_EXPRESSION) {
-				// FIXME FFFFUUUUU~~~... well, this is not SO bad.. leaks are fixed now, and no crashes happen.. so may be i'll left it as is.
 				CVariableSymbol *VarSym = new CVariableSymbol(Token->GetText(), SymbolTableStack.GetGlobal()->GetType("int"));
 				SymbolTableStack.GetTop()->AddVariable(VarSym);
 				Sym = VarSym;

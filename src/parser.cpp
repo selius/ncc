@@ -714,8 +714,7 @@ CBlockStatement* CParser::ParseBlock()
 	SymbolTableStack.Push(BlockSymTable);
 	Blocks.push(Stmt);
 
-	while (TryParseDeclaration())
-	{
+	while (TryParseDeclaration()) {
 		ParseDeclaration();
 	}
 

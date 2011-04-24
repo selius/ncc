@@ -453,6 +453,10 @@ void CConstantExpressionComputer::Visit(CBinaryOp &AStmt)
 	} else if (t == TOKEN_TYPE_SEPARATOR_COMMA) {
 		Result = RHS;
 	}
+
+	if (!AStmt.GetResultType()->IsFloat()) {
+		Result = (int) Result;
+	}
 }
 
 void CConstantExpressionComputer::Visit(CConditionalOp &AStmt)
@@ -584,14 +588,20 @@ float CConstantExpressionComputer::GetFloatResult()
 
 void CConstantFolding::Visit(CUnaryOp &AStmt)
 {
+	AStmt.SetArgument(TryFold(AStmt.GetArgument()));
 }
 
 void CConstantFolding::Visit(CBinaryOp &AStmt)
 {
+	AStmt.SetLeft(TryFold(AStmt.GetLeft()));
+	AStmt.SetRight(TryFold(AStmt.GetRight()));
 }
 
 void CConstantFolding::Visit(CConditionalOp &AStmt)
 {
+	AStmt.SetCondition(TryFold(AStmt.GetCondition()));
+	AStmt.SetTrueExpr(TryFold(AStmt.GetTrueExpr()));
+	AStmt.SetFalseExpr(TryFold(AStmt.GetFalseExpr()));
 }
 
 void CConstantFolding::Visit(CIntegerConst &AStmt)
@@ -620,22 +630,30 @@ void CConstantFolding::Visit(CFunction &AStmt)
 
 void CConstantFolding::Visit(CPostfixOp &AStmt)
 {
+	AStmt.SetArgument(TryFold(AStmt.GetArgument()));
 }
 
 void CConstantFolding::Visit(CFunctionCall &AStmt)
 {
+	for (CFunctionCall::ArgumentsReverseIterator it = AStmt.RBegin(); it != AStmt.REnd(); ++it) {
+		*it = TryFold(*it);
+	}
 }
 
 void CConstantFolding::Visit(CStructAccess &AStmt)
 {
+	AStmt.SetStruct(TryFold(AStmt.GetStruct()));
 }
 
 void CConstantFolding::Visit(CIndirectAccess &AStmt)
 {
+	AStmt.SetPointer(TryFold(AStmt.GetPointer()));
 }
 
 void CConstantFolding::Visit(CArrayAccess &AStmt)
 {
+	AStmt.SetLeft(TryFold(AStmt.GetLeft()));
+	AStmt.SetRight(TryFold(AStmt.GetRight()));
 }
 
 void CConstantFolding::Visit(CNullStatement &AStmt)
@@ -718,8 +736,8 @@ CExpression* CConstantFolding::TryFold(CStatement *AStmt)
 {
 	CExpression *Expr = static_cast<CExpression *>(AStmt);
 
-	if (!AStmt || !AStmt->IsExpression() || !Expr->IsConst()) {
-		if (AStmt && !AStmt->IsExpression()) {
+	if (!AStmt || !AStmt->IsExpression() || !Expr->IsConst() || Expr->GetType() == TOKEN_TYPE_CONSTANT_STRING) {
+		if (AStmt) {
 			AStmt->Accept(*this);
 		}
 

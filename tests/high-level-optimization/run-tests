@@ -1,7 +1,7 @@
 #!/bin/bash
-# run-tests - script to run ncc optimization tests
+# run-tests - script to run ncc high-level-optimization tests
 
-echo -e "\nRunning optimization tests...\n"
+echo -e "\nRunning $(basename $(pwd)) tests...\n"
 
 SUCCESSFUL=0
 FAILED=0

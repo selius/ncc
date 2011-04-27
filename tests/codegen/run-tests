@@ -1,5 +1,5 @@
 #!/bin/bash
-# run-tests - script to run ncc codegen and optimization tests
+# run-tests - script to run ncc codegen and low-level-optimization tests
 
 echo -e "\nRunning codegen tests...\n"
 
@@ -27,7 +27,7 @@ done
 echo -e "\nSuccessful: $SUCCESSFUL"
 echo -e "Failed: $FAILED\n"
 
-echo -e "\nRunning optimization tests...\n"
+echo -e "\nRunning low-level-optimization tests...\n"
 
 SUCCESSFUL=0
 FAILED=0

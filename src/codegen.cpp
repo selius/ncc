@@ -1436,10 +1436,16 @@ CCodeGenerator::CCodeGenerator(CParser &AParser, const CCompilerParameters &APar
 
 void CCodeGenerator::Output(ostream &Stream)
 {
+
 	CGlobalSymbolTable *SymTable = Parser.ParseTranslationUnit();
 
 	for (CGlobalSymbolTable::VariablesIterator it = SymTable->VariablesBegin(); it != SymTable->VariablesEnd(); ++it) {
 		Code.AddGlobalVariable(it->second);
+	}
+
+	ofstream *TreeStream = NULL;
+	if (!Parameters.TreeFilename.empty()) {
+		TreeStream = new ofstream(Parameters.TreeFilename.c_str());
 	}
 
 	CFunctionSymbol *FuncSym = NULL;
@@ -1454,12 +1460,23 @@ void CCodeGenerator::Output(ostream &Stream)
 
 				CUnreachableCodeElimination uce;
 				FuncSym->GetBody()->Accept(uce);
+
+				CLoopInvariantHoisting lih;
+				FuncSym->GetBody()->Accept(lih);
+			}
+
+			if (TreeStream) {
+				CStatementTreePrintVisitor stpv(*TreeStream);
+				*TreeStream << FuncSym->GetName() << ":" << endl;
+				FuncSym->GetBody()->Accept(stpv);
 			}
 
 			Visitor.SetFunction(FuncSym);
 			FuncSym->GetBody()->Accept(Visitor);
 		}
 	}
+
+	delete TreeStream;
 
 	if (Parameters.Optimize) {
 		CLowLevelOptimizer optimizer(Code);

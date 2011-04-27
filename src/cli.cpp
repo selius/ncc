@@ -80,6 +80,14 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 				} else {
 					throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "invalid value for " + CurArg + " option");
 				}
+			} else if (CurArg == "--tree") {
+				RequireArgument(it);
+
+				if (!Parameters.TreeFilename.empty()) {
+					throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "only one tree output file could be specified");
+				}
+
+				Parameters.TreeFilename = *(++it);
 			} else if (CurArg == "--") {
 				OptionsEnd = true;
 			} else {
@@ -111,6 +119,10 @@ CCompilerParameters CCommandLineInterface::ParseArguments()
 
 	if (Parameters.Optimize && Parameters.CompilerMode != COMPILER_MODE_GENERATE) {
 		throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "optimization can only be enabled when compiler mode is code generation");
+	}
+
+	if (!Parameters.TreeFilename.empty() && Parameters.CompilerMode != COMPILER_MODE_GENERATE) {
+		throw CFatalException(EXIT_CODE_INVALID_ARGUMENTS, "parse tree can only be written to a separate file when compiler mode is code generation");
 	}
 
 	return Parameters;
@@ -194,6 +206,10 @@ void CCommandLineInterface::PopulateHelp()
 
 	Help.Add("", "--parser-output-mode tree|linear", "Set parser output mode to tree-like or linear");
 	Help.Add("", "--parser-mode normal|expression", "Set parser mode to normal or expression-only");
+
+	Help.AddSeparator();
+
+	Help.Add("", "--tree filename", "Output parse tree to a separate file");
 }
 
 void CCommandLineInterface::RequireArgument(ArgumentsIterator &AOption)

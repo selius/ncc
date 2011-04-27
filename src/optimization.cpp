@@ -757,3 +757,217 @@ CExpression* CConstantFolding::TryFold(CStatement *AStmt)
 	delete AStmt;
 	return Result;
 }
+
+/******************************************************************************
+ * CLoopInvariantHoisting
+ ******************************************************************************/
+
+CLoopInvariantHoisting::CLoopInvariantHoisting() : ProcessingLoop(false)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CUnaryOp &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CBinaryOp &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CConditionalOp &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CIntegerConst &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CFloatConst &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CCharConst &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CStringConst &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CVariable &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CFunction &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CPostfixOp &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CFunctionCall &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CStructAccess &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CIndirectAccess &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CArrayAccess &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CNullStatement &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CBlockStatement &AStmt)
+{
+	if (ProcessingLoop) {
+		CBlockStatement::UsedContainer Used;
+		CBlockStatement::AffectedContainer Affected;
+		CBlockStatement::AffectedContainer StmtAffected;
+
+		CBlockStatement::StatementsIterator pit;
+
+		for (CBlockStatement::StatementsIterator it = AStmt.Begin(); it != AStmt.End();) {
+			if (!(*it)->CanBeHoisted()) {
+				++it;
+				continue;
+			}
+
+			Used.clear();
+			Affected.clear();
+			StmtAffected.clear();
+
+			(*it)->GetUsedVariables(Used);
+			(*ParentBlockIterator.top())->GetAffectedVariables(Affected);
+			(*it)->GetAffectedVariables(StmtAffected);
+
+			for (CBlockStatement::AffectedContainer::iterator ait = StmtAffected.begin(); ait != StmtAffected.end(); ++ait) {
+				Affected[ait->first] -= ait->second;
+				if (!Affected[ait->first]) {
+					Affected.erase(ait->first);
+				}
+			}
+
+			bool DoNotAct = false;
+
+			for (CSymbolTable::VariablesIterator vit = AStmt.GetSymbolTable()->VariablesBegin(); vit != AStmt.GetSymbolTable()->VariablesEnd(); ++vit) {
+				if (Used.count(vit->second)) {
+					DoNotAct = true;
+					break;
+				}
+			}
+
+			for (CBlockStatement::AffectedContainer::iterator ait = StmtAffected.begin(); ait != StmtAffected.end(); ++ait) {
+				if (Used.count(ait->first)) {
+					if (Used[ait->first] > ait->second) {
+						DoNotAct = true;
+						break;
+					}
+				}
+			}
+
+			for (CBlockStatement::UsedContainer::iterator uit = Used.begin(); uit != Used.end(); ++uit) {
+				if (Affected.count(uit->first)) {
+					DoNotAct = true;
+					break;
+				}
+			}
+
+			pit = it++;
+
+			if (!DoNotAct) {
+				AStmt.Erase(pit);
+				ParentBlock.top()->Insert(ParentBlockIterator.top(), *pit);
+			}
+		}
+	} else {
+		CBlockStatement::StatementsIterator pit;
+		for (CBlockStatement::StatementsIterator it = AStmt.Begin(); it != AStmt.End();) {
+			ParentBlock.push(&AStmt);
+			ParentBlockIterator.push(it);
+
+			pit = it++;
+			(*pit)->Accept(*this);
+
+			ParentBlockIterator.pop();
+			ParentBlock.pop();
+		}
+	}
+}
+
+void CLoopInvariantHoisting::Visit(CIfStatement &AStmt)
+{
+	TryVisit(AStmt.GetThenStatement());
+	TryVisit(AStmt.GetElseStatement());
+}
+
+void CLoopInvariantHoisting::Visit(CForStatement &AStmt)
+{
+	TryVisit(AStmt.GetBody());
+	ProcessLoop(AStmt.GetBody());
+}
+
+void CLoopInvariantHoisting::Visit(CWhileStatement &AStmt)
+{
+	TryVisit(AStmt.GetBody());
+	ProcessLoop(AStmt.GetBody());
+}
+
+void CLoopInvariantHoisting::Visit(CDoStatement &AStmt)
+{
+	TryVisit(AStmt.GetBody());
+	ProcessLoop(AStmt.GetBody());
+}
+
+void CLoopInvariantHoisting::Visit(CLabel &AStmt)
+{
+	TryVisit(AStmt.GetNext());
+}
+
+void CLoopInvariantHoisting::Visit(CCaseLabel &AStmt)
+{
+	TryVisit(AStmt.GetNext());
+}
+
+void CLoopInvariantHoisting::Visit(CDefaultCaseLabel &AStmt)
+{
+	TryVisit(AStmt.GetNext());
+}
+
+void CLoopInvariantHoisting::Visit(CGotoStatement &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CBreakStatement &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CContinueStatement &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CReturnStatement &AStmt)
+{
+}
+
+void CLoopInvariantHoisting::Visit(CSwitchStatement &AStmt)
+{
+	TryVisit(AStmt.GetBody());
+}
+
+void CLoopInvariantHoisting::ProcessLoop(CStatement *ALoopBody)
+{
+	ProcessingLoop = true;
+
+	TryVisit(ALoopBody);
+
+	ProcessingLoop = false;
+}

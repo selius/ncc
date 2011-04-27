@@ -11,6 +11,7 @@
 #include <list>
 #include <map>
 #include <ostream>
+#include <set>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
@@ -138,6 +139,7 @@ struct CCompilerParameters
 
 	string InputFilename;
 	string OutputFilename;
+	string TreeFilename;
 	ECompilerMode CompilerMode;
 	EParserOutputMode ParserOutputMode;
 	EParserMode ParserMode;

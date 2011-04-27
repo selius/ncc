@@ -1,0 +1,28 @@
+#!/bin/bash
+# run-tests - script to run ncc optimization tests
+
+echo -e "\nRunning optimization tests...\n"
+
+SUCCESSFUL=0
+FAILED=0
+
+for i in *.c
+do
+	j="${i%.c}"
+	../../bin/ncc -G -O $i -o output/$j.s --tree output/$j.tree
+	gcc -o output/$j output/$j.s ../../builtin/builtin.a
+	output/$j > output/$j.out
+	echo $? > output/$j.ret
+
+	if diff -u --strip-trailing-cr reference-output/$j.out output/$j.out && diff -u --strip-trailing-cr reference-output/$j.ret output/$j.ret && diff -u --strip-trailing-cr reference-output/$j.tree output/$j.tree
+	then
+		((SUCCESSFUL += 1))
+		echo "OK - $j"
+	else
+		((FAILED += 1))
+		echo "FAILED - $j"
+	fi
+done
+
+echo -e "\nSuccessful: $SUCCESSFUL"
+echo -e "Failed: $FAILED\n"

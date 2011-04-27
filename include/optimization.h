@@ -165,5 +165,48 @@ private:
 	CConstantExpressionComputer ConstExprComp;
 };
 
+class CLoopInvariantHoisting : public CStatementVisitor
+{
+public:
+	CLoopInvariantHoisting();
+
+	void Visit(CUnaryOp &AStmt);
+	void Visit(CBinaryOp &AStmt);
+	void Visit(CConditionalOp &AStmt);
+	void Visit(CIntegerConst &AStmt);
+	void Visit(CFloatConst &AStmt);
+	void Visit(CCharConst &AStmt);
+	void Visit(CStringConst &AStmt);
+	void Visit(CVariable &AStmt);
+	void Visit(CFunction &AStmt);
+	void Visit(CPostfixOp &AStmt);
+	void Visit(CFunctionCall &AStmt);
+	void Visit(CStructAccess &AStmt);
+	void Visit(CIndirectAccess &AStmt);
+	void Visit(CArrayAccess &AStmt);
+	void Visit(CNullStatement &AStmt);
+	void Visit(CBlockStatement &AStmt);
+	void Visit(CIfStatement &AStmt);
+	void Visit(CForStatement &AStmt);
+	void Visit(CWhileStatement &AStmt);
+	void Visit(CDoStatement &AStmt);
+	void Visit(CLabel &AStmt);
+	void Visit(CCaseLabel &AStmt);
+	void Visit(CDefaultCaseLabel &AStmt);
+	void Visit(CGotoStatement &AStmt);
+	void Visit(CBreakStatement &AStmt);
+	void Visit(CContinueStatement &AStmt);
+	void Visit(CReturnStatement &AStmt);
+	void Visit(CSwitchStatement &AStmt);
+
+private:
+	void ProcessLoop(CStatement *ALoopBody);
+
+	bool ProcessingLoop;
+
+	stack<CBlockStatement *> ParentBlock;
+	stack<CBlockStatement::StatementsIterator> ParentBlockIterator;
+};
+
 
 #endif // _OPTIMIZATION_H_

@@ -20,6 +20,33 @@ bool CStatement::IsExpression() const
 	return false;
 }
 
+bool CStatement::CanBeHoisted() const
+{
+	return false;
+}
+
+void CStatement::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+}
+
+void CStatement::GetUsedVariables(UsedContainer &Used)
+{
+}
+
+void CStatement::TryGetAffected(CStatement *AStmt, AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	if (AStmt) {
+		AStmt->GetAffectedVariables(Affected, Collect);
+	}
+}
+
+void CStatement::TryGetUsed(CStatement *AStmt, UsedContainer &Used)
+{
+	if (AStmt) {
+		AStmt->GetUsedVariables(Used);
+	}
+}
+
 /******************************************************************************
  * CNullStatement
  ******************************************************************************/
@@ -58,6 +85,20 @@ void CBlockStatement::Accept(CStatementVisitor &AVisitor)
 	AVisitor.Visit(*this);
 }
 
+void CBlockStatement::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	for (StatementsIterator it = Begin(); it != End(); ++it) {
+		(*it)->GetAffectedVariables(Affected);
+	}
+}
+
+void CBlockStatement::GetUsedVariables(UsedContainer &Used)
+{
+	for (StatementsIterator it = Begin(); it != End(); ++it) {
+		(*it)->GetUsedVariables(Used);
+	}
+}
+
 CBlockStatement::StatementsIterator CBlockStatement::Begin()
 {
 	return Statements.begin();
@@ -91,6 +132,16 @@ unsigned int CBlockStatement::GetStatementsCount() const
 void CBlockStatement::Add(CStatement *AStatement)
 {
 	Statements.push_back(AStatement);
+}
+
+void CBlockStatement::Insert(CBlockStatement::StatementsIterator APosition, CStatement *AStatement)
+{
+	Statements.insert(APosition, AStatement);
+}
+
+CBlockStatement::StatementsIterator CBlockStatement::Erase(CBlockStatement::StatementsIterator APosition)
+{
+	return Statements.erase(APosition);
 }
 
 CBlockStatement::StatementsIterator CBlockStatement::Erase(CBlockStatement::StatementsIterator AFirst, CBlockStatement::StatementsIterator ALast)
@@ -128,6 +179,20 @@ CIfStatement::~CIfStatement()
 void CIfStatement::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
+}
+
+void CIfStatement::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	TryGetAffected(Condition, Affected);
+	TryGetAffected(ThenStatement, Affected);
+	TryGetAffected(ElseStatement, Affected);
+}
+
+void CIfStatement::GetUsedVariables(UsedContainer &Used)
+{
+	TryGetUsed(Condition, Used);
+	TryGetUsed(ThenStatement, Used);
+	TryGetUsed(ElseStatement, Used);
 }
 
 CExpression* CIfStatement::GetCondition() const
@@ -183,6 +248,22 @@ void CForStatement::Accept(CStatementVisitor &AVisitor)
 	AVisitor.Visit(*this);
 }
 
+void CForStatement::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	TryGetAffected(Init, Affected);
+	TryGetAffected(Condition, Affected);
+	TryGetAffected(Update, Affected);
+	TryGetAffected(Body, Affected);
+}
+
+void CForStatement::GetUsedVariables(UsedContainer &Used)
+{
+	TryGetUsed(Init, Used);
+	TryGetUsed(Condition, Used);
+	TryGetUsed(Update, Used);
+	TryGetUsed(Body, Used);
+}
+
 CExpression* CForStatement::GetInit() const
 {
 	return Init;
@@ -235,6 +316,18 @@ CSingleConditionLoopStatement::~CSingleConditionLoopStatement()
 {
 	delete Condition;
 	delete Body;
+}
+
+void CSingleConditionLoopStatement::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	TryGetAffected(Condition, Affected);
+	TryGetAffected(Body, Affected);
+}
+
+void CSingleConditionLoopStatement::GetUsedVariables(UsedContainer &Used)
+{
+	TryGetUsed(Condition, Used);
+	TryGetUsed(Body, Used);
 }
 
 CExpression* CSingleConditionLoopStatement::GetCondition() const
@@ -302,6 +395,16 @@ CLabel::~CLabel()
 void CLabel::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
+}
+
+void CLabel::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	TryGetAffected(Next, Affected);
+}
+
+void CLabel::GetUsedVariables(UsedContainer &Used)
+{
+	TryGetUsed(Next, Used);
 }
 
 void CLabel::SetName(const string &AName)
@@ -428,6 +531,16 @@ CReturnStatement::~CReturnStatement()
 void CReturnStatement::Accept(CStatementVisitor &AVisitor)
 {
 	AVisitor.Visit(*this);
+}
+
+void CReturnStatement::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	TryGetAffected(ReturnExpression, Affected);
+}
+
+void CReturnStatement::GetUsedVariables(UsedContainer &Used)
+{
+	TryGetUsed(ReturnExpression, Used);
 }
 
 CExpression* CReturnStatement::GetReturnExpression() const

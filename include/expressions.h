@@ -50,6 +50,10 @@ public:
 
 	void CheckTypes() const;
 
+	bool CanBeHoisted() const;
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	void GetUsedVariables(UsedContainer &Used);
+
 protected:
 	CExpression *Argument;
 
@@ -75,6 +79,10 @@ public:
 	bool IsConst() const;
 
 	void CheckTypes() const;
+
+	bool CanBeHoisted() const;
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	void GetUsedVariables(UsedContainer &Used);
 
 protected:
 	CExpression *Left;
@@ -102,6 +110,10 @@ public:
 
 	void CheckTypes() const;
 
+	bool CanBeHoisted() const;
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	void GetUsedVariables(UsedContainer &Used);
+
 private:
 	CExpression *Condition;
 	CExpression *TrueExpr;
@@ -117,6 +129,8 @@ public:
 	CTypeSymbol* GetResultType() const;
 
 	bool IsConst() const;
+
+	bool CanBeHoisted() const;
 
 private:
 	CTypeSymbol *Type;
@@ -194,6 +208,10 @@ public:
 
 	bool IsLValue() const;
 
+	bool CanBeHoisted() const;
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	void GetUsedVariables(UsedContainer &Used);
+
 private:
 	CVariableSymbol *Symbol;
 };
@@ -254,6 +272,8 @@ public:
 	bool IsExpression() const;
 
 	void CheckTypes() const;
+
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
 
 private:
 	CFunctionSymbol *Function;

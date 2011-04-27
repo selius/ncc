@@ -9,6 +9,9 @@ class CExpression;
 class CStatement
 {
 public:
+	typedef map<CVariableSymbol *, int> AffectedContainer;
+	typedef map<CVariableSymbol *, int> UsedContainer;
+
 	virtual ~CStatement();
 
 	virtual void Accept(CStatementVisitor &AVisitor) = 0;
@@ -17,7 +20,14 @@ public:
 
 	virtual bool IsExpression() const;
 
+	virtual bool CanBeHoisted() const;
+	virtual void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	virtual void GetUsedVariables(UsedContainer &Used);
+
 protected:
+	void TryGetAffected(CStatement *AStmt, AffectedContainer &Affected, bool Collect = false);
+	void TryGetUsed(CStatement *AStmt, UsedContainer &Used);
+
 	string Name;
 
 };
@@ -33,7 +43,7 @@ public:
 class CBlockStatement : public CStatement
 {
 public:
-	typedef vector<CStatement *> StatementsContainer;
+	typedef list<CStatement *> StatementsContainer;
 	typedef StatementsContainer::iterator StatementsIterator;
 	
 	typedef vector<CBlockStatement *> NestedBlocksContainer;
@@ -43,6 +53,9 @@ public:
 	~CBlockStatement();
 
 	void Accept(CStatementVisitor &AVisitor);
+
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	void GetUsedVariables(UsedContainer &Used);
 
 	StatementsIterator Begin();
 	StatementsIterator End();
@@ -56,6 +69,9 @@ public:
 
 	void Add(CStatement *AStatement);
 
+	void Insert(StatementsIterator APosition, CStatement *AStatement);
+
+	StatementsIterator Erase(StatementsIterator APosition);
 	StatementsIterator Erase(StatementsIterator AFirst, StatementsIterator ALast);
 
 	CSymbolTable* GetSymbolTable() const;
@@ -74,6 +90,9 @@ public:
 	~CIfStatement();
 
 	void Accept(CStatementVisitor &AVisitor);
+
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	void GetUsedVariables(UsedContainer &Used);
 
 	CExpression* GetCondition() const;
 	void SetCondition(CExpression *ACondition);
@@ -97,6 +116,9 @@ public:
 	~CForStatement();
 
 	void Accept(CStatementVisitor &AVisitor);
+
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	void GetUsedVariables(UsedContainer &Used);
 
 	CExpression* GetInit() const;
 	void SetInit(CExpression *AInit);
@@ -122,6 +144,9 @@ class CSingleConditionLoopStatement : public CStatement
 public:
 	CSingleConditionLoopStatement(CExpression *ACondition, CStatement *ABody);
 	~CSingleConditionLoopStatement();
+
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	void GetUsedVariables(UsedContainer &Used);
 
 	CExpression* GetCondition() const;
 	void SetCondition(CExpression *ACondition);
@@ -155,6 +180,9 @@ public:
 	~CLabel();
 
 	void Accept(CStatementVisitor &AVisitor);
+
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	void GetUsedVariables(UsedContainer &Used);
 
 	void SetName(const string &AName);
 
@@ -222,6 +250,9 @@ public:
 	~CReturnStatement();
 
 	void Accept(CStatementVisitor &AVisitor);
+
+	void GetAffectedVariables(AffectedContainer &Affected, bool Collect = false);
+	void GetUsedVariables(UsedContainer &Used);
 
 	CExpression* GetReturnExpression() const;
 	void SetReturnExpression(CExpression *AReturnExpression);

@@ -197,6 +197,21 @@ void CUnaryOp::CheckTypes() const
 	}
 }
 
+bool CUnaryOp::CanBeHoisted() const
+{
+	return (Type != TOKEN_TYPE_OPERATION_INCREMENT && Type != TOKEN_TYPE_OPERATION_DECREMENT && Argument->CanBeHoisted());
+}
+
+void CUnaryOp::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	TryGetAffected(Argument, Affected, Type == TOKEN_TYPE_OPERATION_INCREMENT || Type == TOKEN_TYPE_OPERATION_DECREMENT || Collect);
+}
+
+void CUnaryOp::GetUsedVariables(UsedContainer &Used)
+{
+	TryGetUsed(Argument, Used);
+}
+
 /******************************************************************************
  * CBinaryOp
  ******************************************************************************/
@@ -347,7 +362,23 @@ void CBinaryOp::CheckTypes() const
 		CheckTypes::Integer(this);
 		break;
 	}
+}
 
+bool CBinaryOp::CanBeHoisted() const
+{
+	return !TokenTraits::IsCompoundAssignment(Type) && Left->CanBeHoisted() && Right->CanBeHoisted();
+}
+
+void CBinaryOp::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	TryGetAffected(Left, Affected, TokenTraits::IsAssignment(Type) || Collect);
+	TryGetAffected(Right, Affected, Collect);
+}
+
+void CBinaryOp::GetUsedVariables(UsedContainer &Used)
+{
+	TryGetUsed(Left, Used);
+	TryGetUsed(Right, Used);
 }
 
 /******************************************************************************
@@ -430,6 +461,25 @@ void CConditionalOp::CheckTypes() const
 	}
 }
 
+bool CConditionalOp::CanBeHoisted() const
+{
+	return Condition->CanBeHoisted() && TrueExpr->CanBeHoisted() && FalseExpr->CanBeHoisted();
+}
+
+void CConditionalOp::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	TryGetAffected(Condition, Affected, Collect);
+	TryGetAffected(TrueExpr, Affected, Collect);
+	TryGetAffected(FalseExpr, Affected, Collect);
+}
+
+void CConditionalOp::GetUsedVariables(UsedContainer &Used)
+{
+	TryGetUsed(Condition, Used);
+	TryGetUsed(TrueExpr, Used);
+	TryGetUsed(FalseExpr, Used);
+}
+
 /******************************************************************************
  * CConst
  ******************************************************************************/
@@ -444,6 +494,11 @@ CTypeSymbol* CConst::GetResultType() const
 }
 
 bool CConst::IsConst() const
+{
+	return true;
+}
+
+bool CConst::CanBeHoisted() const
 {
 	return true;
 }
@@ -564,6 +619,37 @@ bool CVariable::IsLValue() const
 	}
 
 	return !Symbol->GetType()->GetConst();
+}
+
+bool CVariable::CanBeHoisted() const
+{
+	if (!Symbol) {
+		return false;
+	}
+
+	return !Symbol->GetGlobal() && !Symbol->GetType()->IsPointer();
+}
+
+void CVariable::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	if (!Collect) {
+		return;
+	}
+
+	if (!Affected.count(Symbol)) {
+		Affected[Symbol] = 0;
+	}
+
+	++Affected[Symbol];
+}
+
+void CVariable::GetUsedVariables(UsedContainer &Used)
+{
+	if (!Used.count(Symbol)) {
+		Used[Symbol] = 0;
+	}
+
+	++Used[Symbol];
 }
 
 /******************************************************************************
@@ -722,6 +808,13 @@ void CFunctionCall::CheckTypes() const
 		if (!(*ait)->GetResultType()->CompatibleWith(dynamic_cast<CVariableSymbol *>(*fit)->GetType())) {
 			throw CException("function actual parameters don't match its formal parameters", Position);
 		}
+	}
+}
+
+void CFunctionCall::GetAffectedVariables(AffectedContainer &Affected, bool Collect /*= false*/)
+{
+	for (ArgumentsIterator it = Begin(); it != End(); ++it) {
+		TryGetAffected(*it, Affected, true);
 	}
 }
 

@@ -3,6 +3,11 @@
 
 echo -e "\nRunning $(basename $(pwd)) tests...\n"
 
+if [[ ! -d output/ ]]
+then
+	mkdir output/
+fi
+
 SUCCESSFUL=0
 FAILED=0
 

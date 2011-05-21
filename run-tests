@@ -13,6 +13,11 @@ TestMode()
 {
 	echo -e "\nRunning $1 tests...\n"
 
+	if [[ ! -d tests/$1/output/ ]]
+	then
+		mkdir tests/$1/output
+	fi
+
 	SUCCESSFUL=0
 	FAILED=0
 

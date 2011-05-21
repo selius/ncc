@@ -18,14 +18,16 @@ SOURCES		=	src/main.cpp \
 			src/statements.cpp \
 			src/symbols.cpp 
 
-TARGET		=	bin/ncc
+BIN_DIR		=	bin/
 
 BUILTIN_DIR	=	builtin/
+
+TARGET		=	$(BIN_DIR)ncc
 
 CFLAGS		:=	$(CFLAGS) -Iinclude
 
 
-all: $(SOURCES)
+all: $(BIN_DIR) $(SOURCES)
 	$(CXX) -o $(TARGET) $(CFLAGS) $(SOURCES)
 	$(MAKE) -C $(BUILTIN_DIR)
 
@@ -39,7 +41,10 @@ tags:
 	ctags -R --c++-kinds=+p --fields=+iaS --extra=+q .
 
 distclean:
-	-$(RM) $(TARGET)
-	-$(RM) tests/*/output/*
-	-$(RM) tests/codegen/optimized-output/*
+	-$(RM) -r $(BIN_DIR)
+	-$(RM) -r tests/*/output/
+	-$(RM) -r tests/codegen/optimized-output/
 	$(MAKE) -C $(BUILTIN_DIR) distclean
+
+$(BIN_DIR):
+	mkdir $(BIN_DIR)

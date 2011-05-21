@@ -1,0 +1,53 @@
+ncc - Nartov C Compiler
+Copyright 2010-2011  Alexander Nartov
+
+Description
+-----------
+
+ncc is a simple C compiler that has been developed by me during
+"Programming languages and translation methods" course in the university.
+
+Its implementation of C language standard isn't complete, only a subset is
+supported. See file named grammar for more information.
+
+The compiler generates code in GNU Assembler AT&T syntax for x86 platform.
+
+Features
+--------
+
+- scanning and parsing of C code;
+- generating AT&T syntax x86 assembler code for GAS;
+- outputting a parse tree;
+- outputting symbol tables;
+- high and low-level optimizations, e.g.:
+	- constant folding;
+	- loop invariant hoisting;
+	- unreachable code elimination.
+
+
+Compatibility note
+------------------
+
+Compiler generates code that is compatible with GNU/Linux ABI and probably
+needs some modifications for generated code to work on other platforms.
+
+Help
+----
+
+Run ncc with --help option to get usage instructions.
+
+Licensing
+---------
+
+ncc is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+ncc is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with ncc.  If not, see <http://www.gnu.org/licenses/>.
